@@ -58,6 +58,8 @@
       color:var(--tx2);border:1px solid var(--line);padding:7px 11px;cursor:pointer;
       display:flex;justify-content:space-between;align-items:center;gap:8px}
   .opc button:hover{border-color:var(--tx3);color:var(--tx)}
+  .opc button>span{flex:1 1 auto;min-width:0}
+  .opc .preco{flex:0 0 auto}
   .opc button[aria-pressed=true]{border-color:var(--amber);color:var(--tx);background:#1C232A}
   .opc button[aria-pressed=true]::after{content:"●";color:var(--amber);font-size:9px}
   .opc small{color:var(--tx3);font-family:var(--f-m);font-size:10px}
@@ -144,24 +146,41 @@
      pessoas abre link no telefone. */
   #toque{inset:0;display:none}
   #toque.on{display:block}
-  .lado{position:absolute;bottom:16px;display:flex;gap:10px;align-items:flex-end}
-  .lado.esq{left:16px}
-  .lado.dir{right:16px;flex-direction:column;align-items:flex-end}
-  .lado.dir .fila{display:flex;gap:10px;align-items:flex-end}
-  .tq{font-family:var(--f-d);font-size:26px;color:var(--tx);
+  /* manche: um polegar só, e o acelerador é automático */
+  #manche{position:absolute;left:20px;bottom:18px;width:132px;height:132px;border-radius:50%;
+          background:rgba(20,26,32,.42);border:2px solid rgba(255,255,255,.14);
+          touch-action:none;-webkit-user-select:none;user-select:none;
+          display:flex;align-items:center;justify-content:center;backdrop-filter:blur(3px)}
+  #manche i{width:56px;height:56px;border-radius:50%;background:rgba(233,153,43,.55);
+            border:2px solid rgba(255,255,255,.30);display:block;
+            transition:transform .04s linear;pointer-events:none}
+  #manche.puxado i{background:rgba(233,153,43,.85)}
+  #manche .mDica{position:absolute;bottom:-19px;left:0;right:0;text-align:center;
+                 font-family:var(--f-m);font-size:9px;letter-spacing:.16em;
+                 text-transform:uppercase;color:var(--tx3);pointer-events:none}
+  .lado{position:absolute;display:flex;gap:12px;align-items:center}
+  .lado.dir{right:18px;bottom:24px}
+  .tq{font-family:var(--f-d);font-size:14px;letter-spacing:.05em;color:var(--tx);
       background:rgba(20,26,32,.62);border:2px solid rgba(255,255,255,.16);
       width:86px;height:86px;border-radius:50%;cursor:pointer;
       display:flex;align-items:center;justify-content:center;
       touch-action:none;-webkit-user-select:none;user-select:none;
       backdrop-filter:blur(3px)}
-  .tq.grande{width:108px;height:108px;font-size:34px;
+  .tq.grande{width:104px;height:104px;font-size:15px;
              background:rgba(233,153,43,.30);border-color:rgba(233,153,43,.55)}
-  .tq.peq{width:74px;height:74px;font-size:12px;letter-spacing:.06em}
-  .tq.ativo{background:rgba(233,153,43,.62);border-color:var(--amber);color:#141414}
-  #girar{inset:0;display:none;align-items:center;justify-content:center;text-align:center;
-         background:rgba(8,11,14,.94);font-family:var(--f-d);font-size:26px;padding:40px;
-         letter-spacing:.03em}
-  #girar.on{display:flex}
+  .tq.peq{width:68px;height:68px;font-size:11px}
+  .tq.ativo{background:rgba(233,153,43,.72);border-color:var(--amber);color:#141414}
+  #sairCorrida{position:absolute;top:8px;right:10px;width:38px;height:38px;border-radius:50%;
+      background:rgba(20,26,32,.7);border:1px solid rgba(255,255,255,.18);color:var(--tx2);
+      font-size:16px;cursor:pointer;display:none}
+  #toque.on #sairCorrida{display:block}
+  /* dica, não bloqueio: retrato tem que ser jogável, só mostra menos pista */
+  #girar{left:50%;top:96px;transform:translateX(-50%);display:none;
+         background:rgba(12,16,20,.92);border:1px solid var(--line);padding:9px 15px;
+         font-family:var(--f-m);font-size:10.5px;letter-spacing:.11em;text-transform:uppercase;
+         color:var(--tx2);white-space:nowrap}
+  #girar.on{display:block;animation:somedica 6s forwards}
+  @keyframes somedica{0%,70%{opacity:1}100%{opacity:0;visibility:hidden}}
 
   /* ── telas estreitas ── */
   @media (max-width:860px){
@@ -193,6 +212,30 @@
     #aviso{font-size:52px}
     .cartao{min-width:0;width:92vw;padding:22px 20px}
     .cartao h2{font-size:26px}
+  }
+  /* ── EM PÉ ─────────────────────────────────────────────────────────────
+     O menu vira barra de abas embaixo, para nunca cobrir energia, perícia e
+     sucata. A garagem vira gaveta de baixo, e o carro fica visível em cima. */
+  @media (max-width:1000px) and (orientation:portrait){
+    #topo{padding:10px 12px;gap:14px;flex-wrap:wrap}
+    #topo .marca{font-size:16px;width:100%;margin-bottom:2px}
+    #barraE{width:110px}
+    #nav{top:auto;bottom:0;left:0;right:0;display:grid;grid-template-columns:repeat(4,1fr);
+         gap:0;background:rgba(12,16,20,.96);border-top:1px solid var(--line)}
+    #nav button{border:0;border-right:1px solid var(--line2);padding:14px 4px;font-size:13px}
+    #nav button:last-child{border-right:0}
+    #garagem{top:auto;bottom:47px;height:58vh;width:100%;
+             border-left:0;border-top:1px solid var(--line)}
+    #toque .lado.dir{bottom:86px;right:14px}
+    #manche{bottom:80px;left:14px;width:120px;height:120px}
+    #manche i{width:50px;height:50px}
+    #vel{bottom:58px}
+    #volta{top:92px;left:14px}
+    #tempos{top:92px;right:14px}
+    #nitro{left:14px;right:14px;width:auto;top:auto;bottom:214px}
+    #item{left:14px;right:14px;width:auto;top:auto;bottom:244px;transform:none;text-align:center}
+    #item .cx span{font-size:16px}
+    #nav.someNaCorrida{display:none}
   }
   @media (max-width:1000px) and (orientation:landscape){
     #garagem{width:47%;top:50px;border-left:1px solid var(--line);border-top:0}
@@ -246,27 +289,22 @@
 </div>
 
 <div class="ui" id="toque" hidden>
-  <div class="lado esq">
-    <button class="tq" data-k="arrowleft" aria-label="esquerda">◀</button>
-    <button class="tq" data-k="arrowright" aria-label="direita">▶</button>
-  </div>
+  <div id="manche" aria-label="direção"><i id="mancheBola"></i>
+    <span class="mDica">guiar</span></div>
   <div class="lado dir">
-    <div class="fila">
-      <button class="tq peq" data-k="e" aria-label="usar item">ITEM</button>
-      <button class="tq peq" data-k="shift" aria-label="turbo">TURBO</button>
-    </div>
-    <div class="fila">
-      <button class="tq peq" data-k="arrowdown" aria-label="freio">FREIO</button>
-      <button class="tq grande" data-k="arrowup" aria-label="acelerar">▲</button>
-    </div>
+    <button class="tq acao" data-k="e" aria-label="usar item">ITEM</button>
+    <button class="tq acao grande" data-k="shift" aria-label="turbo">TURBO</button>
   </div>
+  <button id="sairCorrida" aria-label="sair da corrida">✕</button>
 </div>
-<div class="ui" id="girar" hidden>Vire o celular na horizontal para correr</div>
+<div class="ui" id="girar" hidden>Deite o celular para ver mais pista</div>
 <div class="ui" id="modal"></div>
 <div class="ui" id="dica"></div>
 
 <script>
 "use strict";
+// atalho no topo: declarado com const, usado antes daqui dava zona morta
+const $=id=>document.getElementById(id);
 /* ══════════════════════════════════════════════════════════════════════════
    CIRCUITO ABERTO — vertical slice (Fase 2)
 
@@ -847,8 +885,34 @@ addEventListener("keydown",e=>{
   if(e.key==="Escape"&&tela==="corrida") irPara("garagem");
 });
 addEventListener("keyup",e=>{teclas[e.key.toLowerCase()]=false;});
-/* ── toque ────────────────────────────────────────────────────────────── */
+/* ── toque ──────────────────────────────────────────────────────────────
+   Um manche para guiar e dois botões de ação. O acelerador é AUTOMÁTICO:
+   com quatro botões de pressionar era preciso uma terceira mão. */
 const ehToque = ("ontouchstart" in window) || navigator.maxTouchPoints>0;
+const manche = { dir:0, freio:false, id:null, cx:0, cy:0, r:56 };
+(function(){
+  const el=document.getElementById("manche"), bola=document.getElementById("mancheBola");
+  const solta=()=>{ manche.dir=0; manche.freio=false; manche.id=null;
+    el.classList.remove("puxado"); bola.style.transform="translate(0,0)"; };
+  el.addEventListener("pointerdown",e=>{
+    e.preventDefault(); manche.id=e.pointerId; el.setPointerCapture(e.pointerId);
+    const r=el.getBoundingClientRect(); manche.cx=r.left+r.width/2; manche.cy=r.top+r.height/2;
+    manche.r=r.width*0.42; el.classList.add("puxado"); mover(e);
+    ligarSomSeMudo();
+  });
+  el.addEventListener("pointermove",e=>{ if(manche.id===e.pointerId){e.preventDefault(); mover(e);} });
+  el.addEventListener("pointerup",e=>{ if(manche.id===e.pointerId) solta(); });
+  el.addEventListener("pointercancel",solta);
+  function mover(e){
+    let dx=e.clientX-manche.cx, dy=e.clientY-manche.cy;
+    const d=Math.hypot(dx,dy), lim=manche.r;
+    if(d>lim){ dx*=lim/d; dy*=lim/d; }
+    bola.style.transform="translate("+dx.toFixed(0)+"px,"+dy.toFixed(0)+"px)";
+    manche.dir=cl(dx/lim,-1,1);
+    manche.freio=dy>lim*0.55;      // puxar pra trás freia e dá ré
+  }
+})();
+document.getElementById("sairCorrida").addEventListener("click",()=>irPara("garagem"));
 for(const b of document.querySelectorAll(".tq")){
   const k=b.dataset.k;
   const liga=e=>{e.preventDefault(); teclas[k]=true; b.classList.add("ativo");
@@ -864,8 +928,13 @@ function ligarSomSeMudo(){ if(som.ctx&&som.ctx.state==="suspended") som.ctx.resu
 function atualizarToque(){
   const mostrar = ehToque && tela==="corrida";
   $("toque").hidden=!mostrar; $("toque").classList.toggle("on",mostrar);
-  const deitar = ehToque && tela==="corrida" && innerHeight>innerWidth;
-  $("girar").hidden=!deitar; $("girar").classList.toggle("on",deitar);
+  // em pé o menu vira barra embaixo e atrapalharia os controles: some na
+  // corrida, e a saída passa a ser o ✕ do próprio HUD
+  $("nav").classList.toggle("someNaCorrida", mostrar && innerHeight>innerWidth);
+  const emPe = ehToque && tela==="corrida" && innerHeight>innerWidth;
+  const g=$("girar");
+  g.hidden=!emPe; g.classList.remove("on");
+  if(emPe){ void g.offsetWidth; g.classList.add("on"); }
 }
 addEventListener("resize",atualizarToque);
 addEventListener("orientationchange",atualizarToque);
@@ -1169,11 +1238,17 @@ function passoCorrida(){
     // existia no ramo do jogador e as IAs saíam 3,2 s na frente.
     const ent = c.t<0 ? {dir:0,acel:0,freio:false,mao:false}
       : p.ia ? iaEntrada(p,c.at,c.t,c.pilotos)
-      : {dir:(teclas.arrowleft||teclas.a?-1:0)+(teclas.arrowright||teclas.d?1:0),
-         acel:(teclas.arrowup||teclas.w)?1:0,
-         freio:!!(teclas.arrowdown||teclas.s),
-         mao:!!teclas[" "],
-         turbo:!!teclas.shift};
+      : (ehToque
+         ? { dir:manche.dir,
+             acel:manche.freio?0:1,          // acelerador automático
+             freio:manche.freio,
+             mao:!!teclas[" "],
+             turbo:!!teclas.shift }
+         : { dir:(teclas.arrowleft||teclas.a?-1:0)+(teclas.arrowright||teclas.d?1:0),
+             acel:(teclas.arrowup||teclas.w)?1:0,
+             freio:!!(teclas.arrowdown||teclas.s),
+             mao:!!teclas[" "],
+             turbo:!!teclas.shift });
     const at = p.ia ? {...c.at, potencia:c.at.potencia*p.perfil.forca,
                        aderencia:c.at.aderencia*(0.94+p.perfil.coragem*0.06)} : c.at;
     passo(p, ent, at, naPista, c.at.terra);
@@ -1546,9 +1621,14 @@ function quadro(agora){
     vista=m4look(olho,[mapa.cam[0],0,mapa.cam[1]],[0,1,0]);
   } else {
     if(girando) camAng+=dt*0.26;
-    olho=[Math.sin(camAng)*Math.cos(0.28)*camDist, Math.sin(0.28)*camDist+.55, Math.cos(camAng)*Math.cos(0.28)*camDist];
+    const estreito=asp<0.85 ? 1.62 : asp<1.2 ? 1.18 : 1;
+    const dist=camDist*estreito;
+    olho=[Math.sin(camAng)*Math.cos(0.28)*dist, Math.sin(0.28)*dist+.55, Math.cos(camAng)*Math.cos(0.28)*dist];
     proj=m4p(0.72,asp,.1,300); neb=120;
-    vista=m4look(olho,[0,.62,0],[0,1,0]);
+    // com a gaveta ocupando a parte de baixo, o alvo desce para o carro
+    // aparecer na faixa que sobrou em cima
+    const gaveta = tela==="garagem" && innerHeight>innerWidth && innerWidth<=1000;
+    vista=m4look(olho,[0,gaveta?-2.0:.62,0],[0,1,0]);
   }
 
   gl.useProgram(pObj);
@@ -1626,7 +1706,6 @@ function quadro(agora){
 /* ══════════════════════════════════════════════════════════════════════════
    INTERFACE
    ══════════════════════════════════════════════════════════════════════════ */
-const $=id=>document.getElementById(id);
 function atualizarHUD(){
   if(tela==="mapa"&&mapa&&mapa.total>0&&(mapa.t|0)!==ultimoTick){
     ultimoTick=mapa.t|0;
