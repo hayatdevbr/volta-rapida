@@ -276,26 +276,39 @@ function maisProximo(pista, x, z, ult){
    Determinística de propósito: na Fase 3 o servidor re-simula o log de
    entradas e compara, que é como o Trackmania valida tempo. */
 const DT=1/120;
+const ORCAMENTO_DESLIZE = 4.2;   // m/s de lateral que o pneu aguenta de graça
+
 function passo(c, ent, at, naPista, terra){
   const spd=Math.hypot(c.vx,c.vz);
-  const dirMax=1-0.52*cl(spd/38,0,1);
-  c.dir=lerp(c.dir, ent.dir*dirMax, 0.22);
-  c.h += c.dir*2.75*cl(spd/5,0,1)*DT*(c.vl<0?-1:1);
+
+  // volante: afina em alta velocidade, mas nunca some
+  const dirMax=1-0.40*cl(spd/44,0,1);
+  c.dir=lerp(c.dir, ent.dir*dirMax, 0.26);
+
+  // gira o carro primeiro; a velocidade fica pra trás e é isso que vira deslize
+  c.h += c.dir*2.95*cl(spd/5,0,1)*DT*(c.vl<0?-1:1);
 
   const cs=Math.cos(c.h), sn=Math.sin(c.h);
   let vl= c.vx*cs+c.vz*sn, vt=-c.vx*sn+c.vz*cs;
 
   const superficie = naPista?1:terra;
-  vl += (ent.acel*at.potencia*superficie - (ent.freio?22:0))*DT;
-  vl -= vl*Math.abs(vl)*at.arrasto*DT;      // o *60 daqui punha o arrasto 60x forte
-  vl *= 1-(naPista?0.18:1.7)*DT;            // rolamento
-  vl = cl(vl,-12,at.vmax);
+  if(ent.acel>0) vl += ent.acel*at.potencia*superficie*DT;
+  if(ent.freio)  vl -= (vl>0.5?26:8)*DT;          // segurando parado, engata a ré
+  vl -= vl*Math.abs(vl)*at.arrasto*DT;
+  vl *= 1-(naPista?0.18:1.7)*DT;
+  vl = cl(vl,-11,at.vmax);
 
-  const ader=at.aderencia*(naPista?1:0.52*terra);
-  const antes=Math.abs(vt);
+  // ADERÊNCIA COM ORÇAMENTO DE DESLIZE.
+  // Antes, QUALQUER curva descontava velocidade e o carro parecia freado a
+  // cada volante. Agora o pneu tem uma cota de escorregada de graça e só o
+  // EXCESSO arranha — que é o que faz curva rápida ser prazerosa e derrapada
+  // grande ser cara.
+  const freioDeMao = ent.mao ? 0.30 : 1;
+  const ader = at.aderencia*(naPista?1:0.5*terra)*freioDeMao;
   vt *= Math.exp(-ader*DT);
-  c.derrapa = Math.max(0,(antes-Math.abs(vt))*(spd>6?1:0));
-  vl -= c.derrapa*0.55;                    // arrastar pneu custa velocidade
+  const excesso = Math.max(0, Math.abs(vt) - ORCAMENTO_DESLIZE);
+  vl -= excesso*1.15*DT;
+  c.derrapa = Math.abs(vt);                        // o quanto está de lado AGORA
 
   c.vl=vl;
   c.vx=vl*cs-vt*sn; c.vz=vl*sn+vt*cs;
@@ -575,7 +588,7 @@ function motorSom(rpm,carga){
    ESTADO DE CENA
    ══════════════════════════════════════════════════════════════════════════ */
 let tela="garagem";
-let malhaCarro=null, malhaPista=null, malhaRival=[], malhaPoco=null, malhaChao=null;
+let malhaCarro=null, malhaPista=null, malhaRival=[], malhaPoco=null, malhaChao=null, malhaSeta=null;
 let pista=gerarPista(3);
 let corrida=null, mapa=null;
 let camY=0.6, camDist=9.5, camAng=-0.7, girando=true;
@@ -587,6 +600,11 @@ addEventListener("keydown",e=>{
   if(e.key==="Escape"&&tela==="corrida") irPara("garagem");
 });
 addEventListener("keyup",e=>{teclas[e.key.toLowerCase()]=false;});
+addEventListener("wheel",e=>{
+  if(tela!=="mapa"||!mapa)return;
+  e.preventDefault();
+  mapa.zoom=cl(mapa.zoom*(1+Math.sign(e.deltaY)*0.13),0.45,3.4);
+},{passive:false});
 
 function reconstruirCarro(){
   malhaCarro=subir(construirCarro(montar()));
@@ -608,6 +626,16 @@ function construirChao(){
   }
   malhaChao=subir(B);
 }
+function construirSeta(){
+  const B=new M(), am=[1.9,1.05,.25];
+  const r=1.5, h=2.4;
+  for(let i=0;i<5;i++){
+    const a0=i/5*6.2832, a1=(i+1)/5*6.2832;
+    B.tri([0,-h,0],[Math.cos(a0)*r,0,Math.sin(a0)*r],[Math.cos(a1)*r,0,Math.sin(a1)*r],am);
+    B.tri([0,h*.45,0],[Math.cos(a1)*r,0,Math.sin(a1)*r],[Math.cos(a0)*r,0,Math.sin(a0)*r],esc(am,.6));
+  }
+  malhaSeta=subir(B);
+}
 function construirPoco(){
   const B=new M(), am=[1.6,.95,.22];
   B.cilY(0,1.1,0,.55,2.2,7,am);
@@ -622,9 +650,19 @@ function construirPoco(){
 const VOLTAS=2;
 function novoPiloto(i){
   const p=pista.pontos[0];
-  const off=(i-1.5)*3.0;
+  const off=(i-1.5)*3.4;
+  const r=semente(1000+i*37+Math.floor(Math.random()*9999));
   return {x:p.x+p.nx*off, z:p.z+p.nz*off, h:Math.atan2(p.tz,p.tx),
-          vx:0,vz:0,vl:0,dir:0,derrapa:0, seg:0, volta:0, prog:0, terminou:-1, ia:i>0};
+          vx:0,vz:0,vl:0,dir:0,derrapa:0, seg:0, volta:0, prog:0, terminou:-1, ia:i>0,
+          // PERSONALIDADE: sem isto os rivais andam em fila indiana feito trenzinho
+          perfil:{
+            linha:   (r()*2-1)*0.62,      // quanto puxa pra dentro ou pra fora
+            coragem: 0.86+r()*0.30,       // o quão tarde freia
+            forca:   0.90+r()*0.14,       // potência relativa
+            erro:    0.05+r()*0.13,       // amplitude do erro de volante
+            ritmo:   0.5+r()*1.4,         // frequência do erro
+            fase:    r()*6.28,
+          }};
 }
 function iniciarCorrida(){
   const at=atributos();
@@ -637,25 +675,47 @@ function iniciarCorrida(){
   document.getElementById("hud").classList.add("on");
   document.getElementById("modal").classList.remove("on");
 }
-function iaEntrada(p, at){
-  const n=pista.n, spd=Math.hypot(p.vx,p.vz);
+function iaEntrada(p, at, t, rivais){
+  const n=pista.n, spd=Math.hypot(p.vx,p.vz), P=p.perfil;
   const look=Math.round(4+spd*0.30);
   const norm=a=>{while(a>Math.PI)a-=6.2832; while(a<-Math.PI)a+=6.2832; return a;};
-  const alvo=pista.pontos[(p.seg+look)%n];
-  const ang=norm(Math.atan2(alvo.z-p.z,alvo.x-p.x)-p.h);
-
-  // ERRO LATERAL COM SINAL. Sem este termo a IA mantém o rumo mas nunca volta
-  // ao centro: persegue o ponto adiante cortando caminho pela grama para sempre.
   const aqui=pista.pontos[p.seg];
+
+  // linha preferida: cada um corre num traçado diferente, não em fila
+  const alvoIdx=(p.seg+look)%n, ap=pista.pontos[alvoIdx];
+  let desvio=P.linha*ap.larg*0.34;
+
+  // desviar de quem está na frente — é isto que gera ultrapassagem
+  for(const o of rivais){
+    if(o===p||o.terminou>=0) continue;
+    const dx=o.x-p.x, dz=o.z-p.z, d=Math.hypot(dx,dz);
+    if(d>16||d<0.1) continue;
+    const aFrente=(dx*Math.cos(p.h)+dz*Math.sin(p.h))/d;
+    if(aFrente<0.55) continue;                       // só quem está mesmo à frente
+    const ladoDele=(o.x-aqui.x)*aqui.nx+(o.z-aqui.z)*aqui.nz;
+    desvio += (ladoDele>0?-1:1)*(16-d)*0.42*P.coragem;
+  }
+  desvio=cl(desvio,-ap.larg*0.44,ap.larg*0.44);
+
+  const ax=ap.x+ap.nx*desvio, az=ap.z+ap.nz*desvio;
+  const ang=norm(Math.atan2(az-p.z,ax-p.x)-p.h);
+
   const lat=(p.x-aqui.x)*aqui.nx+(p.z-aqui.z)*aqui.nz;
-  const correcao=-cl(lat*0.09,-0.8,0.8);
+  const correcao=-cl((lat-desvio)*0.09,-0.8,0.8);
 
   const frente=pista.pontos[(p.seg+look*2)%n];
   const curva=Math.abs(norm(Math.atan2(frente.z-p.z,frente.x-p.x)-p.h));
-  // acelerador proporcional à curva, e freio antecipado pela própria velocidade
-  return {dir:cl(ang*1.9+correcao,-1,1),
-          acel:cl(1-curva*1.5,0.28,1),
-          freio:curva>0.52&&spd>at.vmax*0.40};
+
+  // erro humano: mão que treme e às vezes entra torto
+  const tremor=Math.sin(t*P.ritmo+P.fase)*P.erro;
+
+  // controlador de velocidade-alvo: ele estima o quanto a curva aguenta e
+  // persegue esse número. Limiar fixo não escala com a potência do carro.
+  const vAlvo=at.vmax*cl(1.06-curva*1.25,0.20,1)*P.coragem;
+  return {dir:cl(ang*1.9+correcao+tremor,-1,1),
+          acel: spd<vAlvo ? P.forca : 0.16,
+          freio: spd>vAlvo*1.14,
+          mao: curva>1.0&&spd>vAlvo*1.35};
 }
 function passoCorrida(){
   const c=corrida; if(!c)return;
@@ -673,11 +733,14 @@ function passoCorrida(){
     }
     p.seg=np.i;
     const naPista=np.dist < pista.pontos[np.i].larg/2 + 0.6;
-    const ent = p.ia ? iaEntrada(p,c.at)
+    const ent = p.ia ? iaEntrada(p,c.at,c.t,c.pilotos)
       : (c.t<0 ? {dir:0,acel:0,freio:false}
         : {dir:(teclas.arrowleft||teclas.a?-1:0)+(teclas.arrowright||teclas.d?1:0),
-           acel:(teclas.arrowup||teclas.w)?1:0, freio:!!(teclas.arrowdown||teclas.s||teclas[" "])});
-    const at = p.ia ? {...c.at, potencia:c.at.potencia*0.94, aderencia:c.at.aderencia*0.97} : c.at;
+           acel:(teclas.arrowup||teclas.w)?1:0,
+           freio:!!(teclas.arrowdown||teclas.s),
+           mao:!!(teclas[" "]||teclas.shift)});
+    const at = p.ia ? {...c.at, potencia:c.at.potencia*p.perfil.forca,
+                       aderencia:c.at.aderencia*(0.94+p.perfil.coragem*0.06)} : c.at;
     passo(p, ent, at, naPista, c.at.terra);
     p.prog=p.volta*pista.n+np.i;
 
@@ -685,10 +748,10 @@ function passoCorrida(){
       if(c.t>=0) c.tVolta+=DT;
       c.pico=Math.max(c.pico,Math.hypot(p.vx,p.vz));
       // Perícia: derrapagem controlada dentro da pista. Só mão humana consegue.
-      if(p.derrapa>0.09 && naPista && Math.hypot(p.vx,p.vz)>16){
-        c.periciaGanha+=p.derrapa*DT*2.6;
+      if(p.derrapa>ORCAMENTO_DESLIZE && naPista && Math.hypot(p.vx,p.vz)>14){
+        c.periciaGanha+=(p.derrapa-ORCAMENTO_DESLIZE)*DT*1.4;
       }
-      if(p.derrapa>0.05 && naPista && c.marcas.length<900 && Math.random()<.5)
+      if(p.derrapa>ORCAMENTO_DESLIZE*0.7 && naPista && c.marcas.length<900 && Math.random()<.5)
         c.marcas.push({x:p.x,z:p.z,h:p.h,v:1});
     }
   }
@@ -739,61 +802,79 @@ function terminarCorrida(){
 /* ══════════════════════════════════════════════════════════════════════════
    MAPA IDLE
    ══════════════════════════════════════════════════════════════════════════ */
+/* A zona faz surgir carga a uma taxa FIXA — essa é a torneira, e ela não muda
+   com quantos carros estão no mapa. O que muda é quanto sobra pra você: quem
+   chega primeiro leva. É a mesma lei de antes, mas disputada em movimento em
+   vez de dividida parado.
+
+   O desenho anterior deixava os carros orbitando em cima do poço feito
+   beyblade: sem disputa visível, sem decisão, sem vida. */
+const ZONA={ raio:170, intervalo:2.4, valor:24, maxCargas:16 };
+
+function surgirCarga(m,r){
+  const rr=r||Math.random;
+  const a=rr()*6.2832, d=Math.sqrt(rr())*ZONA.raio;
+  m.cargas.push({x:Math.cos(a)*d, z:Math.sin(a)*d, nasceu:m.t});
+}
+
 function iniciarMapa(){
-  const r=semente(91);
-  const pocos=[], carros=[];
-  for(let i=0;i<9;i++) pocos.push({x:(r()-.5)*150, z:(r()-.5)*150, carga:1});
-  for(let i=0;i<11;i++) carros.push({x:(r()-.5)*150,z:(r()-.5)*150,h:r()*6.28,vel:6+r()*4,alvo:0,meu:i===0});
-  mapa={pocos,carros,t:0};
-  // recupera o que aconteceu desde a última visita: nada disso precisa de aba aberta
+  const r=semente(91), carros=[];
+  for(let i=0;i<12;i++) carros.push({
+    x:(r()-.5)*300, z:(r()-.5)*300, h:r()*6.2832,
+    vel:16+r()*10, giro:1.5+r()*1.0, meu:i===0, coletou:0, alvo:-1,
+  });
+  carros[0].vel=21; carros[0].giro=2.3;      // o seu carro é o melhor do mapa
+  mapa={cargas:[], carros, t:0, proxima:0, minhas:0, total:0, zoom:1, cam:null, brilho:0};
+  for(let i=0;i<9;i++) surgirCarga(mapa,r);
+
+  // recupera o que rendeu desde a última visita: nada disso precisa de aba aberta
   const seg=Math.min(8*3600,(Date.now()-estado.idleUltimo)/1000);
   estado.idleUltimo=Date.now();
-  const res=simularIdle(Math.max(seg,240), 0);
-  if(res.ganho>1) mostrarDica(`Coletado enquanto você esteve fora: +${Math.round(res.ganho)} de energia`
-    + (res.cheia?" · bateria cheia, o carro parou de coletar":""));
+  const res=simularIdle(Math.max(seg,240),0);
+  if(res.ganho>1) mostrarDica("Seu carro coletou "+Math.round(res.ganho)+" de energia enquanto você esteve fora"
+    +(res.cheia?" · bateria encheu e ele parou":""),6000);
 }
-const RAIO_POCO=9, RENDA_POCO=7.5;   // o poço rende isto por segundo, no TOTAL
+
 function passoMapa(dt){
-  if(!mapa)return; mapa.t+=dt;
+  if(!mapa)return; const m=mapa; m.t+=dt;
 
-  // quem está em cima de cada poço agora
-  const ocup=mapa.pocos.map(()=>0);
-  for(const c of mapa.carros){
-    c.noPoco=-1;
-    mapa.pocos.forEach((p,i)=>{ if(p.carga>.05 && Math.hypot(p.x-c.x,p.z-c.z)<RAIO_POCO){ c.noPoco=i; } });
-    if(c.noPoco>=0) ocup[c.noPoco]++;
-  }
+  m.proxima-=dt;
+  if(m.proxima<=0){ if(m.cargas.length<ZONA.maxCargas) surgirCarga(m); m.proxima=ZONA.intervalo; }
 
-  for(const c of mapa.carros){
-    // ESCOLHA COM DISPUTA: poço lotado vale menos. É o que espalha os carros
-    // pelo mapa em vez de todos empilharem no mesmo lugar — e é a mesma lei
-    // que faz uma fazenda de contas roubar energia de si mesma.
-    let mel=0, melhorValor=-1;
-    mapa.pocos.forEach((p,i)=>{
-      if(p.carga<=.05) return;
-      const dist=Math.hypot(p.x-c.x,p.z-c.z);
-      const disputa=ocup[i]+(c.noPoco===i?0:1);
-      const valor=(p.carga*RENDA_POCO/disputa)/(dist*0.10+6);
-      if(valor>melhorValor){ melhorValor=valor; mel=i; }
-    });
-    c.alvo=mel; const p=mapa.pocos[mel];
-    const ang=Math.atan2(p.z-c.z,p.x-c.x);
+  for(const c of m.carros){
+    // Escolhe a carga que ele acha que CONSEGUE pegar: perto, e com poucos
+    // rivais chegando antes. É a decisão que dá vida ao mapa.
+    let mel=-1, melValor=-1;
+    for(let i=0;i<m.cargas.length;i++){
+      const g=m.cargas[i];
+      const meuTempo=Math.hypot(g.x-c.x,g.z-c.z)/c.vel;
+      let perdendo=0;
+      for(const o of m.carros){
+        if(o===c) continue;
+        if(Math.hypot(g.x-o.x,g.z-o.z)/o.vel < meuTempo) perdendo++;
+      }
+      const valor=1/((meuTempo+0.6)*(1+perdendo*1.7));
+      if(valor>melValor){ melValor=valor; mel=i; }
+    }
+    c.alvo=mel;
+    if(mel<0) continue;
+
+    const g=m.cargas[mel];
+    const ang=Math.atan2(g.z-c.z,g.x-c.x);
     let d=ang-c.h; while(d>Math.PI)d-=6.2832; while(d<-Math.PI)d+=6.2832;
-    c.h+=cl(d,-2.0*dt,2.0*dt);
+    c.h+=cl(d,-c.giro*dt,c.giro*dt);
+    const v=c.vel*(1-cl(Math.abs(d),0,1.5)*0.42);   // freia pra fazer a curva
+    c.x+=Math.cos(c.h)*v*dt; c.z+=Math.sin(c.h)*v*dt;
 
-    if(c.noPoco<0){ c.x+=Math.cos(c.h)*c.vel*dt; c.z+=Math.sin(c.h)*c.vel*dt; }
-    else{
-      // ronda devagar em volta do poço, em vez de parar em cima
-      c.x+=Math.cos(c.h)*c.vel*0.28*dt; c.z+=Math.sin(c.h)*c.vel*0.28*dt;
-      const fatia=RENDA_POCO/Math.max(1,ocup[c.noPoco]);
-      mapa.pocos[c.noPoco].carga-=dt*0.012*ocup[c.noPoco];
-      if(c.meu){ estado.energia=cl(estado.energia+fatia*dt,0,BATERIA);
-                 mapa.fatia=fatia; mapa.disputa=ocup[c.noPoco]; }
+    if(Math.hypot(g.x-c.x,g.z-c.z)<3.6){
+      m.cargas.splice(mel,1); c.coletou++; m.total++;
+      if(c.meu){
+        m.minhas++; m.brilho=1;
+        estado.energia=cl(estado.energia+ZONA.valor,0,BATERIA);
+      }
     }
   }
-  for(const p of mapa.pocos) if(p.carga<=.05){
-    const r=Math.random; p.x=(r()-.5)*150; p.z=(r()-.5)*150; p.carga=1;
-  }
+  if(m.brilho>0) m.brilho-=dt*2.4;
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
@@ -837,8 +918,14 @@ function quadro(agora){
     motorSom(cl(spd/corrida.at.vmax,0,1), (teclas.arrowup||teclas.w)?1:0.2);
   } else if(tela==="mapa"){
     passoMapa(dt);
-    olho=[0,132,96]; proj=m4p(0.72,asp,.5,600); neb=260;
-    vista=m4look(olho,[0,0,4],[0,1,0]);
+    const eu=mapa.carros[0];
+    if(!mapa.cam) mapa.cam=[eu.x,eu.z];
+    const k=1-Math.pow(0.0025,dt);
+    mapa.cam[0]=lerp(mapa.cam[0],eu.x,k); mapa.cam[1]=lerp(mapa.cam[1],eu.z,k);
+    const alt=56*mapa.zoom;
+    olho=[mapa.cam[0], alt, mapa.cam[1]+alt*0.60];
+    proj=m4p(0.72,asp,.5,900); neb=420;
+    vista=m4look(olho,[mapa.cam[0],0,mapa.cam[1]],[0,1,0]);
   } else {
     if(girando) camAng+=dt*0.26;
     olho=[Math.sin(camAng)*Math.cos(0.28)*camDist, Math.sin(0.28)*camDist+.55, Math.cos(camAng)*Math.cos(0.28)*camDist];
@@ -860,11 +947,19 @@ function quadro(agora){
     });
   } else if(tela==="mapa"){
     desenhar(malhaChao,m4pose(0,0,0,0));
-    mapa.pocos.forEach(p=>{ if(p.carga>.05) desenhar(malhaPoco,m4pose(p.x,0,p.z,mapa.t*.6,.5+p.carga*.7)); });
+    mapa.cargas.forEach(g=>{
+      const idade=mapa.t-g.nasceu;
+      const pulso=0.85+Math.sin(mapa.t*3.4+g.x)*0.13;
+      const nascendo=cl(idade*2.5,0,1);
+      desenhar(malhaPoco,m4pose(g.x,0,g.z,mapa.t*1.1,pulso*nascendo*1.15));
+    });
     mapa.carros.forEach((c,i)=>{
       const m=c.meu?malhaCarro:malhaRival[i%malhaRival.length];
       desenhar(m,m4pose(c.x,0,c.z,-c.h,2.1));
     });
+    // seta em cima do meu carro: sem isto não dá pra achar quem é você
+    const eu=mapa.carros[0];
+    desenhar(malhaSeta,m4pose(eu.x,7.5+Math.sin(mapa.t*3)*0.7,eu.z,mapa.t*1.6,1+mapa.brilho*0.8));
   } else {
     desenhar(malhaCarro,m4pose(0,0,0,0));
   }
@@ -895,7 +990,8 @@ function atualizarHUD(){
     else if(corrida.t<0.9) av.textContent="VAI";
     else av.textContent="";
     const pe=$("pericia");
-    if(p.derrapa>0.09){ pe.textContent="+ PERÍCIA"; pe.style.opacity=Math.min(1,p.derrapa*4); }
+    if(p.derrapa>ORCAMENTO_DESLIZE){ pe.textContent="+ PERÍCIA";
+      pe.style.opacity=Math.min(1,(p.derrapa-ORCAMENTO_DESLIZE)*0.25); }
     else pe.style.opacity=Math.max(0,parseFloat(pe.style.opacity||0)-0.06);
   }
 }
@@ -905,9 +1001,9 @@ function mostrarDica(txt,ms=5200){ $("dica").textContent=txt; clearTimeout(dicaT
   dicaT=setTimeout(()=>{$("dica").textContent=dicaPadrao();},ms); }
 function dicaPadrao(){
   return tela==="corrida" ? "SETAS OU WASD  ·  ESPAÇO FREIA  ·  R REINICIA  ·  ESC SAI"
-    : tela==="mapa" ? (mapa&&mapa.disputa>1
-        ? "DISPUTANDO ESTE POÇO COM "+(mapa.disputa-1)+" CARRO"+(mapa.disputa>2?"S":"")+" · SUA FATIA CAIU PARA "+mapa.fatia.toFixed(1)+"/s"
-        : "SEU CARRO É O VERMELHO · O POÇO RENDE UM TOTAL FIXO, DIVIDIDO ENTRE QUEM ESTÁ NELE")
+    : tela==="mapa" ? (mapa&&mapa.total>0
+        ? "VOCÊ PEGOU "+mapa.minhas+" DE "+mapa.total+" CARGAS ("+Math.round(mapa.minhas/mapa.total*100)+"% DA ZONA) · 11 CARROS DISPUTANDO · RODA DO MOUSE DÁ ZOOM"
+        : "A ZONA FAZ SURGIR CARGA A TAXA FIXA E QUEM CHEGA PRIMEIRO LEVA · RODA DO MOUSE DÁ ZOOM")
     : "TROQUE AS PEÇAS E VEJA O CARRO E OS ATRIBUTOS MUDAREM";
 }
 function gastarEnergia(){
@@ -985,7 +1081,7 @@ function montarGaragem(){
 }
 
 /* ── partida ── */
-reconstruirCarro(); reconstruirPista(); construirPoco(); construirChao(); montarGaragem();
+reconstruirCarro(); reconstruirPista(); construirPoco(); construirChao(); construirSeta(); montarGaragem();
 $("dica").textContent=dicaPadrao();
 requestAnimationFrame(quadro);
 </script>
