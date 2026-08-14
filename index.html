@@ -627,12 +627,13 @@ function construirChao(){
   malhaChao=subir(B);
 }
 function construirSeta(){
-  const B=new M(), am=[1.9,1.05,.25];
-  const r=1.5, h=2.4;
-  for(let i=0;i<5;i++){
-    const a0=i/5*6.2832, a1=(i+1)/5*6.2832;
-    B.tri([0,-h,0],[Math.cos(a0)*r,0,Math.sin(a0)*r],[Math.cos(a1)*r,0,Math.sin(a1)*r],am);
-    B.tri([0,h*.45,0],[Math.cos(a1)*r,0,Math.sin(a1)*r],[Math.cos(a0)*r,0,Math.sin(a0)*r],esc(am,.6));
+  const B=new M(), am=[2.4,1.35,.30];
+  // anel no chão em volta do carro: de cima, isto lê na hora; um cone vira
+  // um pentágono chapado e não ajuda ninguém
+  B.anel(0,0,0,5.4,6.6,26,am);
+  for(let k=0;k<3;k++){                       // três marcas maiores no anel
+    const a=k/3*6.2832;
+    B.boxR(Math.cos(a)*6.9,Math.sin(a)*6.9,0,2.0,.9,.01,a,am);
   }
   malhaSeta=subir(B);
 }
@@ -809,7 +810,14 @@ function terminarCorrida(){
 
    O desenho anterior deixava os carros orbitando em cima do poço feito
    beyblade: sem disputa visível, sem decisão, sem vida. */
-const ZONA={ raio:170, intervalo:2.4, valor:24, maxCargas:16 };
+/* Meia carga a cada 0,45 s vale a mesma energia por segundo que uma inteira a
+   cada 1,1 s — mas mantém MAIS carga em campo do que carro, que é a condição
+   para cada um perseguir a sua em vez de todos correrem pro mesmo ponto.
+
+   O ritmo aqui é ~53x o da Fase 1 porque o mapa roda em TEMPO ACELERADO: um
+   minuto olhando é uma hora de jogo. 8 h de bateria = 8 min de tela = 4,8
+   corridas, que bate com o modelo econômico. */
+const ZONA={ raio:300, intervalo:0.45, valor:10, maxCargas:34, aceleracao:60 };
 
 function surgirCarga(m,r){
   const rr=r||Math.random;
@@ -820,12 +828,12 @@ function surgirCarga(m,r){
 function iniciarMapa(){
   const r=semente(91), carros=[];
   for(let i=0;i<12;i++) carros.push({
-    x:(r()-.5)*300, z:(r()-.5)*300, h:r()*6.2832,
+    x:(r()-.5)*520, z:(r()-.5)*520, h:r()*6.2832,
     vel:16+r()*10, giro:1.5+r()*1.0, meu:i===0, coletou:0, alvo:-1,
   });
   carros[0].vel=21; carros[0].giro=2.3;      // o seu carro é o melhor do mapa
   mapa={cargas:[], carros, t:0, proxima:0, minhas:0, total:0, zoom:1, cam:null, brilho:0};
-  for(let i=0;i<9;i++) surgirCarga(mapa,r);
+  for(let i=0;i<26;i++) surgirCarga(mapa,r);
 
   // recupera o que rendeu desde a última visita: nada disso precisa de aba aberta
   const seg=Math.min(8*3600,(Date.now()-estado.idleUltimo)/1000);
@@ -841,23 +849,36 @@ function passoMapa(dt){
   m.proxima-=dt;
   if(m.proxima<=0){ if(m.cargas.length<ZONA.maxCargas) surgirCarga(m); m.proxima=ZONA.intervalo; }
 
-  for(const c of m.carros){
-    // Escolhe a carga que ele acha que CONSEGUE pegar: perto, e com poucos
-    // rivais chegando antes. É a decisão que dá vida ao mapa.
-    let mel=-1, melValor=-1;
-    for(let i=0;i<m.cargas.length;i++){
-      const g=m.cargas[i];
-      const meuTempo=Math.hypot(g.x-c.x,g.z-c.z)/c.vel;
-      let perdendo=0;
-      for(const o of m.carros){
-        if(o===c) continue;
-        if(Math.hypot(g.x-o.x,g.z-o.z)/o.vel < meuTempo) perdendo++;
-      }
-      const valor=1/((meuTempo+0.6)*(1+perdendo*1.7));
-      if(valor>melValor){ melValor=valor; mel=i; }
+  /* ATRIBUIÇÃO: cada carga é reivindicada por quem chega primeiro, e cada
+     carro persegue a melhor entre as que ganhou. Sem isto os doze correm
+     todos para a mesma carga e viram um bolo — que é tão sem vida quanto o
+     beyblade que isto veio substituir. */
+  const eta=(c,g)=>Math.hypot(g.x-c.x,g.z-c.z)/c.vel;
+  const dono=new Array(m.cargas.length).fill(-1);
+  for(let i=0;i<m.cargas.length;i++){
+    let melhor=-1, melhorEta=1e9;
+    for(let k=0;k<m.carros.length;k++){
+      const e=eta(m.carros[k],m.cargas[i]);
+      if(e<melhorEta){ melhorEta=e; melhor=k; }
     }
+    dono[i]=melhor;
+  }
+  for(let k=0;k<m.carros.length;k++){
+    const c=m.carros[k];
+    let mel=-1, melE=1e9;
+    for(let i=0;i<m.cargas.length;i++)
+      if(dono[i]===k){ const e=eta(c,m.cargas[i]); if(e<melE){ melE=e; mel=i; } }
+    if(mel<0)  // não ganhou nenhuma: vai atrás da mais próxima, com desconto
+      for(let i=0;i<m.cargas.length;i++){
+        const e=eta(c,m.cargas[i])*(dono[i]>=0?1.9:1);
+        if(e<melE){ melE=e; mel=i; }
+      }
     c.alvo=mel;
-    if(mel<0) continue;
+  }
+
+  for(const c of m.carros){
+    const mel=c.alvo;
+    if(mel<0||mel>=m.cargas.length) continue;
 
     const g=m.cargas[mel];
     const ang=Math.atan2(g.z-c.z,g.x-c.x);
@@ -873,6 +894,14 @@ function passoMapa(dt){
         estado.energia=cl(estado.energia+ZONA.valor,0,BATERIA);
       }
     }
+  }
+  // separação: carro não atravessa carro nem no mapa
+  for(let a=0;a<m.carros.length;a++) for(let b=a+1;b<m.carros.length;b++){
+    const A=m.carros[a], B=m.carros[b];
+    const dx=B.x-A.x, dz=B.z-A.z, d=Math.hypot(dx,dz);
+    if(d>=6||d<1e-3) continue;
+    const e=(6-d)*0.5, nx=dx/d, nz=dz/d;
+    A.x-=nx*e; A.z-=nz*e; B.x+=nx*e; B.z+=nz*e;
   }
   if(m.brilho>0) m.brilho-=dt*2.4;
 }
@@ -959,7 +988,9 @@ function quadro(agora){
     });
     // seta em cima do meu carro: sem isto não dá pra achar quem é você
     const eu=mapa.carros[0];
-    desenhar(malhaSeta,m4pose(eu.x,7.5+Math.sin(mapa.t*3)*0.7,eu.z,mapa.t*1.6,1+mapa.brilho*0.8));
+    // o anel é construído no plano XY, então deita no chão com uma pose própria
+    const g=1+mapa.brilho*0.35, ang=mapa.t*0.9, ca=Math.cos(ang)*g, sa=Math.sin(ang)*g;
+    desenhar(malhaSeta,new Float32Array([ca,0,-sa,0, 0,0,g,0, sa,0,ca,0, eu.x,0.06,eu.z,1]));
   } else {
     desenhar(malhaCarro,m4pose(0,0,0,0));
   }
@@ -973,6 +1004,12 @@ function quadro(agora){
    ══════════════════════════════════════════════════════════════════════════ */
 const $=id=>document.getElementById(id);
 function atualizarHUD(){
+  if(tela==="mapa"&&mapa&&mapa.total>0&&(mapa.t|0)!==ultimoTick){
+    ultimoTick=mapa.t|0;
+    $("dica").textContent="VOCÊ PEGOU "+mapa.minhas+" DE "+mapa.total+" CARGAS ("
+      +Math.round(mapa.minhas/mapa.total*100)+"% DA ZONA) · "+(mapa.carros.length-1)
+      +" CARROS DISPUTANDO COM VOCÊ · RODA DO MOUSE DÁ ZOOM";
+  }
   $("barraE").firstElementChild.style.width=(estado.energia/BATERIA*100)+"%";
   $("eTxt").textContent=Math.round(estado.energia);
   $("pTxt").textContent=Math.round(estado.pericia);
@@ -996,14 +1033,14 @@ function atualizarHUD(){
   }
 }
 function abrirModal(html){ const m=$("modal"); m.innerHTML='<div class="cartao">'+html+'</div>'; m.classList.add("on"); }
-let dicaT=null;
+let dicaT=null, ultimoTick=-1;
 function mostrarDica(txt,ms=5200){ $("dica").textContent=txt; clearTimeout(dicaT);
   dicaT=setTimeout(()=>{$("dica").textContent=dicaPadrao();},ms); }
 function dicaPadrao(){
   return tela==="corrida" ? "SETAS OU WASD  ·  ESPAÇO FREIA  ·  R REINICIA  ·  ESC SAI"
     : tela==="mapa" ? (mapa&&mapa.total>0
-        ? "VOCÊ PEGOU "+mapa.minhas+" DE "+mapa.total+" CARGAS ("+Math.round(mapa.minhas/mapa.total*100)+"% DA ZONA) · 11 CARROS DISPUTANDO · RODA DO MOUSE DÁ ZOOM"
-        : "A ZONA FAZ SURGIR CARGA A TAXA FIXA E QUEM CHEGA PRIMEIRO LEVA · RODA DO MOUSE DÁ ZOOM")
+        ? "VOCÊ PEGOU "+mapa.minhas+" DE "+mapa.total+" CARGAS · TEMPO "+ZONA.aceleracao+"x"
+        : "A ZONA FAZ SURGIR CARGA A TAXA FIXA E QUEM CHEGA PRIMEIRO LEVA · TEMPO ACELERADO · RODA DO MOUSE DÁ ZOOM")
     : "TROQUE AS PEÇAS E VEJA O CARRO E OS ATRIBUTOS MUDAREM";
 }
 function gastarEnergia(){
