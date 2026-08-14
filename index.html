@@ -16,9 +16,22 @@
   body{background:var(--bg);color:var(--tx);font-family:var(--f-b);
        -webkit-font-smoothing:antialiased;user-select:none;
        touch-action:none;overscroll-behavior:none;-webkit-tap-highlight-color:transparent}
-  canvas{display:block;width:100vw;height:100vh}
+  /* 100% do PALCO, não do viewport: com vw/vh o canvas ignorava o palco girado */
+  canvas{display:block;width:100%;height:100%}
 
-  .ui{position:fixed;pointer-events:none}
+  /* ── PALCO ────────────────────────────────────────────────────────────
+     Um layout só, deitado. Em pé o jogo virava um amontoado de menu e a
+     prévia do carro não cabia. Em vez de manter dois layouts, o palco inteiro
+     gira 90° quando o aparelho está em pé — que é o que jogo de celular faz.
+     Rotação por CSS funciona em todo lugar; a API de travar orientação exige
+     tela cheia e nem existe no Safari do iPhone. */
+  #palco{position:fixed;top:0;left:0;width:100vw;height:100vh;overflow:hidden}
+  body.deitar #palco{
+    width:100vh;height:100vw;
+    transform-origin:top left;
+    transform:rotate(90deg) translateY(-100vw);
+  }
+  .ui{position:absolute;pointer-events:none}
   .ui *{pointer-events:auto}
 
   /* ── barra de topo ── */
@@ -183,6 +196,53 @@
   @keyframes somedica{0%,70%{opacity:1}100%{opacity:0;visibility:hidden}}
 
   /* ── telas estreitas ── */
+  /* Aparelho de toque: tudo cresce, porque leitura em 6 polegadas com o
+     braço esticado não é leitura em monitor a 60 cm. */
+  body.toque{ font-size:15.5px }
+  body.toque #topo{ padding:10px 14px; gap:16px }
+  body.toque #topo .marca{ font-size:18px }
+  body.toque .rot{ font-size:11px; letter-spacing:.12em }
+  body.toque .val{ font-size:20px }
+  body.toque #barraE{ width:120px; height:7px }
+  body.toque #nav button{ font-size:15px; padding:11px 16px }
+  body.toque .grp h3{ font-size:12px; letter-spacing:.14em }
+  body.toque .opc button{ font-size:16px; padding:12px 14px }
+  body.toque .opc small{ font-size:12.5px }
+  body.toque .opc .preco{ font-size:13px }
+  body.toque .prox .pisoNome{ font-size:32px }
+  body.toque .prox .pisoDica{ font-size:15px }
+  body.toque .st .n{ font-size:14px }
+  body.toque .st .q{ font-size:12.5px }
+  body.toque .btn{ font-size:15px; padding:12px }
+  body.toque #garagem{ width:44% }
+  body.toque .cartao h2{ font-size:32px }
+  body.toque .cartao .linha{ font-size:16px; padding:10px 0 }
+  body.toque .cartao .sub{ font-size:12px }
+
+  /* HUD da corrida no celular */
+  body.toque #vel .n{ font-size:52px }
+  body.toque #vel .u{ font-size:11px }
+  body.toque #volta .v{ font-size:30px }
+  body.toque #volta .p, body.toque #volta .piso{ font-size:12px }
+  body.toque #tempos .t{ font-size:26px }
+  body.toque #tempos .t.d{ font-size:16px }
+  body.toque #tempos .l{ font-size:11px }
+  body.toque #aviso{ font-size:64px }
+  body.toque #pericia{ font-size:24px }
+
+  /* O ITEM sai do canto: no celular a mão tapa o canto de baixo. Vai para o
+     alto, no centro, grande, onde nada cobre. */
+  body.toque #item{
+    left:50%; right:auto; transform:translateX(-50%);
+    top:64px; bottom:auto; width:min(58%,420px); text-align:center }
+  body.toque #item .cx{ padding:10px 12px }
+  body.toque #item .cx span{ font-size:26px }
+  body.toque #item .oq{ font-size:12px; letter-spacing:.06em; margin-top:5px }
+  body.toque #nitro{ left:50%; transform:translateX(-50%); right:auto;
+                     bottom:auto; top:150px; width:min(52%,380px) }
+  body.toque #nitro .rot{ text-align:center }
+  body.toque #nitro .nb{ height:12px }
+
   @media (max-width:860px){
     #topo{gap:12px;padding:9px 12px}
     #topo .marca{font-size:15px}
@@ -216,7 +276,9 @@
   /* ── EM PÉ ─────────────────────────────────────────────────────────────
      O menu vira barra de abas embaixo, para nunca cobrir energia, perícia e
      sucata. A garagem vira gaveta de baixo, e o carro fica visível em cima. */
-  @media (max-width:1000px) and (orientation:portrait){
+  /* O palco girado é sempre paisagem, então a regra de retrato só vale para
+     quem está mesmo num aparelho estreito sem toque. */
+  @media (max-width:1000px) and (orientation:portrait) and (hover:hover){
     #topo{padding:10px 12px;gap:14px;flex-wrap:wrap}
     #topo .marca{font-size:16px;width:100%;margin-bottom:2px}
     #barraE{width:110px}
@@ -251,6 +313,7 @@
         letter-spacing:.11em;color:var(--tx3);text-transform:uppercase;text-align:center}
 </style>
 
+<div id="palco">
 <canvas id="cv"></canvas>
 
 <div class="ui" id="topo">
@@ -297,9 +360,10 @@
   </div>
   <button id="sairCorrida" aria-label="sair da corrida">✕</button>
 </div>
-<div class="ui" id="girar" hidden>Deite o celular para ver mais pista</div>
+<div class="ui" id="girar" hidden>Vire o celular · o jogo já está deitado</div>
 <div class="ui" id="modal"></div>
 <div class="ui" id="dica"></div>
+</div>
 
 <script>
 "use strict";
@@ -889,6 +953,7 @@ addEventListener("keyup",e=>{teclas[e.key.toLowerCase()]=false;});
    Um manche para guiar e dois botões de ação. O acelerador é AUTOMÁTICO:
    com quatro botões de pressionar era preciso uma terceira mão. */
 const ehToque = ("ontouchstart" in window) || navigator.maxTouchPoints>0;
+if(ehToque) document.body.classList.add("toque");
 const manche = { dir:0, freio:false, id:null, cx:0, cy:0, r:56 };
 (function(){
   const el=document.getElementById("manche"), bola=document.getElementById("mancheBola");
@@ -897,7 +962,7 @@ const manche = { dir:0, freio:false, id:null, cx:0, cy:0, r:56 };
   el.addEventListener("pointerdown",e=>{
     e.preventDefault(); manche.id=e.pointerId; el.setPointerCapture(e.pointerId);
     const r=el.getBoundingClientRect(); manche.cx=r.left+r.width/2; manche.cy=r.top+r.height/2;
-    manche.r=r.width*0.42; el.classList.add("puxado"); mover(e);
+    manche.r=Math.min(r.width,r.height)*0.42; el.classList.add("puxado"); mover(e);
     ligarSomSeMudo();
   });
   el.addEventListener("pointermove",e=>{ if(manche.id===e.pointerId){e.preventDefault(); mover(e);} });
@@ -905,6 +970,9 @@ const manche = { dir:0, freio:false, id:null, cx:0, cy:0, r:56 };
   el.addEventListener("pointercancel",solta);
   function mover(e){
     let dx=e.clientX-manche.cx, dy=e.clientY-manche.cy;
+    // palco girado 90°: o vetor do dedo está em coordenadas de TELA e precisa
+    // voltar para as do elemento, senão arrastar pro lado desce o manche
+    if(girado){ const t=dx; dx=dy; dy=-t; }
     const d=Math.hypot(dx,dy), lim=manche.r;
     if(d>lim){ dx*=lim/d; dy*=lim/d; }
     bola.style.transform="translate("+dx.toFixed(0)+"px,"+dy.toFixed(0)+"px)";
@@ -925,16 +993,27 @@ for(const b of document.querySelectorAll(".tq")){
   b.addEventListener("contextmenu",e=>e.preventDefault());
 }
 function ligarSomSeMudo(){ if(som.ctx&&som.ctx.state==="suspended") som.ctx.resume(); }
+/* Dimensões do PALCO, que não são as da janela quando ele está girado. */
+let girado=false;
+function larguraPalco(){ return girado ? innerHeight : innerWidth; }
+function alturaPalco(){  return girado ? innerWidth  : innerHeight; }
+function ajustarOrientacao(){
+  const deve = ehToque && innerHeight > innerWidth;
+  if(deve!==girado){
+    girado=deve;
+    document.body.classList.toggle("deitar",deve);
+  }
+}
+addEventListener("resize",ajustarOrientacao);
+addEventListener("orientationchange",()=>setTimeout(ajustarOrientacao,120));
+
 function atualizarToque(){
   const mostrar = ehToque && tela==="corrida";
   $("toque").hidden=!mostrar; $("toque").classList.toggle("on",mostrar);
-  // em pé o menu vira barra embaixo e atrapalharia os controles: some na
-  // corrida, e a saída passa a ser o ✕ do próprio HUD
-  $("nav").classList.toggle("someNaCorrida", mostrar && innerHeight>innerWidth);
-  const emPe = ehToque && tela==="corrida" && innerHeight>innerWidth;
   const g=$("girar");
-  g.hidden=!emPe; g.classList.remove("on");
-  if(emPe){ void g.offsetWidth; g.classList.add("on"); }
+  const avisar = girado && tela==="corrida";
+  g.hidden=!avisar; g.classList.remove("on");
+  if(avisar){ void g.offsetWidth; g.classList.add("on"); }
 }
 addEventListener("resize",atualizarToque);
 addEventListener("orientationchange",atualizarToque);
@@ -1621,14 +1700,20 @@ function quadro(agora){
     vista=m4look(olho,[mapa.cam[0],0,mapa.cam[1]],[0,1,0]);
   } else {
     if(girando) camAng+=dt*0.26;
-    const estreito=asp<0.85 ? 1.62 : asp<1.2 ? 1.18 : 1;
-    const dist=camDist*estreito;
+    /* A prévia tem que caber no espaço LIVRE, não na tela inteira: o painel
+       da garagem come um pedaço da direita e o carro saía cortado. Recuo a
+       câmera pela fração livre e desloco o centro da projeção para lá. */
+    const painel=$("garagem");
+    const fr = (tela==="garagem" && painel && painel.style.display!=="none")
+             ? cl(painel.getBoundingClientRect().width/Math.max(1,cv.clientWidth),0,.7) : 0;
+    const livre=Math.max(.3,1-fr);
+    const dist=camDist*(1/livre)*(asp<1.1?1.25:1);
     olho=[Math.sin(camAng)*Math.cos(0.28)*dist, Math.sin(0.28)*dist+.55, Math.cos(camAng)*Math.cos(0.28)*dist];
     proj=m4p(0.72,asp,.1,300); neb=120;
+    proj[8]=fr;                       // empurra o carro para o lado livre
     // com a gaveta ocupando a parte de baixo, o alvo desce para o carro
     // aparecer na faixa que sobrou em cima
-    const gaveta = tela==="garagem" && innerHeight>innerWidth && innerWidth<=1000;
-    vista=m4look(olho,[0,gaveta?-2.0:.62,0],[0,1,0]);
+    vista=m4look(olho,[0,.62,0],[0,1,0]);
   }
 
   gl.useProgram(pObj);
@@ -1917,6 +2002,7 @@ function montarGaragem(){
 }
 
 /* ── partida ── */
+ajustarOrientacao();
 const voltou=carregar();
 if(!voltou) sortearProxima();
 reconstruirCarro(); reconstruirPista(); construirPoco(); construirChao(); construirSeta();
