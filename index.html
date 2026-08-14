@@ -247,6 +247,13 @@
     .tq.grande{width:88px;height:88px;font-size:27px}
     .tq.peq{width:62px;height:62px;font-size:10px}
   }
+  /* pixel art precisa de vizinho-mais-próximo, senão borra e vira mingau */
+  .ic{image-rendering:pixelated;image-rendering:crisp-edges;vertical-align:middle;
+      display:inline-block;flex:0 0 auto}
+  .pilha .linha{display:flex;align-items:center;gap:7px}
+  .grp h3 .ic{margin-right:6px;vertical-align:-6px}
+  #item .cx{display:flex;align-items:center;justify-content:center;gap:12px}
+  .opc button .ic{margin-right:8px}
   #dica{left:50%;bottom:22px;transform:translateX(-50%);font-family:var(--f-m);font-size:10.5px;
         letter-spacing:.11em;color:var(--tx3);text-transform:uppercase;text-align:center}
 </style>
@@ -256,11 +263,13 @@
 <div class="ui" id="topo">
   <div class="marca">Circuito <b>Aberto</b></div>
   <div class="pilha"><div class="rot">Energia</div>
-    <div style="display:flex;align-items:center;gap:9px">
+    <div class="linha"><span id="icE"></span>
       <div id="barraE"><i style="width:60%"></i></div>
       <div class="val" id="eTxt">480</div></div></div>
-  <div class="pilha"><div class="rot">Perícia</div><div class="val" id="pTxt">0</div></div>
-  <div class="pilha"><div class="rot">Sucata</div><div class="val" id="sTxt">0</div></div>
+  <div class="pilha"><div class="rot">Perícia</div>
+    <div class="linha"><span id="icP"></span><div class="val" id="pTxt">0</div></div></div>
+  <div class="pilha"><div class="rot">Sucata</div>
+    <div class="linha"><span id="icS"></span><div class="val" id="sTxt">0</div></div></div>
   <div class="cresce"></div>
 </div>
 
@@ -281,7 +290,7 @@
   <div id="vel"><div class="n" id="velN">0</div><div class="u">km/h</div></div>
   <div id="nitro"><div class="rot">Nitro · segure SHIFT</div><div class="nb"><i id="bNitro"></i></div></div>
   <div id="item">
-    <div class="cx" id="cxItem"><span id="qItem">vazio</span></div>
+    <div class="cx" id="cxItem"><span id="icItem"></span><span id="qItem">vazio</span></div>
     <div class="oq" id="oqItem">pegue uma caixa na pista</div>
   </div>
   <div id="aviso"></div>
@@ -305,6 +314,19 @@
 "use strict";
 // atalho no topo: declarado com const, usado antes daqui dava zona morta
 const $=id=>document.getElementById(id);
+
+/* ── ÍCONES ──────────────────────────────────────────────────────────────
+   Gerados pela API do PixelLab e embutidos como data URI: o jogo é UM
+   arquivo, e é isso que o faz rodar por duplo clique e publicar sem
+   servidor. O 3D continua 100%% procedural — isto aqui é interface.
+   Regerar com arte/gerar.py e reempacotar com arte/empacotar.py. */
+const ICONE = {
+  
+};
+function icone(nome,tam){ return ICONE[nome]
+  ? '<img class="ic" src="'+ICONE[nome]+'" width="'+tam+'" height="'+tam+'" alt="">'
+  : ''; }
+
 /* ══════════════════════════════════════════════════════════════════════════
    CIRCUITO ABERTO — vertical slice (Fase 2)
 
@@ -526,14 +548,14 @@ const NITRO = { max:100, gasto:34, forca:1.85, calor:0, porDeslize:11, porVacuo:
    Peso por posição: quem está atrás tira coisa melhor. É o que mantém a
    corrida viva depois que alguém abre vantagem. */
 const ITENS = {
-  turbo:  { nome:"Turbo",  cor:"#E9992B", peso:[4,5,7,8] },
-  oleo:   { nome:"Óleo",   cor:"#7A6A50", peso:[7,5,3,2] },
-  tranco: { nome:"Tranco", cor:"#D2604A", peso:[0,3,6,9] },
-  reparo: { nome:"Recarga",cor:"#5AA894", peso:[3,4,5,5] },
+  turbo:  { nome:"Turbo",  cor:"#E9992B", peso:[4,5,7,8], ic:"turbo" },
+  oleo:   { nome:"Óleo",   cor:"#7A6A50", peso:[7,5,3,2], ic:"oleo" },
+  tranco: { nome:"Tranco", cor:"#D2604A", peso:[0,3,6,9], ic:"tranco" },
+  reparo: { nome:"Recarga",cor:"#5AA894", peso:[3,4,5,5], ic:"recarga" },
   // ESTOURO: só cai pra quem está em 3º ou 4º e acerta o LÍDER onde ele
   // estiver. É o que impede a corrida de virar procissão depois que alguém
   // abre vantagem — sem algo assim, quem lidera aos 40% vence sempre.
-  estouro:{ nome:"Estouro", cor:"#E9552B", peso:[0,1,5,9] },
+  estouro:{ nome:"Estouro", cor:"#E9552B", peso:[0,1,5,9], ic:"estouro" },
 };
 function sortearItem(posicao){
   const ch=Object.keys(ITENS), i=cl(posicao-1,0,3);
@@ -1437,7 +1459,7 @@ function terminarCorrida(){
   salvar();
   document.getElementById("hud").classList.remove("on");
   abrirModal(`
-    <h2>${pos===1?"Vitória":pos+"º lugar"}</h2>
+    <h2>${pos===1?icone("trofeu",44)+" Vitória":pos+"º lugar"}</h2>
     <div class="sub">${VOLTAS} voltas · ${["","primeiro","segundo","terceiro","quarto"][pos]} de 4</div>
     <div class="linha"><span>Melhor volta</span><b>${tempo(c.melhor)}</b></div>
     <div class="linha"><span>Velocidade de pico</span><b>${Math.round(c.pico*3.6)} km/h</b></div>
@@ -1741,11 +1763,13 @@ function atualizarHUD(){
     }
     if(p.item){
       const it=ITENS[p.item];
+      $("icItem").innerHTML=icone(it.ic,40);
       qi.textContent=it.nome; qi.style.color=it.cor;
       cxi.classList.add("tem");
       cxi.firstElementChild.style.borderColor=it.cor;
       oq.textContent="APERTE E — "+DESCRICAO[p.item];
     } else {
+      $("icItem").innerHTML="";
       qi.textContent="vazio"; qi.style.color="var(--tx3)";
       cxi.classList.remove("tem");
       cxi.firstElementChild.style.borderColor="var(--line)";
@@ -1832,11 +1856,12 @@ function montarGaragem(){
   g.append(prox);
 
   const rotulos={chassi:"Chassi",motor:"Motor",rodas:"Rodas e pneus",aero:"Aerodinâmica"};
+  const icoSlot={chassi:"chassi",motor:"motor",rodas:"roda",aero:"aerofolio"};
   for(const k of ["chassi","motor","rodas","aero"]){
     const d=document.createElement("div"); d.className="grp";
     const dur=Math.round(estado.dur[k]||0);
     const corDur = dur<30?"var(--oxide)":dur<65?"var(--amber)":"var(--patina)";
-    d.innerHTML=`<h3>${rotulos[k]}<span class="dur" style="color:${corDur}">${dur}%</span></h3>`;
+    d.innerHTML=`<h3>${icone(icoSlot[k],20)}${rotulos[k]}<span class="dur" style="color:${corDur}">${dur}%</span></h3>`;
     const box=document.createElement("div"); box.className="opc";
     PECAS[k].forEach((pc,i)=>{
       const temEle=estado.destravado[k].includes(i);
@@ -1874,7 +1899,7 @@ function montarGaragem(){
   /* ── oficina ── */
   const rep=custoReparo();
   const of=document.createElement("div"); of.className="grp";
-  of.innerHTML="<h3>Oficina</h3>";
+  of.innerHTML=`<h3>${icone("chave",20)}Oficina</h3>`;
   const br=document.createElement("button");
   br.className="btn"; br.style.width="100%";
   if(rep<=0){ br.textContent="Carro inteiro"; br.disabled=true; }
@@ -1907,9 +1932,9 @@ function montarGaragem(){
   g.append(d);
 
   const e=document.createElement("div"); e.className="grp";
-  e.innerHTML=`<h3>Registro</h3>
-    <div class="st"><div class="n">Melhor volta</div><div class="q" style="grid-column:2/4;text-align:left">${tempo(estado.melhorVolta)}</div></div>
-    <div class="st"><div class="n">Corridas</div><div class="q" style="grid-column:2/4;text-align:left">${estado.corridas} · ${estado.vitorias||0} vitória${(estado.vitorias||0)===1?"":"s"}</div></div>`;
+  e.innerHTML=`<h3>${icone("bandeira",20)}Registro</h3>
+    <div class="st"><div class="n">${icone("cronometro",18)} Melhor volta</div><div class="q" style="grid-column:2/4;text-align:left">${tempo(estado.melhorVolta)}</div></div>
+    <div class="st"><div class="n">${icone("trofeu",18)} Corridas</div><div class="q" style="grid-column:2/4;text-align:left">${estado.corridas} · ${estado.vitorias||0} vitória${(estado.vitorias||0)===1?"":"s"}</div></div>`;
   const b=document.createElement("button"); b.className="btn p"; b.style.width="100%"; b.style.marginTop="12px";
   b.textContent=`Correr no ${PI.nome.toLowerCase()} — ${CUSTO_CORRIDA} de energia`;
   b.onclick=()=>irPara("corrida");
@@ -1917,6 +1942,11 @@ function montarGaragem(){
 }
 
 /* ── partida ── */
+// ícones fixos da barra de topo, uma vez só
+$("icE").innerHTML=icone("energia",22);
+$("icP").innerHTML=icone("pericia",22);
+$("icS").innerHTML=icone("sucata",22);
+
 const voltou=carregar();
 if(!voltou) sortearProxima();
 reconstruirCarro(); reconstruirPista(); construirPoco(); construirChao(); construirSeta();
