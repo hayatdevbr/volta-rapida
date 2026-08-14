@@ -104,16 +104,26 @@
              border:1px solid rgba(255,255,255,.10)}
   #nitro .nb i{position:absolute;inset:0 auto 0 0;background:linear-gradient(90deg,#3E8A5B,#E9992B,#FFD36B);width:0%;
                transition:width .08s linear}
-  #item{position:absolute;left:50%;bottom:26px;transform:translateX(-50%);text-align:center;width:340px}
-  #item .cx{border:2px solid var(--line);background:rgba(12,16,20,.88);padding:11px 8px;
-            transition:border-color .15s, box-shadow .15s}
-  #item .cx span{font-family:var(--f-d);font-size:30px;letter-spacing:.03em;text-transform:uppercase;
-                 line-height:1;display:block}
-  #item .oq{font-family:var(--f-m);font-size:10.5px;letter-spacing:.11em;text-transform:uppercase;
-            color:var(--tx3);margin-top:7px}
-  #item.tem .cx{box-shadow:0 0 26px rgba(233,153,43,.30)}
-  @keyframes bate{0%{transform:scale(1)}35%{transform:scale(1.13)}100%{transform:scale(1)}}
-  #item.novo .cx{animation:bate .45s ease-out}
+  #item{position:absolute;right:26px;bottom:20px;text-align:center}
+  #item .slots{display:flex;gap:12px;justify-content:center}
+  .slot{width:96px;height:96px;border-radius:50%;border:2px solid var(--line);
+        background:rgba(12,16,20,.86);color:var(--tx2);cursor:pointer;position:relative;
+        display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+        transition:border-color .14s, box-shadow .14s, transform .14s;
+        touch-action:none;-webkit-user-select:none;user-select:none}
+  .slot .ico{height:44px;display:flex;align-items:center;justify-content:center}
+  .slot .nm{font-family:var(--f-d);font-size:13px;letter-spacing:.05em;text-transform:uppercase;
+            line-height:1;font-weight:600}
+  .slot .tec{position:absolute;bottom:-17px;left:0;right:0;font-family:var(--f-m);font-size:9px;
+             letter-spacing:.14em;color:var(--tx3);font-style:normal}
+  .slot.tem{border-color:var(--amber);box-shadow:0 0 22px rgba(233,153,43,.26)}
+  .slot.sel{transform:scale(1.08)}
+  .slot.sel::after{content:"";position:absolute;inset:-7px;border-radius:50%;
+                   border:2px solid var(--amber);opacity:.55}
+  #item .oq{font-family:var(--f-m);font-size:10px;letter-spacing:.10em;text-transform:uppercase;
+            color:var(--tx3);margin-top:24px;max-width:220px;margin-left:auto}
+  @keyframes bate{0%{transform:scale(1)}35%{transform:scale(1.16)}100%{transform:scale(1)}}
+  .slot.novo{animation:bate .45s ease-out}
   #carro{position:absolute;left:34px;bottom:112px;display:flex;flex-direction:column;gap:7px;width:210px}
   .med{display:grid;grid-template-columns:44px 1fr 40px;gap:8px;align-items:center}
   .med span{font-family:var(--f-m);font-size:9.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--tx3)}
@@ -226,14 +236,14 @@
     #nav button:last-child{border-right:0}
     #garagem{top:auto;bottom:47px;height:58vh;width:100%;
              border-left:0;border-top:1px solid var(--line)}
-    #toque .lado.dir{bottom:86px;right:14px}
+    #toque .lado.dir{bottom:150px;right:16px}
     #manche{bottom:80px;left:14px;width:120px;height:120px}
     #manche i{width:50px;height:50px}
     #vel{bottom:58px}
     #volta{top:92px;left:14px}
     #tempos{top:92px;right:14px}
     #nitro{left:14px;right:14px;width:auto;top:auto;bottom:214px}
-    #item{left:14px;right:14px;width:auto;top:auto;bottom:244px;transform:none;text-align:center}
+    #item{left:auto;right:14px;width:auto;top:auto;bottom:16px;transform:none}
     #item .cx span{font-size:16px}
     #nav.someNaCorrida{display:none}
   }
@@ -290,8 +300,11 @@
   <div id="vel"><div class="n" id="velN">0</div><div class="u">km/h</div></div>
   <div id="nitro"><div class="rot">Nitro · segure SHIFT</div><div class="nb"><i id="bNitro"></i></div></div>
   <div id="item">
-    <div class="cx" id="cxItem"><span id="icItem"></span><span id="qItem">vazio</span></div>
-    <div class="oq" id="oqItem">pegue uma caixa na pista</div>
+    <div class="slots">
+      <button class="slot" id="slot0" data-i="0"><span class="ico"></span><b class="nm">—</b><i class="tec">E</i></button>
+      <button class="slot" id="slot1" data-i="1"><span class="ico"></span><b class="nm">—</b><i class="tec">TAB</i></button>
+    </div>
+    <div class="oq" id="oqItem">pegue as caixas na pista</div>
   </div>
   <div id="aviso"></div>
   <div id="pericia"></div>
@@ -301,7 +314,6 @@
   <div id="manche" aria-label="direção"><i id="mancheBola"></i>
     <span class="mDica">guiar</span></div>
   <div class="lado dir">
-    <button class="tq acao" data-k="e" aria-label="usar item">ITEM</button>
     <button class="tq acao grande" data-k="shift" aria-label="turbo">TURBO</button>
   </div>
   <button id="sairCorrida" aria-label="sair da corrida">✕</button>
@@ -328,7 +340,23 @@ const $=id=>document.getElementById(id);
    O fundo é magenta puro, cor que não existe em nenhuma peça, e vira alfa na
    hora de virar PNG. */
 const ICONE = {};
-function icone(nome,tam){ return ICONE[nome]
+/* 3D funciona para OBJETO (garrafa, roda, troféu) e falha para SÍMBOLO
+   (energia, perícia). Símbolo quer forma chapada, contorno limpo e leitura
+   instantânea a 20px — que é exatamente o que SVG faz melhor que render. */
+const SVG = {
+  energia:(t,c)=>`<svg class="ic" width="${t}" height="${t}" viewBox="0 0 24 24" fill="none">
+    <path d="M13.6 2 4.5 13.4h5.3L9.2 22l9.6-11.9h-5.7L13.6 2Z" fill="${c||'#F5C244'}"
+      stroke="#0C1014" stroke-width="1.4" stroke-linejoin="round"/></svg>`,
+  pericia:(t,c)=>`<svg class="ic" width="${t}" height="${t}" viewBox="0 0 24 24" fill="none">
+    <path d="M12 2.6 14.6 9h6.8l-5.5 4 2.1 6.6L12 15.6 6 19.6 8.1 13l-5.5-4h6.8L12 2.6Z"
+      fill="${c||'#E9992B'}" stroke="#0C1014" stroke-width="1.4" stroke-linejoin="round"/></svg>`,
+  sucata:(t,c)=>`<svg class="ic" width="${t}" height="${t}" viewBox="0 0 24 24" fill="none">
+    <path d="M3 15.5 8 9l4.4 3.6L16.4 7l4.6 8.5v4.2H3v-4.2Z" fill="${c||'#8A939B'}"
+      stroke="#0C1014" stroke-width="1.4" stroke-linejoin="round"/>
+    <circle cx="17.6" cy="5.4" r="2.3" fill="#C07838" stroke="#0C1014" stroke-width="1.3"/></svg>`,
+};
+function icone(nome,tam,cor){ if(SVG[nome]) return SVG[nome](tam,cor);
+  return ICONE[nome]
   ? '<img class="ic" src="'+ICONE[nome]+'" width="'+tam+'" height="'+tam+'" alt="">'
   : ''; }
 
@@ -713,33 +741,71 @@ function atributos(piso){
 }
 
 /* ── pista: laço fechado gerado por spline, com blocos de meio-fio ── */
-function gerarPista(sem){
-  const r=semente(sem), N=13, ctrl=[];
-  for(let i=0;i<N;i++){
-    const a=i/N*Math.PI*2, rad=180+r()*95;
-    ctrl.push([Math.cos(a)*rad, Math.sin(a)*rad]);
+/* Cada piso é um LUGAR, não uma cor. O traçado muda de caráter:
+
+     asfalto  autódromo — poucas curvas, amplas, reta longa, pista larga
+     terra    rali      — sinuoso, curva fechada, largura que aperta e abre
+     chuva    circuito urbano — cantos de 90 graus, estreito, sem escapatória
+
+   É isso que faz correr na terra ser diferente de correr no asfalto, muito
+   mais do que trocar a cor do chão. */
+function gerarPista(sem, piso){
+  const r=semente(sem);
+  piso = piso || "asfalto";
+  let ctrl=[], SUB=14, larguraBase=19, aperto=7;
+
+  if(piso==="asfalto"){
+    const N=11;
+    for(let i=0;i<N;i++){
+      const a=i/N*Math.PI*2, rad=210+r()*70;
+      ctrl.push([Math.cos(a)*rad, Math.sin(a)*rad]);
+    }
+    // uma reta longa: dois pontos quase alinhados
+    ctrl[0][0]*=1.22; ctrl[0][1]*=1.22;
+    larguraBase=21; aperto=6;
+
+  } else if(piso==="terra"){
+    const N=17;
+    for(let i=0;i<N;i++){
+      const a=i/N*Math.PI*2, rad=150+r()*130;      // raio muito variável = sinuoso
+      ctrl.push([Math.cos(a)*rad, Math.sin(a)*rad]);
+    }
+    larguraBase=16; aperto=9; SUB=12;
+
+  } else {                                        // chuva: circuito urbano
+    const N=12, quadra=95;
+    for(let i=0;i<N;i++){
+      const a=i/N*Math.PI*2, rad=200+r()*60;
+      // encaixa na malha das quadras: é o que gera canto de rua
+      ctrl.push([Math.round(Math.cos(a)*rad/quadra)*quadra,
+                 Math.round(Math.sin(a)*rad/quadra)*quadra]);
+    }
+    larguraBase=18; aperto=4; SUB=13;             // canto radiado, não faca
   }
+
+  const N=ctrl.length;
   const cr=(p0,p1,p2,p3,t)=>{const t2=t*t,t3=t2*t;
     return [0.5*((2*p1[0])+(-p0[0]+p2[0])*t+(2*p0[0]-5*p1[0]+4*p2[0]-p3[0])*t2+(-p0[0]+3*p1[0]-3*p2[0]+p3[0])*t3),
             0.5*((2*p1[1])+(-p0[1]+p2[1])*t+(2*p0[1]-5*p1[1]+4*p2[1]-p3[1])*t2+(-p0[1]+3*p1[1]-3*p2[1]+p3[1])*t3)];};
-  const SUB=14, meio=[];
-  for(let i=0;i<N;i++) for(let s=0;s<SUB;s++)
-    meio.push(cr(ctrl[(i-1+N)%N],ctrl[i],ctrl[(i+1)%N],ctrl[(i+2)%N],s/SUB));
+  const meio=[];
+  for(let i=0;i<N;i++) for(let sI=0;sI<SUB;sI++)
+    meio.push(cr(ctrl[(i-1+N)%N],ctrl[i],ctrl[(i+1)%N],ctrl[(i+2)%N],sI/SUB));
 
-  // tangente, normal e largura variável (reta larga, curva estreita)
   const n=meio.length, dados=[];
   let total=0;
   for(let i=0;i<n;i++){
     const a=meio[(i-1+n)%n], b=meio[i], c=meio[(i+1)%n];
     let tx=c[0]-a[0], tz=c[1]-a[1]; const l=Math.hypot(tx,tz)||1; tx/=l; tz/=l;
     const curv=Math.abs(Math.atan2(c[1]-b[1],c[0]-b[0])-Math.atan2(b[1]-a[1],b[0]-a[0]));
-    const larg=19 - cl(curv,0,.5)*7;
-    const dl=Math.hypot(b[0]-meio[(i-1+n)%n][0], b[1]-meio[(i-1+n)%n][1]);
-    total+=dl;
+    const larg=larguraBase - cl(curv,0,.5)*aperto;
+    // a→b é UM segmento; o *0.5 daqui fazia o perímetro sair pela metade,
+    // e a IA calcula a distância de frenagem a partir dele
+    total+=Math.hypot(b[0]-meio[(i-1+n)%n][0], b[1]-meio[(i-1+n)%n][1]);
     dados.push({x:b[0],z:b[1],tx,tz,nx:-tz,nz:tx,larg,s:total});
   }
-  return {pontos:dados, n, comprimento:total};
+  return {pontos:dados, n, comprimento:total, piso};
 }
+
 /* Índice do ponto mais próximo — busca local, porque o carro anda contínuo. */
 function maisProximo(pista, x, z, ult){
   let mel=ult, md=1e9;
@@ -999,6 +1065,104 @@ function construirCarro(P){
   return { corpo:B, roda:W, posRodas, escape:[-L*.5+.02, P.ride+.05, P.width*.17] };
 }
 
+
+/* ── CENÁRIO ──────────────────────────────────────────────────────────────
+   Pista sozinha no vazio não tem escala nem velocidade: sem nada passando do
+   lado, 200 km/h parece 40. O cenário é o que dá referência — e é onde o
+   low-poly rende mais por triângulo, porque forma boa em silhueta não precisa
+   de detalhe nenhum.
+
+   Cada piso tem o seu mundo: autódromo, rali de montanha, circuito urbano. */
+function construirCenario(pista, piso){
+  const B=new M(), r=semente(pista.n*7+1);
+  const pts=pista.pontos, n=pista.n;
+
+  const arvore=(x,z,esc)=>{
+    const h=(5+r()*4)*esc, tronco=hex("#4A3524");
+    const folha=r()<.5?hex("#2E5B3A"):hex("#254A31");
+    B.cilY(x,h*.30,z,.55*esc,h*.6,6,tronco);
+    for(let k=0;k<3;k++){
+      const yy=h*(.55+k*.22), rr=(2.6-k*.7)*esc;
+      for(let i=0;i<6;i++){ const a=i/6*6.2832,a2=(i+1)/6*6.2832;
+        B.tri([x,yy+2.2*esc,z],[x+Math.cos(a)*rr,yy,z+Math.sin(a)*rr],
+              [x+Math.cos(a2)*rr,yy,z+Math.sin(a2)*rr],folha); }
+    }
+  };
+  const pedra=(x,z)=>{
+    const t=1.2+r()*2.2, c=hex(r()<.5?"#5E666E":"#4A5158");
+    B.boxR(x,t*.35,z,t*1.6,t*.8,t*1.3,r()*3,c);
+  };
+  const predio=(x,z,alt)=>{
+    const l=9+r()*10, p2=9+r()*10;
+    const corpo=hex(["#2A323A","#343E48","#232B33"][Math.floor(r()*3)]);
+    B.box(x,alt*.5,z,l,alt,p2,corpo);
+    B.box(x,alt+.6,z,l*1.06,1.2,p2*1.06,hex("#1A2028"));
+    // janelas acesas: cor alta demais para o tonemap, então brilham
+    const jan=[2.4,1.9,.6];
+    for(let a=3;a<alt-2;a+=4.5) for(let k=-1;k<=1;k++){
+      if(r()<.45) continue;
+      B.box(x+l*.51, a, z+k*p2*.28, .12, 1.5, 2.0, jan);
+      B.box(x-l*.51, a, z+k*p2*.28, .12, 1.5, 2.0, jan);
+    }
+  };
+  const arquibancada=(x,z,ang)=>{
+    const cor=hex("#3A444E"), banco=hex("#8A939B");
+    for(let k=0;k<5;k++)
+      B.boxR(x - Math.sin(ang)*k*1.5, 1.0+k*1.15, z + Math.cos(ang)*k*1.5,
+             26, .9, 1.4, ang, k%2?cor:banco);
+    B.boxR(x,.5,z,26,1,7,ang,hex("#232B33"));
+  };
+  const torreLuz=(x,z)=>{
+    B.cilY(x,7,z,.42,14,6,hex("#5E666E"));
+    B.box(x,14.6,z,5.5,1.4,1.4,hex("#3A444E"));
+    for(let k=-2;k<=2;k++) B.box(x+k*1.15,15.5,z,.9,.7,.9,[3.2,3.0,2.4]);
+  };
+  const muroPneu=(x,z,ang)=>{
+    for(let k=-3;k<=3;k++){
+      const px=x+Math.cos(ang)*k*1.7, pz=z+Math.sin(ang)*k*1.7;
+      B.cilY(px,.7,pz,.85,1.4,8, k%2?hex("#141A20"):hex("#D2604A"));
+    }
+  };
+  const poste=(x,z,lado)=>{
+    B.cilY(x,4.2,z,.22,8.4,6,hex("#5E666E"));
+    B.box(x+lado*1.1,8.2,z,2.4,.3,.3,hex("#5E666E"));
+    B.box(x+lado*2.1,8.0,z,1.1,.42,.7,[3.0,2.6,1.6]);
+  };
+  const feno=(x,z,ang)=>{
+    for(let k=-1;k<=1;k++)
+      B.cilZ(x+Math.cos(ang)*k*2.4, 1.0, z+Math.sin(ang)*k*2.4, 1.0, 2.0, 8,
+             k===0?hex("#D9A62B"):hex("#C9922B"));
+  };
+
+  const passo = piso==="chuva" ? 7 : 5;
+  for(let i=0;i<n;i+=passo){
+    const p=pts[i];
+    const q=pts[(i+3)%n];
+    const curva=Math.abs(Math.atan2(q.tz,q.tx)-Math.atan2(p.tz,p.tx));
+    for(const lado of [-1,1]){
+      const d=p.larg/2 + 12 + r()*22;
+      const x=p.x+p.nx*lado*d, z=p.z+p.nz*lado*d;
+      const ang=Math.atan2(p.tz,p.tx);
+      if(piso==="terra"){
+        if(r()<.62) arvore(x,z,.9+r()*.6);
+        else if(r()<.6) pedra(x,z);
+        if(curva>.22 && r()<.5) feno(p.x+p.nx*lado*(p.larg/2+3), p.z+p.nz*lado*(p.larg/2+3), ang);
+      } else if(piso==="chuva"){
+        if(r()<.85) predio(p.x+p.nx*lado*(p.larg/2+16+r()*10),
+                           p.z+p.nz*lado*(p.larg/2+16+r()*10), 14+r()*30);
+        if(r()<.5) poste(p.x+p.nx*lado*(p.larg/2+2.4), p.z+p.nz*lado*(p.larg/2+2.4), lado);
+      } else {
+        if(r()<.22) arquibancada(x,z,ang);
+        else if(r()<.30) torreLuz(x,z);
+        else if(r()<.45) arvore(x,z,.7+r()*.4);
+        if(curva>.25 && r()<.55) muroPneu(p.x+p.nx*lado*(p.larg/2+2.6),
+                                          p.z+p.nz*lado*(p.larg/2+2.6), ang+1.5708);
+      }
+    }
+  }
+  return B;
+}
+
 /* ── malha da pista: asfalto, meio-fio, grama, linha de largada ── */
 function construirPista(pista, nomePiso){
   const B=new M(), PI=PISOS[nomePiso||"asfalto"];
@@ -1126,13 +1290,17 @@ function motorSom(rpm,carga){
    ESTADO DE CENA
    ══════════════════════════════════════════════════════════════════════════ */
 let tela="garagem";
-let malhaCarro=null, malhaPista=null, malhaRival=[], malhaPoco=null, malhaChao=null, malhaSeta=null, malhaCaixa=null, malhaMancha=null, malhaChama=null, malhaAnel=null;
-let pista=gerarPista(3);
+let malhaCarro=null, malhaPista=null, malhaCenario=null, malhaRival=[], malhaPoco=null, malhaChao=null, malhaSeta=null, malhaCaixa=null, malhaMancha=null, malhaChama=null, malhaAnel=null;
+let pista=gerarPista(3,'asfalto');
 let corrida=null, mapa=null;
 let camY=0.6, camDist=9.5, camAng=-0.7, girando=true;
 const teclas={};
 addEventListener("keydown",e=>{
-  if(["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"," "].includes(e.key))e.preventDefault();
+  if(["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"," ","Tab"].includes(e.key))e.preventDefault();
+  if(e.key==="Tab" && tela==="corrida" && corrida){
+    const eu=corrida.pilotos[0];
+    eu.sel = eu.itens[1-eu.sel] ? 1-eu.sel : eu.sel;   // só troca se houver o quê
+  }
   teclas[e.key.toLowerCase()]=true;
   if(e.key==="r"&&tela==="corrida") iniciarCorrida();
   if(e.key==="Escape"&&tela==="corrida") irPara("garagem");
@@ -1166,6 +1334,18 @@ const manche = { dir:0, freio:false, id:null, cx:0, cy:0, r:56 };
   }
 })();
 document.getElementById("sairCorrida").addEventListener("click",()=>irPara("garagem"));
+// no celular o próprio encaixe é o botão: um toque solta AQUELE item, sem modo
+for(const el of document.querySelectorAll(".slot")){
+  const i=el.dataset.i;
+  const liga=e=>{ e.preventDefault(); teclas[String(+i+1)]=true;
+                  if(corrida) corrida.pilotos[0].sel=+i; ligarSomSeMudo(); };
+  const desliga=e=>{ e.preventDefault(); teclas[String(+i+1)]=false; };
+  el.addEventListener("pointerdown",liga);
+  el.addEventListener("pointerup",desliga);
+  el.addEventListener("pointercancel",desliga);
+  el.addEventListener("pointerleave",desliga);
+  el.addEventListener("contextmenu",e=>e.preventDefault());
+}
 for(const b of document.querySelectorAll(".tq")){
   const k=b.dataset.k;
   const liga=e=>{e.preventDefault(); teclas[k]=true; b.classList.add("ativo");
@@ -1289,7 +1469,10 @@ function desenharCarro(m,pose,giro,esterco){
   for(const w of m.posRodas)
     desenhar(m.roda, m4mul(pose, m4rodaLocal(w,giro,w.frente?esterco:0)));
 }
-function reconstruirPista(){ malhaPista=subir(construirPista(pista, estado.piso)); }
+function reconstruirPista(){
+  malhaPista=subir(construirPista(pista, estado.piso));
+  malhaCenario=subir(construirCenario(pista, estado.piso));
+}
 function construirChao(){
   const B=new M(), a=[.028,.034,.040], b=[.020,.025,.030];
   const L=300, P=13;
@@ -1360,7 +1543,8 @@ function novoPiloto(i){
   const r=semente(1000+i*37+Math.floor(Math.random()*9999));
   return {x:p.x+p.nx*off, z:p.z+p.nz*off, h:Math.atan2(p.tz,p.tx),
           vx:0,vz:0,vl:0,dir:0,derrapa:0,
-          nitro:0, item:null, itemDesde:0, oleado:0, travado:0, turbando:0,
+          nitro:0, itens:[null,null], desde:[0,0], sel:0,
+          oleado:0, travado:0, turbando:0,
           seg:0, volta:0, prog:0, terminou:-1, ia:i>0,
           // PERSONALIDADE: sem isto os rivais andam em fila indiana feito trenzinho
           perfil:{
@@ -1548,14 +1732,19 @@ function passoCorrida(){
 
     if(p.travado>0) p.travado-=DT;
 
-    // caixa de item
-    if(!p.item){
+    // caixa de item: entra no primeiro encaixe livre dos DOIS
+    const livre=p.itens.indexOf(null);
+    if(livre>=0){
       for(const cx of c.caixas){
         if(cx.volta>0) continue;
         if(Math.hypot(cx.x-p.x,cx.z-p.z)<5.4){
           cx.volta=11;
-          p.item=sortearItem(ordem.indexOf(p)+1); p.itemDesde=c.t;
-          if(!p.ia){ c.aviso="PEGOU "+ITENS[p.item].nome.toUpperCase()+" — TECLA E"; c.avisoAte=c.t+2.4; }
+          p.itens[livre]=sortearItem(ordem.indexOf(p)+1); p.desde[livre]=c.t;
+          if(!p.ia){
+            if(p.itens[1-livre]===null) p.sel=livre;
+            c.aviso="PEGOU "+ITENS[p.itens[livre]].nome.toUpperCase();
+            c.avisoAte=c.t+2.0;
+          }
           break;
         }
       }
@@ -1603,74 +1792,77 @@ function passoCorrida(){
     c.estouroVindo=null;
   }
 
-  /* ── uso de item ── */
+  /* ── uso de item ──────────────────────────────────────────────────────
+     São DOIS encaixes agora. No teclado, TAB troca o selecionado e E solta;
+     as teclas 1 e 2 soltam direto. No celular há um botão redondo para cada,
+     com o ícone do item dentro — um toque, sem modo. */
   for(const p of c.pilotos){
-    if(!p.item||p.terminou>=0) continue;
-    // DEFESA: quem está na mira gasta o item que tiver e escapa
-    if(c.estouroVindo && c.estouroVindo.alvo===p){
-      const defende = p.ia ? true : (!!teclas.e||!!teclas.control);
+    if(p.terminou>=0) continue;
+
+    // DEFESA contra o estouro: vale qualquer item dos dois
+    if(c.estouroVindo && c.estouroVindo.alvo===p && p.itens.some(Boolean)){
+      const defende = p.ia ? true : (!!teclas.e||!!teclas.control||!!teclas["1"]||!!teclas["2"]);
       if(defende){
-        c.estouroVindo=null; p.item=null; efeito(c,p,"reparo");
+        const i=p.itens.findIndex(Boolean);
+        c.estouroVindo=null; p.itens[i]=null; efeito(c,p,"reparo");
         c.aviso = p.ia ? "O LÍDER DEFENDEU" : "VOCÊ DEFENDEU O ESTOURO";
         c.avisoAte=c.t+2.0;
         continue;
       }
     }
-    let usar=false;
-    if(p.ia){
-      // a IA decide quando vale: turbo em reta, óleo com alguém colado atrás,
-      // tranco em quem está logo à frente, reparo quando o carro está ruim
-      const spd=Math.hypot(p.vx,p.vz);
-      if(p.item==="turbo")  usar = spd>c.at.vmax*0.45 && (p.nitro||0)<40;
-      if(p.item==="oleo")   usar = c.pilotos.some(o=>o!==p&&o.terminou<0&&
-                              Math.hypot(o.x-p.x,o.z-p.z)<22&&
-                              ((o.x-p.x)*Math.cos(p.h)+(o.z-p.z)*Math.sin(p.h))<0);
-      if(p.item==="tranco") usar = c.pilotos.some(o=>o!==p&&o.terminou<0&&
-                              Math.hypot(o.x-p.x,o.z-p.z)<34&&
-                              ((o.x-p.x)*Math.cos(p.h)+(o.z-p.z)*Math.sin(p.h))>0);
-      if(p.item==="reparo") usar = (p.nitro||0)<45;
-      if(p.item==="estouro")usar = true;
-      // Sem prazo, o carro segurava óleo ou reparo pra sempre esperando a
-      // condição perfeita — e enquanto segura NÃO PEGA MAIS NADA. Era isso
-      // que fazia 3º e 4º quase não receberem item, justo quem mais precisa.
-      if(!usar && c.t-(p.itemDesde||0) > 12) usar = true;
-    } else usar = !!teclas.e || !!teclas.control;
-    if(!usar) continue;
 
-    if(p.item==="estouro"){
-      let alvo=null, melhor=-1;
-      for(const o of c.pilotos){ if(o===p||o.terminou>=0) continue;
-        if(o.prog>melhor){ melhor=o.prog; alvo=o; } }
-      if(alvo && alvo.prog>p.prog && !c.estouroVindo){
-        /* Alcance infinito é o que faz o item existir — limitar distância o
-           tornaria inútil justo quando é necessário. O que faltava não era
-           limite, era RESPOSTA: acertar do nada, sem o alvo poder fazer nada,
-           é o que torna o casco azul o item mais odiado dos jogos.
-           Agora vem com aviso e janela de defesa. */
-        c.estouroVindo={ alvo, em:c.t+1.6, de:p };
-        c.aviso = alvo.ia ? "ESTOURO A CAMINHO DO LÍDER" : "ESTOURO VINDO — USE UM ITEM PARA DEFENDER";
-        c.avisoAte=c.t+1.6;
-      } else if(!p.ia) continue;
-    }
-    if(p.item==="turbo"){ p.nitro=NITRO.max; efeito(c,p,"turbo"); }
-    if(p.item==="oleo"){  c.perigos.push({x:p.x-Math.cos(p.h)*4,z:p.z-Math.sin(p.h)*4,t:c.t,de:p});
-                          efeito(c,{x:p.x-Math.cos(p.h)*4,z:p.z-Math.sin(p.h)*4},"oleo"); }
-    if(p.item==="reparo"){ p.nitro=cl((p.nitro||0)+55,0,NITRO.max); efeito(c,p,"reparo"); }
-    if(p.item==="tranco"){
-      let alvo=null, melhor=1e9;
-      for(const o of c.pilotos){
-        if(o===p||o.terminou>=0) continue;
-        const dx=o.x-p.x, dz=o.z-p.z, d=Math.hypot(dx,dz);
-        if(d>40) continue;
-        if(((dx*Math.cos(p.h)+dz*Math.sin(p.h))/d)<0.5) continue;
-        if(d<melhor){ melhor=d; alvo=o; }
+    for(let i=0;i<2;i++){
+      const it=p.itens[i];
+      if(!it) continue;
+      let usar=false;
+      if(p.ia){
+        const spd=Math.hypot(p.vx,p.vz);
+        if(it==="turbo")  usar = spd>c.at.vmax*0.45 && (p.nitro||0)<40;
+        if(it==="oleo")   usar = c.pilotos.some(o=>o!==p&&o.terminou<0&&
+                            Math.hypot(o.x-p.x,o.z-p.z)<22&&
+                            ((o.x-p.x)*Math.cos(p.h)+(o.z-p.z)*Math.sin(p.h))<0);
+        if(it==="tranco") usar = c.pilotos.some(o=>o!==p&&o.terminou<0&&
+                            Math.hypot(o.x-p.x,o.z-p.z)<34&&
+                            ((o.x-p.x)*Math.cos(p.h)+(o.z-p.z)*Math.sin(p.h))>0);
+        if(it==="reparo") usar = (p.nitro||0)<45;
+        if(it==="estouro")usar = true;
+        if(!usar && c.t-(p.desde[i]||0) > 12) usar = true;
+      } else {
+        usar = (!!teclas[String(i+1)]) || ((p.sel===i) && (!!teclas.e||!!teclas.control));
       }
-      if(alvo){ alvo.travado=1.1; alvo.vx*=0.55; alvo.vz*=0.55; efeito(c,alvo,"tranco");
-        if(!alvo.ia){ c.aviso="VOCÊ LEVOU UM TRANCO"; c.avisoAte=c.t+1.8; }
-        else if(!p.ia){ c.aviso="TRANCO ACERTOU"; c.avisoAte=c.t+1.6; } }
-      else if(!p.ia) continue;   // jogador só gasta se tiver alvo
+      if(!usar) continue;
+
+      if(it==="estouro"){
+        let alvo=null, melhor=-1;
+        for(const o of c.pilotos){ if(o===p||o.terminou>=0) continue;
+          if(o.prog>melhor){ melhor=o.prog; alvo=o; } }
+        if(alvo && alvo.prog>p.prog && !c.estouroVindo){
+          c.estouroVindo={ alvo, em:c.t+1.6, de:p };
+          c.aviso = alvo.ia ? "ESTOURO A CAMINHO DO LÍDER" : "ESTOURO VINDO — USE UM ITEM PARA DEFENDER";
+          c.avisoAte=c.t+1.6;
+        } else if(!p.ia) continue;
+      }
+      if(it==="turbo"){ p.nitro=NITRO.max; efeito(c,p,"turbo"); }
+      if(it==="oleo"){  c.perigos.push({x:p.x-Math.cos(p.h)*4,z:p.z-Math.sin(p.h)*4,t:c.t,de:p});
+                        efeito(c,{x:p.x-Math.cos(p.h)*4,z:p.z-Math.sin(p.h)*4},"oleo"); }
+      if(it==="reparo"){ p.nitro=cl((p.nitro||0)+55,0,NITRO.max); efeito(c,p,"reparo"); }
+      if(it==="tranco"){
+        let alvo=null, melhor=1e9;
+        for(const o of c.pilotos){
+          if(o===p||o.terminou>=0) continue;
+          const dx=o.x-p.x, dz=o.z-p.z, d=Math.hypot(dx,dz);
+          if(d>40) continue;
+          if(((dx*Math.cos(p.h)+dz*Math.sin(p.h))/d)<0.5) continue;
+          if(d<melhor){ melhor=d; alvo=o; }
+        }
+        if(alvo){ alvo.travado=1.1; alvo.vx*=0.55; alvo.vz*=0.55; efeito(c,alvo,"tranco");
+          if(!alvo.ia){ c.aviso="VOCÊ LEVOU UM TRANCO"; c.avisoAte=c.t+1.8; }
+          else if(!p.ia){ c.aviso="TRANCO ACERTOU"; c.avisoAte=c.t+1.6; } }
+        else if(!p.ia) continue;
+      }
+      p.itens[i]=null;
+      if(!p.ia && p.itens[p.sel]===null && p.itens[1-p.sel]) p.sel=1-p.sel;
     }
-    p.item=null;
   }
 
   // efeito do tranco: freia forte por um instante
@@ -1893,6 +2085,7 @@ function quadro(agora){
 
   if(tela==="corrida"&&corrida){
     desenhar(malhaPista,m4pose(0,0,0,0));
+    if(malhaCenario) desenhar(malhaCenario,m4pose(0,0,0,0));
     for(const g of corrida.perigos){
       const vida=cl(1-(corrida.t-g.t)/14,0,1);
       // a mancha deita no chão: X->X, Y->Z, Z(espessura)->Y
@@ -1986,26 +2179,23 @@ function atualizarHUD(){
     else if(corrida.t<0.9) av.textContent="VAI";
     else av.textContent="";
     $("bNitro").style.width=(p.nitro||0)+"%";
-    const cxi=$("item"), qi=$("qItem"), oq=$("oqItem");
-    if(p.item!==ultimoItem){
-      ultimoItem=p.item;
-      cxi.classList.remove("novo"); void cxi.offsetWidth;
-      if(p.item) cxi.classList.add("novo");
+    for(let i=0;i<2;i++){
+      const el=$("slot"+i), it=p.itens[i], ico=el.querySelector(".ico"), nm=el.querySelector(".nm");
+      if(it!==ultimoItem[i]){
+        ultimoItem[i]=it;
+        el.classList.remove("novo"); void el.offsetWidth;
+        if(it) el.classList.add("novo");
+        ico.innerHTML = it ? icone(ITENS[it].ic,40) : "";
+        nm.textContent = it ? ITENS[it].nome : "—";
+        nm.style.color = it ? ITENS[it].cor : "var(--tx3)";
+      }
+      el.classList.toggle("tem", !!it);
+      el.classList.toggle("sel", p.sel===i && !!it);
     }
-    if(p.item){
-      const it=ITENS[p.item];
-      $("icItem").innerHTML=icone(it.ic,40);
-      qi.textContent=it.nome; qi.style.color=it.cor;
-      cxi.classList.add("tem");
-      cxi.firstElementChild.style.borderColor=it.cor;
-      oq.textContent="APERTE E — "+DESCRICAO[p.item];
-    } else {
-      $("icItem").innerHTML="";
-      qi.textContent="vazio"; qi.style.color="var(--tx3)";
-      cxi.classList.remove("tem");
-      cxi.firstElementChild.style.borderColor="var(--line)";
-      oq.textContent="pegue uma caixa na pista";
-    }
+    const atual=p.itens[p.sel];
+    $("oqItem").textContent = atual ? DESCRICAO[atual]
+      : (p.itens.some(Boolean) ? "TAB troca de item" : "pegue as caixas na pista");
+
     const pe=$("pericia");
     if(corrida.avisoAte<=corrida.t){
       if(p.derrapa>ORCAMENTO_DESLIZE){ pe.textContent="+ PERÍCIA · NITRO";
@@ -2015,7 +2205,7 @@ function atualizarHUD(){
   }
 }
 function abrirModal(html){ const m=$("modal"); m.innerHTML='<div class="cartao">'+html+'</div>'; m.classList.add("on"); }
-let dicaT=null, ultimoTick=-1, ultimoItem="__";
+let dicaT=null, ultimoTick=-1, ultimoItem=["__","__"];
 const DESCRICAO={
   turbo:  "enche o nitro na hora",
   oleo:   "solta poça atrás de você",
@@ -2061,7 +2251,7 @@ function irPara(t){
   if(t==="mapa") iniciarMapa();
   if(t==="corrida"){ if(!gastarEnergia()){ tela="garagem"; $("garagem").style.display="block";
       $("nGar").setAttribute("aria-pressed","true"); $("nCor").setAttribute("aria-pressed","false"); return; }
-    pista=gerarPista(estado.sementePista); reconstruirPista(); iniciarCorrida(); }
+    pista=gerarPista(estado.sementePista, estado.piso); reconstruirPista(); iniciarCorrida(); }
   $("dica").textContent=dicaPadrao();
 }
 $("nGar").onclick=()=>irPara("garagem");
