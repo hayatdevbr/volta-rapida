@@ -1,4 +1,7 @@
 <title>Volta Rápida</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#0C1014">
+<meta name="mobile-web-app-capable" content="yes">
 <style>
   :root{
     --bg:#0C1014; --panel:#151B21; --line:#232C34; --line2:#1A2229;
@@ -11,7 +14,8 @@
   *{box-sizing:border-box}
   html,body{height:100%;margin:0;overflow:hidden}
   body{background:var(--bg);color:var(--tx);font-family:var(--f-b);
-       -webkit-font-smoothing:antialiased;user-select:none}
+       -webkit-font-smoothing:antialiased;user-select:none;
+       touch-action:none;overscroll-behavior:none;-webkit-tap-highlight-color:transparent}
   canvas{display:block;width:100vw;height:100vh}
 
   .ui{position:fixed;pointer-events:none}
@@ -135,6 +139,71 @@
   .acoes{display:flex;gap:8px;margin-top:22px}
   .acoes .btn{flex:1;text-align:center;padding:11px}
 
+  /* ── controles de toque ────────────────────────────────────────────────
+     Sem isto o jogo é assistível no celular e injogável, e a maior parte das
+     pessoas abre link no telefone. */
+  #toque{inset:0;display:none}
+  #toque.on{display:block}
+  .lado{position:absolute;bottom:16px;display:flex;gap:10px;align-items:flex-end}
+  .lado.esq{left:16px}
+  .lado.dir{right:16px;flex-direction:column;align-items:flex-end}
+  .lado.dir .fila{display:flex;gap:10px;align-items:flex-end}
+  .tq{font-family:var(--f-d);font-size:26px;color:var(--tx);
+      background:rgba(20,26,32,.62);border:2px solid rgba(255,255,255,.16);
+      width:86px;height:86px;border-radius:50%;cursor:pointer;
+      display:flex;align-items:center;justify-content:center;
+      touch-action:none;-webkit-user-select:none;user-select:none;
+      backdrop-filter:blur(3px)}
+  .tq.grande{width:108px;height:108px;font-size:34px;
+             background:rgba(233,153,43,.30);border-color:rgba(233,153,43,.55)}
+  .tq.peq{width:74px;height:74px;font-size:12px;letter-spacing:.06em}
+  .tq.ativo{background:rgba(233,153,43,.62);border-color:var(--amber);color:#141414}
+  #girar{inset:0;display:none;align-items:center;justify-content:center;text-align:center;
+         background:rgba(8,11,14,.94);font-family:var(--f-d);font-size:26px;padding:40px;
+         letter-spacing:.03em}
+  #girar.on{display:flex}
+
+  /* ── telas estreitas ── */
+  @media (max-width:860px){
+    #topo{gap:12px;padding:9px 12px}
+    #topo .marca{font-size:15px}
+    #topo .pilha .val{font-size:14px}
+    #barraE{width:88px}
+    #nav{top:8px;right:10px;gap:3px}
+    #nav button{font-size:11px;padding:6px 9px}
+    /* deitado, divide a tela para o carro continuar visível enquanto você
+       troca peça; em pé, ocupa tudo porque não cabe de outro jeito */
+    #garagem{width:100%;top:56px;border-left:0;border-top:1px solid var(--line)}
+    #vel .n{font-size:40px}
+    #volta .v{font-size:22px}
+    #tempos .t{font-size:20px}
+    #tempos .t.d{font-size:13px}
+    #tempos{top:60px;right:14px}
+    #volta{top:60px;left:16px}
+    #nitro{left:16px;bottom:auto;top:104px;width:140px}
+    #item{width:210px;bottom:auto;top:128px;left:16px;transform:none;text-align:left}
+    #item .cx{padding:7px 8px}
+    #item .cx span{font-size:17px}
+    #item .oq{font-size:9px;margin-top:4px}
+    /* o velocímetro sai do canto: ali ele fica embaixo do botão de virar */
+    #vel{left:50%;transform:translateX(-50%);bottom:8px;align-items:baseline}
+    #vel .n{font-size:34px;text-shadow:0 2px 12px rgba(0,0,0,.95)}
+    #vel .u{font-size:9px}
+    #dica{display:none}
+    #aviso{font-size:52px}
+    .cartao{min-width:0;width:92vw;padding:22px 20px}
+    .cartao h2{font-size:26px}
+  }
+  @media (max-width:1000px) and (orientation:landscape){
+    #garagem{width:47%;top:50px;border-left:1px solid var(--line);border-top:0}
+    #topo{padding:7px 12px}
+    #nav{top:6px}
+  }
+  @media (max-width:520px){
+    .tq{width:70px;height:70px;font-size:21px}
+    .tq.grande{width:88px;height:88px;font-size:27px}
+    .tq.peq{width:62px;height:62px;font-size:10px}
+  }
   #dica{left:50%;bottom:22px;transform:translateX(-50%);font-family:var(--f-m);font-size:10.5px;
         letter-spacing:.11em;color:var(--tx3);text-transform:uppercase;text-align:center}
 </style>
@@ -176,6 +245,23 @@
   <div id="pericia"></div>
 </div>
 
+<div class="ui" id="toque" hidden>
+  <div class="lado esq">
+    <button class="tq" data-k="arrowleft" aria-label="esquerda">◀</button>
+    <button class="tq" data-k="arrowright" aria-label="direita">▶</button>
+  </div>
+  <div class="lado dir">
+    <div class="fila">
+      <button class="tq peq" data-k="e" aria-label="usar item">ITEM</button>
+      <button class="tq peq" data-k="shift" aria-label="turbo">TURBO</button>
+    </div>
+    <div class="fila">
+      <button class="tq peq" data-k="arrowdown" aria-label="freio">FREIO</button>
+      <button class="tq grande" data-k="arrowup" aria-label="acelerar">▲</button>
+    </div>
+  </div>
+</div>
+<div class="ui" id="girar" hidden>Vire o celular na horizontal para correr</div>
 <div class="ui" id="modal"></div>
 <div class="ui" id="dica"></div>
 
@@ -223,9 +309,9 @@ const BATERIA = 800;
 const PISOS = {
   asfalto: { nome:"Asfalto", aderencia:1.00, arrasto:1.00,
              pista:[.019,.021,.024], grama:[.020,.045,.026], ceu:1.00 },
-  terra:   { nome:"Terra",   aderencia:0.76, arrasto:1.06,
+  terra:   { nome:"Terra",   aderencia:0.64, arrasto:1.09,
              pista:[.052,.032,.018], grama:[.038,.040,.020], ceu:1.06 },
-  chuva:   { nome:"Chuva",   aderencia:0.68, arrasto:0.96,
+  chuva:   { nome:"Chuva",   aderencia:0.58, arrasto:0.95,
              pista:[.013,.016,.024], grama:[.014,.030,.024], ceu:0.62 },
 };
 const ORDEM_PISO = ["asfalto","terra","chuva"];
@@ -761,11 +847,69 @@ addEventListener("keydown",e=>{
   if(e.key==="Escape"&&tela==="corrida") irPara("garagem");
 });
 addEventListener("keyup",e=>{teclas[e.key.toLowerCase()]=false;});
+/* ── toque ────────────────────────────────────────────────────────────── */
+const ehToque = ("ontouchstart" in window) || navigator.maxTouchPoints>0;
+for(const b of document.querySelectorAll(".tq")){
+  const k=b.dataset.k;
+  const liga=e=>{e.preventDefault(); teclas[k]=true; b.classList.add("ativo");
+                 if(k==="shift"||k==="e") ligarSomSeMudo();};
+  const desliga=e=>{e.preventDefault(); teclas[k]=false; b.classList.remove("ativo");};
+  b.addEventListener("pointerdown",liga);
+  b.addEventListener("pointerup",desliga);
+  b.addEventListener("pointercancel",desliga);
+  b.addEventListener("pointerleave",desliga);
+  b.addEventListener("contextmenu",e=>e.preventDefault());
+}
+function ligarSomSeMudo(){ if(som.ctx&&som.ctx.state==="suspended") som.ctx.resume(); }
+function atualizarToque(){
+  const mostrar = ehToque && tela==="corrida";
+  $("toque").hidden=!mostrar; $("toque").classList.toggle("on",mostrar);
+  const deitar = ehToque && tela==="corrida" && innerHeight>innerWidth;
+  $("girar").hidden=!deitar; $("girar").classList.toggle("on",deitar);
+}
+addEventListener("resize",atualizarToque);
+addEventListener("orientationchange",atualizarToque);
+
+/* ── controle de videogame ────────────────────────────────────────────── */
+function lerGamepad(){
+  if(!navigator.getGamepads) return;
+  const g=[...navigator.getGamepads()].find(x=>x&&x.connected);
+  if(!g) return;
+  const eixo=g.axes[0]||0;
+  teclas.arrowleft  = eixo<-0.25 || !!(g.buttons[14]&&g.buttons[14].pressed);
+  teclas.arrowright = eixo> 0.25 || !!(g.buttons[15]&&g.buttons[15].pressed);
+  const gat=(i)=>g.buttons[i]&&(g.buttons[i].pressed||g.buttons[i].value>0.3);
+  teclas.arrowup   = gat(7)||gat(0);      // RT ou A
+  teclas.arrowdown = gat(6)||gat(1);      // LT ou B
+  teclas[" "]      = gat(2);              // X — freio de mão
+  teclas.shift     = gat(5)||gat(3);      // RB ou Y — turbo
+  teclas.e         = gat(4);              // LB — item
+}
+
 addEventListener("wheel",e=>{
   if(tela!=="mapa"||!mapa)return;
   e.preventDefault();
   mapa.zoom=cl(mapa.zoom*(1+Math.sign(e.deltaY)*0.13),0.45,3.4);
 },{passive:false});
+
+/* ── arrastar e pinçar no mapa, para o celular ── */
+let toqueAnt=null, pincaAnt=0;
+cv.addEventListener("touchstart",e=>{
+  if(tela!=="mapa") return;
+  if(e.touches.length===1) toqueAnt=[e.touches[0].clientX,e.touches[0].clientY];
+  if(e.touches.length===2) pincaAnt=Math.hypot(
+    e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY);
+},{passive:true});
+cv.addEventListener("touchmove",e=>{
+  if(tela!=="mapa"||!mapa) return;
+  if(e.touches.length===2){
+    const d=Math.hypot(e.touches[0].clientX-e.touches[1].clientX,
+                       e.touches[0].clientY-e.touches[1].clientY);
+    if(pincaAnt) mapa.zoom=cl(mapa.zoom*(pincaAnt/d),0.45,3.4);
+    pincaAnt=d; e.preventDefault();
+  }
+},{passive:false});
+cv.addEventListener("touchend",()=>{toqueAnt=null;pincaAnt=0;},{passive:true});
 
 function prepararCarro(P){
   const c=construirCarro(P);
@@ -922,7 +1066,7 @@ function iniciarCorrida(){
   corrida={
     pilotos:[novoPiloto(0),novoPiloto(1),novoPiloto(2),novoPiloto(3)],
     at, t:-3.2, tVolta:0, melhor:-1, acabou:false, perLog:[], marcas:[],
-    periciaGanha:0, pico:0, caixas:montarCaixas(), perigos:[], efeitos:[], aviso:"", avisoAte:0,
+    periciaGanha:0, pico:0, caixas:montarCaixas(), perigos:[], efeitos:[], estouroVindo:null, aviso:"", avisoAte:0,
   };
   corrida.pilotos[0].ia=false;
   document.getElementById("hud").classList.add("on");
@@ -1042,7 +1186,11 @@ function passoCorrida(){
       if(p.derrapa>ORCAMENTO_DESLIZE && naPista && Math.hypot(p.vx,p.vz)>14){
         c.periciaGanha+=(p.derrapa-ORCAMENTO_DESLIZE)*DT*1.4;
       }
-      if(p.derrapa>ORCAMENTO_DESLIZE*0.7 && naPista && c.marcas.length<900 && Math.random()<.5)
+      // fora do asfalto o carro solta muito mais rastro: é o aviso visual de
+      // que o piso mudou, sem precisar ler nada
+      const lim = estado.piso==="asfalto" ? ORCAMENTO_DESLIZE*0.7 : ORCAMENTO_DESLIZE*0.32;
+      if(p.derrapa>lim && naPista && c.marcas.length<900 &&
+         Math.random()<(estado.piso==="asfalto"?.5:.85))
         c.marcas.push({x:p.x,z:p.z,h:p.h,v:1});
     }
   }
@@ -1116,9 +1264,30 @@ function passoCorrida(){
 
   for(const m of c.marcas) m.v-=DT*0.09;
 
+  /* ── estouro a caminho: resolve ou é defendido ── */
+  if(c.estouroVindo && c.t>=c.estouroVindo.em){
+    const a=c.estouroVindo.alvo;
+    if(a.terminou<0){
+      a.travado=1.5; a.vx*=0.44; a.vz*=0.44; a.oleado=1.2; efeito(c,a,"estouro");
+      c.aviso = a.ia ? "ESTOURO ACERTOU O LÍDER" : "VOCÊ FOI ESTOURADO";
+      c.avisoAte=c.t+2.0;
+    }
+    c.estouroVindo=null;
+  }
+
   /* ── uso de item ── */
   for(const p of c.pilotos){
     if(!p.item||p.terminou>=0) continue;
+    // DEFESA: quem está na mira gasta o item que tiver e escapa
+    if(c.estouroVindo && c.estouroVindo.alvo===p){
+      const defende = p.ia ? true : (!!teclas.e||!!teclas.control);
+      if(defende){
+        c.estouroVindo=null; p.item=null; efeito(c,p,"reparo");
+        c.aviso = p.ia ? "O LÍDER DEFENDEU" : "VOCÊ DEFENDEU O ESTOURO";
+        c.avisoAte=c.t+2.0;
+        continue;
+      }
+    }
     let usar=false;
     if(p.ia){
       // a IA decide quando vale: turbo em reta, óleo com alguém colado atrás,
@@ -1144,10 +1313,15 @@ function passoCorrida(){
       let alvo=null, melhor=-1;
       for(const o of c.pilotos){ if(o===p||o.terminou>=0) continue;
         if(o.prog>melhor){ melhor=o.prog; alvo=o; } }
-      if(alvo && alvo.prog>p.prog){
-        alvo.travado=1.5; alvo.vx*=0.44; alvo.vz*=0.44; alvo.oleado=1.2; efeito(c,alvo,"estouro");
-        c.aviso = alvo.ia ? "ESTOURO NO LÍDER" : "VOCÊ FOI ESTOURADO";
-        c.avisoAte=c.t+2.2;
+      if(alvo && alvo.prog>p.prog && !c.estouroVindo){
+        /* Alcance infinito é o que faz o item existir — limitar distância o
+           tornaria inútil justo quando é necessário. O que faltava não era
+           limite, era RESPOSTA: acertar do nada, sem o alvo poder fazer nada,
+           é o que torna o casco azul o item mais odiado dos jogos.
+           Agora vem com aviso e janela de defesa. */
+        c.estouroVindo={ alvo, em:c.t+1.6, de:p };
+        c.aviso = alvo.ia ? "ESTOURO A CAMINHO DO LÍDER" : "ESTOURO VINDO — USE UM ITEM PARA DEFENDER";
+        c.avisoAte=c.t+1.6;
       } else if(!p.ia) continue;
     }
     if(p.item==="turbo"){ p.nitro=NITRO.max; efeito(c,p,"turbo"); }
@@ -1326,6 +1500,7 @@ function desenhar(malha,M4){
 
 function quadro(agora){
   const dt=Math.min(.05,(agora-ultimo)/1000); ultimo=agora;
+  if(tela==="corrida") lerGamepad();
   redim(); gl.viewport(0,0,cv.width,cv.height);
   gl.clear(gl.DEPTH_BUFFER_BIT);
   gl.depthMask(false); gl.disable(gl.DEPTH_TEST);
@@ -1544,6 +1719,7 @@ function sortearProxima(){
 }
 function irPara(t){
   tela=t;
+  setTimeout(atualizarToque,0);
   $("modal").classList.remove("on"); $("hud").classList.remove("on");
   $("garagem").style.display = t==="garagem"?"block":"none";
   for(const[id,alvo] of [["nGar","garagem"],["nMapa","mapa"],["nCor","corrida"]])
