@@ -79,11 +79,21 @@
   #volta{left:34px;top:76px;position:absolute}
   #volta .v{font-family:var(--f-d);font-size:32px;line-height:1}
   #volta .p{font-family:var(--f-m);font-size:11px;letter-spacing:.14em;color:var(--tx3);text-transform:uppercase}
-  #nitro{position:absolute;left:34px;bottom:172px;width:210px}
-  #nitro .nb{height:9px;background:rgba(10,14,18,.75);position:relative;overflow:hidden;margin-top:4px}
-  #nitro .nb i{position:absolute;inset:0 auto 0 0;background:linear-gradient(90deg,#5AA894,#E9992B);width:0%}
-  #item{position:absolute;left:262px;bottom:172px;width:150px}
-  #item .iv{font-family:var(--f-d);font-size:22px;margin-top:2px;text-shadow:0 1px 8px rgba(0,0,0,.9)}
+  #nitro{position:absolute;left:34px;bottom:118px;width:240px}
+  #nitro .nb{height:11px;background:rgba(10,14,18,.8);position:relative;overflow:hidden;margin-top:5px;
+             border:1px solid rgba(255,255,255,.10)}
+  #nitro .nb i{position:absolute;inset:0 auto 0 0;background:linear-gradient(90deg,#3E8A5B,#E9992B,#FFD36B);width:0%;
+               transition:width .08s linear}
+  #item{position:absolute;left:50%;bottom:26px;transform:translateX(-50%);text-align:center;width:340px}
+  #item .cx{border:2px solid var(--line);background:rgba(12,16,20,.88);padding:11px 8px;
+            transition:border-color .15s, box-shadow .15s}
+  #item .cx span{font-family:var(--f-d);font-size:30px;letter-spacing:.03em;text-transform:uppercase;
+                 line-height:1;display:block}
+  #item .oq{font-family:var(--f-m);font-size:10.5px;letter-spacing:.11em;text-transform:uppercase;
+            color:var(--tx3);margin-top:7px}
+  #item.tem .cx{box-shadow:0 0 26px rgba(233,153,43,.30)}
+  @keyframes bate{0%{transform:scale(1)}35%{transform:scale(1.13)}100%{transform:scale(1)}}
+  #item.novo .cx{animation:bate .45s ease-out}
   #carro{position:absolute;left:34px;bottom:112px;display:flex;flex-direction:column;gap:7px;width:210px}
   .med{display:grid;grid-template-columns:44px 1fr 40px;gap:8px;align-items:center}
   .med span{font-family:var(--f-m);font-size:9.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--tx3)}
@@ -142,11 +152,10 @@
   <div id="tempos"><div class="l">Volta atual</div><div class="t" id="tAtual">0.00</div>
     <div class="l" style="margin-top:8px">Melhor</div><div class="t d" id="tMelhor">—</div></div>
   <div id="vel"><div class="n" id="velN">0</div><div class="u">km/h</div></div>
-  <div id="nitro"><div class="rot">Nitro · SHIFT</div><div class="nb"><i id="bNitro"></i></div></div>
-  <div id="item"><div class="rot">Item · E</div><div class="iv" id="qItem">—</div></div>
-  <div id="carro">
-    <div class="med"><span>Motor</span><div class="bar"><i id="bTemp"></i></div><b id="qTemp">22°</b></div>
-    <div class="med"><span>Pneu</span><div class="bar"><i id="bPneu"></i></div><b id="qPneu">100%</b></div>
+  <div id="nitro"><div class="rot">Nitro · segure SHIFT</div><div class="nb"><i id="bNitro"></i></div></div>
+  <div id="item">
+    <div class="cx" id="cxItem"><span id="qItem">vazio</span></div>
+    <div class="oq" id="oqItem">pegue uma caixa na pista</div>
   </div>
   <div id="aviso"></div>
   <div id="pericia"></div>
@@ -296,23 +305,21 @@ function maisProximo(pista, x, z, ult){
 const DT=1/120;
 const ORCAMENTO_DESLIZE = 4.2;   // m/s de lateral que o pneu aguenta de graça
 
-/* ── PROBLEMAS DO CARRO ──────────────────────────────────────────────────
-   Sem nada quebrando, quem larga na frente ganha e a corrida não tem
-   reviravolta. Temperatura e pneu valem para TODOS os carros, inclusive os
-   da IA, e é o que faz quem forçou demais no começo ser pego no fim.
-
-   Motor esquenta com acelerador cheio em velocidade e esfria ao aliviar.
-   Passou do limite, perde força. Pneu gasta com o tempo e MUITO mais com
-   derrapagem — quem anda de lado a corrida inteira chega no fim sem nada. */
-const MOTOR = { limite:84, teto:112, sobe:5.5, desce:2.0, perdaMax:0.34 };
-const PNEU  = { base:0.16, porDeslize:1.60, pisoAderencia:0.56 };
+/* Temperatura de motor e desgaste de pneu FORAM REMOVIDOS.
+   Medido: num ritmo humano o motor chegava a 92° e o pneu a 75%, o que dava
+   9% de perda de força e 11% de aderência — número que se mexe e consequência
+   que não morde. Pior: o único jeito de esfriar era parar de acelerar, ou
+   seja, a mecânica pedia que você jogasse menos. Limitação igual pra todos,
+   sem decisão nenhuma no meio.
+   O custo do turbo agora é o próprio NITRO, que é recurso conquistado
+   derrapando e pegando vácuo. */
 
 /* ── NITRO ───────────────────────────────────────────────────────────────
    Enche derrapando e pegando vácuo, gasta no turbo. E o turbo é a FONTE DE
    CALOR: motor esquentando sozinho não mordia (a 92° a perda é 9%, ninguém
    sente), mas como preço de usar o turbo ele passa a ser uma decisão. Toda
    peça alimenta a outra: derrapa → nitro → turbo → calor → tem que aliviar. */
-const NITRO = { max:100, gasto:34, forca:1.80, calor:20, porDeslize:11, porVacuo:19, porAtraso:16 };
+const NITRO = { max:100, gasto:34, forca:1.85, calor:0, porDeslize:11, porVacuo:19, porAtraso:16 };
 
 /* ── ITENS ───────────────────────────────────────────────────────────────
    Peso por posição: quem está atrás tira coisa melhor. É o que mantém a
@@ -321,7 +328,7 @@ const ITENS = {
   turbo:  { nome:"Turbo",  cor:"#E9992B", peso:[4,5,7,8] },
   oleo:   { nome:"Óleo",   cor:"#7A6A50", peso:[7,5,3,2] },
   tranco: { nome:"Tranco", cor:"#D2604A", peso:[0,3,6,9] },
-  reparo: { nome:"Reparo", cor:"#5AA894", peso:[3,4,5,5] },
+  reparo: { nome:"Recarga",cor:"#5AA894", peso:[3,4,5,5] },
   // ESTOURO: só cai pra quem está em 3º ou 4º e acerta o LÍDER onde ele
   // estiver. É o que impede a corrida de virar procissão depois que alguém
   // abre vantagem — sem algo assim, quem lidera aos 40% vence sempre.
@@ -335,26 +342,6 @@ function sortearItem(posicao){
   return "turbo";
 }
 
-function passoDesgaste(c, ent, spd, vmax){
-  // Temperatura PROPORCIONAL ao quanto se está forçando, não liga/desliga.
-  // Binário fazia todo mundo saturar no teto e o sistema virava um handicap
-  // igual pra todos, que não diferencia ninguém e não gera reviravolta.
-  const carga = (ent.acel||0) * Math.pow(cl(spd/Math.max(1,vmax),0,1), 1.2);
-  const extra = (c.turbando?1:0) * NITRO.calor;
-  c.temp = cl((c.temp||20) + (MOTOR.sobe*carga + extra - MOTOR.desce*(1-carga*0.55))*DT, 22, MOTOR.teto);
-  // Pneu: o gasto de verdade vem de andar de lado, não de rodar
-  const excesso = Math.max(0, (c.derrapa||0) - ORCAMENTO_DESLIZE);
-  const gasto = (PNEU.base + excesso*PNEU.porDeslize) * (spd>4?1:0);
-  c.pneu = cl((c.pneu===undefined?100:c.pneu) - gasto*DT, 0, 100);
-}
-function fatorMotor(c){
-  const t=c.temp||20;
-  return t<=MOTOR.limite ? 1
-    : 1 - ((t-MOTOR.limite)/(MOTOR.teto-MOTOR.limite))*MOTOR.perdaMax;
-}
-function fatorPneu(c){
-  return PNEU.pisoAderencia + (1-PNEU.pisoAderencia)*((c.pneu===undefined?100:c.pneu)/100);
-}
 
 function passo(c, ent, at, naPista, terra){
   const spd=Math.hypot(c.vx,c.vz);
@@ -376,7 +363,7 @@ function passo(c, ent, at, naPista, terra){
     c.nitro = Math.max(0,(c.nitro||0) - NITRO.gasto*DT);
     c.turbando = 1;
   }
-  const potMult = fatorMotor(c) * (c.turbando ? NITRO.forca : 1);
+  const potMult = c.turbando ? NITRO.forca : 1;
   if(ent.acel>0 || c.turbando) vl += Math.max(ent.acel,c.turbando?0.9:0)*at.potencia*potMult*superficie*DT;
   if(ent.freio)  vl -= (vl>0.5?26:8)*DT;          // segurando parado, engata a ré
   vl -= vl*Math.abs(vl)*at.arrasto*DT;
@@ -390,16 +377,16 @@ function passo(c, ent, at, naPista, terra){
   // grande ser cara.
   const freioDeMao = ent.mao ? 0.30 : 1;
   if(c.oleado>0) c.oleado-=DT;
-  const ader = at.aderencia*(naPista?1:0.5*terra)*freioDeMao*fatorPneu(c)*(c.oleado>0?0.28:1);
+  const ader = at.aderencia*(naPista?1:0.5*terra)*freioDeMao*(c.oleado>0?0.28:1);
   vt *= Math.exp(-ader*DT);
   const excesso = Math.max(0, Math.abs(vt) - ORCAMENTO_DESLIZE);
   vl -= excesso*1.15*DT;
   c.derrapa = Math.abs(vt);                        // o quanto está de lado AGORA
 
   c.vl=vl;
+  c.giroRoda=(c.giroRoda||0) - vl*DT*2.9;      // roda gira com o chão passando
   c.vx=vl*cs-vt*sn; c.vz=vl*sn+vt*cs;
   c.x+=c.vx*DT; c.z+=c.vz*DT;
-  passoDesgaste(c, ent, spd, at.vmax);
 }
 
 /* ── mapa idle: simulado por tick, recuperável offline ──
@@ -514,18 +501,27 @@ function construirCarro(P){
       fl?B.tri([s.x,cy,0],r[e2],r[e],col):B.tri([s.x,cy,0],r[e],r[e2],col);}};
   tampa(sec[0],grade,false); tampa(sec[N-1],grade,true);
 
-  const roda=(t,R)=>{const x=L*.5-t*L, hw=meiaLarg(P,t), seg=18, ri=R*.62, cubo=R*.16;
-    for(const sg of[-1,1]){
-      const zo=sg*(hw+.022), zi=zo-sg*P.wheelW, z0=Math.min(zo,zi), z1=Math.max(zo,zi);
-      B.aro(x,R,z0,z1,R,seg,pneu);
-      B.anel(x,R,z0,ri,R,seg,esc(pneu,1.5)); B.anel(x,R,z1,ri,R,seg,esc(pneu,1.5));
-      B.disco(x,R,zo-sg*.016,ri,seg,fundoAro);
-      B.anel(x,R,zo-sg*.028,ri*.87,ri,seg,metal);
-      const ns=Math.max(3,Math.round(P.spokes)), raio=esc(metal,.78);
-      for(let k=0;k<ns;k++){const ang=k/ns*6.2832, rr=ri*.47;
-        B.boxR(x+Math.cos(ang)*rr, R+Math.sin(ang)*rr, zo-sg*.026, ri*.80, ri*.17,.042,ang,raio);}
-      B.cilZ(x,R,zo-sg*.024,cubo,.05,10,metal);}};
-  roda(P.axF,RF); roda(P.axR,RR);
+  /* A roda sai do corpo e vira malha própria, em raio 1 e centrada na origem.
+     Assada dentro do corpo ela não tinha como girar — e carro com roda parada
+     lê como maquete. Aqui ela é desenhada 4 vezes, com giro e esterço. */
+  const W=new M(), seg=18, ri=.62, cubo=.16, meia=P.wheelW*.5;
+  W.aro(0,0,-meia,meia,1,seg,pneu);
+  W.anel(0,0,-meia,ri,1,seg,esc(pneu,1.5));
+  W.anel(0,0, meia,ri,1,seg,esc(pneu,1.5));
+  W.disco(0,0,meia-.02,ri,seg,fundoAro);
+  W.anel(0,0,meia-.035,ri*.87,ri,seg,metal);
+  const ns=Math.max(3,Math.round(P.spokes)), raioCor=esc(metal,.78);
+  for(let k=0;k<ns;k++){const ang=k/ns*6.2832, rr=ri*.47;
+    W.boxR(Math.cos(ang)*rr, Math.sin(ang)*rr, meia-.032, ri*.80, ri*.17,.05,ang,raioCor);}
+  W.cilZ(0,0,meia-.03,cubo,.06,10,metal);
+  const posRodas=[];
+  for(const [t,R,frente] of [[P.axF,RF,true],[P.axR,RR,false]]){
+    const x=L*.5-t*L, hw=meiaLarg(P,t);
+    for(const sg of [-1,1])
+      // lado espelha a malha: o aro e os raios só existem numa face, e sem
+      // espelhar a roda esquerda mostrava o lado liso pra fora
+      posRodas.push({x, y:R, z:sg*(hw+.022-P.wheelW*.5), r:R, frente, lado:sg});
+  }
 
   const w=P.wing|0;
   if(w>0){const tw=.92,xw=-L*.5+(w===1?.16:.34),hwT=meiaLarg(P,tw),dk=teto(P,tw,S);
@@ -546,7 +542,7 @@ function construirCarro(P){
 
   const cano=esc(metal,.62);
   for(const s of[-1,1]) B.cilX(-L*.5+.09,P.ride+.045,s*P.width*.17,.044,.32,10,cano);
-  return B;
+  return { corpo:B, roda:W, posRodas, escape:[-L*.5+.02, P.ride+.05, P.width*.17] };
 }
 
 /* ── malha da pista: asfalto, meio-fio, grama, linha de largada ── */
@@ -606,14 +602,14 @@ layout(location=0)in vec3 aP;layout(location=1)in vec3 aN;layout(location=2)in v
 uniform mat4 uP,uV,uM;out vec3 vN,vW,vC;
 void main(){vec4 w=uM*vec4(aP,1.);vW=w.xyz;vN=mat3(uM)*aN;vC=aC;gl_Position=uP*uV*w;}`,
 `#version 300 es
-precision highp float;in vec3 vN,vW,vC;uniform vec3 uEye;uniform float uNeb;out vec4 o;
+precision highp float;in vec3 vN,vW,vC;uniform vec3 uEye;uniform float uNeb;uniform vec3 uTinta;out vec4 o;
 ${TONE}
 void main(){
   vec3 N=normalize(vN); if(!gl_FrontFacing)N=-N;
   vec3 V=normalize(uEye-vW);
   vec3 K=normalize(vec3(.55,.80,.30)),F1=normalize(vec3(-.70,.34,-.50)),F2=normalize(vec3(.10,.16,-.98));
   vec3 amb=mix(vec3(.105,.118,.140),vec3(.36,.405,.465),N.y*.5+.5);
-  vec3 c=vC*(amb+vec3(1.22,1.10,.90)*max(dot(N,K),0.)
+  vec3 c=vC*uTinta*(amb+vec3(1.22,1.10,.90)*max(dot(N,K),0.)
         +vec3(.22,.32,.46)*max(dot(N,F1),0.)+vec3(.17,.20,.27)*max(dot(N,F2),0.));
   c+=vec3(1.,.92,.78)*pow(max(dot(N,normalize(K+V)),0.),64.)*.15;
   c+=vec3(.42,.58,.82)*pow(1.-max(dot(N,V),0.),3.4)*.22;
@@ -675,7 +671,7 @@ function motorSom(rpm,carga){
    ESTADO DE CENA
    ══════════════════════════════════════════════════════════════════════════ */
 let tela="garagem";
-let malhaCarro=null, malhaPista=null, malhaRival=[], malhaPoco=null, malhaChao=null, malhaSeta=null, malhaCaixa=null, malhaMancha=null;
+let malhaCarro=null, malhaPista=null, malhaRival=[], malhaPoco=null, malhaChao=null, malhaSeta=null, malhaCaixa=null, malhaMancha=null, malhaChama=null, malhaAnel=null;
 let pista=gerarPista(3);
 let corrida=null, mapa=null;
 let camY=0.6, camDist=9.5, camAng=-0.7, girando=true;
@@ -693,15 +689,61 @@ addEventListener("wheel",e=>{
   mapa.zoom=cl(mapa.zoom*(1+Math.sign(e.deltaY)*0.13),0.45,3.4);
 },{passive:false});
 
+function prepararCarro(P){
+  const c=construirCarro(P);
+  return { corpo:subir(c.corpo), roda:subir(c.roda), posRodas:c.posRodas, escape:c.escape };
+}
 function reconstruirCarro(){
-  malhaCarro=subir(construirCarro(montar()));
-  if(!malhaRival.length){
-    const cores=[["#2E6B8C","#DDE4E8"],["#3E8A5B","#F0E9DC"],["#8C5A2E","#E9DCC8"]];
-    for(const[b,a] of cores){
-      const g={...montar(),colBody:b,colAcc:a,wing:2,engine:1};
-      malhaRival.push(subir(construirCarro(g)));
-    }
+  malhaCarro=prepararCarro(montar());
+  malhaRival.length=0;
+  const cores=[["#2E6B8C","#DDE4E8"],["#3E8A5B","#F0E9DC"],["#8C5A2E","#E9DCC8"]];
+  for(const[b,a] of cores){
+    const g={...montar(),colBody:b,colAcc:a,wing:2,engine:1};
+    malhaRival.push(prepararCarro(g));
   }
+}
+
+function fogoTurbo(m,p){
+  const [ex,ey,ez]=m.escape;
+  const cs=Math.cos(-p.h), sn=Math.sin(-p.h);
+  const tremida=0.75+Math.random()*0.55;
+  for(const lado of [-1,1]){
+    const lx=ex, lz=ez*lado;
+    const wx=p.x + lx*cs + lz*sn;
+    const wz=p.z - lx*sn + lz*cs;
+    const e=new Float32Array([cs*tremida,0,-sn*tremida, 0, 0,tremida,0,0,
+                              sn*tremida,0,cs*tremida, 0, wx,ey,wz,1]);
+    desenhar(malhaChama,e);
+  }
+}
+
+/* ── anéis de efeito: é o que torna item visível ── */
+function efeito(c,p,tipo){
+  const cores={turbo:[3.0,1.6,.4], oleo:[.9,.8,.5], tranco:[3.0,1.0,.6],
+               estouro:[3.4,.8,.3], reparo:[.7,2.4,1.9], batida:[2.4,2.4,2.6]};
+  c.efeitos.push({x:p.x,z:p.z,t:c.t,cor:cores[tipo]||cores.batida,
+                  raio: tipo==="estouro"?11:tipo==="tranco"?7:5});
+}
+
+/* ── matrizes ── */
+function m4mul(a,b){const o=new Float32Array(16);
+  for(let i=0;i<4;i++)for(let j=0;j<4;j++)
+    o[i*4+j]=a[j]*b[i*4]+a[4+j]*b[i*4+1]+a[8+j]*b[i*4+2]+a[12+j]*b[i*4+3];
+  return o;}
+function m4rodaLocal(w,giro,esterco){
+  const cz=Math.cos(giro), sz=Math.sin(giro);
+  const cy=Math.cos(esterco), sy=Math.sin(esterco);
+  // escala (r,r,1) · giro em Z · esterço em Y · translação
+  const r=w.r;
+  const e=w.lado||1;   // -1 espelha a face decorada para o lado de fora
+  const a=new Float32Array([ cz*r,sz*r,0,0,  -sz*r,cz*r,0,0,  0,0,e,0,  0,0,0,1]);
+  const b=new Float32Array([ cy,0,-sy,0,  0,1,0,0,  sy,0,cy,0,  w.x,w.y,w.z,1]);
+  return m4mul(b,a);
+}
+function desenharCarro(m,pose,giro,esterco){
+  desenhar(m.corpo,pose);
+  for(const w of m.posRodas)
+    desenhar(m.roda, m4mul(pose, m4rodaLocal(w,giro,w.frente?esterco:0)));
 }
 function reconstruirPista(){ malhaPista=subir(construirPista(pista)); }
 function construirChao(){
@@ -713,8 +755,24 @@ function construirChao(){
   }
   malhaChao=subir(B);
 }
+function construirChama(){
+  const B=new M(), q=[3.2,1.5,.35], a=[3.6,2.4,.9];
+  // cone apontando pra trás, com um miolo mais claro
+  const r=.30, L=1.7;
+  for(let i=0;i<7;i++){
+    const a0=i/7*6.2832, a1=(i+1)/7*6.2832;
+    B.tri([-L,0,0],[0,Math.sin(a0)*r,Math.cos(a0)*r],[0,Math.sin(a1)*r,Math.cos(a1)*r],q);
+    B.tri([-L*.45,0,0],[0,Math.sin(a1)*r*.5,Math.cos(a1)*r*.5],[0,Math.sin(a0)*r*.5,Math.cos(a0)*r*.5],a);
+  }
+  malhaChama=subir(B);
+}
+function construirAnel(){
+  const B=new M(), c=[1,1,1];
+  B.anel(0,0,0,.80,1,30,c);
+  malhaAnel=subir(B);
+}
 function construirCaixa(){
-  const B=new M(), a=[1.5,.95,.28], b=[.9,.55,.16];
+  const B=new M(), a=[1,1,1], b=[.55,.55,.55];
   // octaedro: gira bonito e lê de longe
   const r=1.5, h=1.9;
   for(let i=0;i<4;i++){
@@ -757,8 +815,8 @@ function novoPiloto(i){
   const off=(i-1.5)*3.4;
   const r=semente(1000+i*37+Math.floor(Math.random()*9999));
   return {x:p.x+p.nx*off, z:p.z+p.nz*off, h:Math.atan2(p.tz,p.tx),
-          vx:0,vz:0,vl:0,dir:0,derrapa:0, temp:22, pneu:100,
-          nitro:0, item:null, oleado:0, travado:0, turbando:0,
+          vx:0,vz:0,vl:0,dir:0,derrapa:0,
+          nitro:0, item:null, itemDesde:0, oleado:0, travado:0, turbando:0,
           seg:0, volta:0, prog:0, terminou:-1, ia:i>0,
           // PERSONALIDADE: sem isto os rivais andam em fila indiana feito trenzinho
           perfil:{
@@ -786,7 +844,7 @@ function iniciarCorrida(){
   corrida={
     pilotos:[novoPiloto(0),novoPiloto(1),novoPiloto(2),novoPiloto(3)],
     at, t:-3.2, tVolta:0, melhor:-1, acabou:false, perLog:[], marcas:[],
-    periciaGanha:0, pico:0, caixas:montarCaixas(), perigos:[], aviso:"", avisoAte:0,
+    periciaGanha:0, pico:0, caixas:montarCaixas(), perigos:[], efeitos:[], aviso:"", avisoAte:0,
   };
   corrida.pilotos[0].ia=false;
   document.getElementById("hud").classList.add("on");
@@ -856,31 +914,18 @@ function iaEntrada(p, at, t, rivais){
   const lider=Math.max(...rivais.map(o=>o.prog||0));
   const atraso=cl(((lider-(p.prog||0))/n)*1.9,0,0.17);
 
-  // ADMINISTRAÇÃO: alivia quando o motor está no limite e anda mais macio
-  // quando o pneu acabou. É isto que vira estratégia — quem forçou no começo
-  // paga no fim, e quem poupou vem buscar.
-  const quente=cl(((p.temp||20)-MOTOR.limite+12)/22,0,1);
-  const gasto=1-(p.pneu===undefined?100:p.pneu)/100;
-  const cuidado=1 - quente*0.30*(1.4-P.coragem) - gasto*0.20*(1.3-P.coragem);
-  const vAlvo=Math.min(at.vmax, vCurva)*P.coragem*(1+atraso)*cuidado;
+  const vAlvo=Math.min(at.vmax, vCurva)*P.coragem*(1+atraso);
 
   // erro humano: mão que treme e às vezes entra torto
   const tremor=Math.sin(t*P.ritmo+P.fase)*P.erro;
   const curvaAgora=Math.abs(norm(Math.atan2(
     pista.pontos[(p.seg+5)%n].z-p.z, pista.pontos[(p.seg+5)%n].x-p.x)-p.h));
 
-  // ALÍVIO DE ACELERADOR quando o motor passa do limite. Baixar a
-  // velocidade-alvo não fazia ela tirar o pé — o acelerador é liga/desliga,
-  // então todo mundo saturava no teto de temperatura e o sistema não
-  // diferenciava ninguém. Piloto cauteloso alivia mais que o corajoso.
-  const alivio = (p.temp||22) > MOTOR.limite
-    ? cl(1 - ((p.temp-MOTOR.limite)/16)*(1.55-P.coragem)*1.5, 0.22, 1) : 1;
-
   return {dir:cl(ang*1.45+correcao+tremor,-1,1),
-          acel: spd<vAlvo ? alivio : 0.08,
+          acel: spd<vAlvo ? 1 : 0.08,
           freio: spd>vAlvo*1.10,
           mao: curvaAgora>0.85&&spd>vAlvo*1.3,
-          turbo: (p.nitro||0)>28 && spd>vAlvo*0.80 && curvaAgora<0.45 && (p.temp||22)<100};
+          turbo: (p.nitro||0)>28 && spd>vAlvo*0.80 && curvaAgora<0.45};
 }
 function passoCorrida(){
   const c=corrida; if(!c)return;
@@ -970,6 +1015,7 @@ function passoCorrida(){
   }
   for(const cx of c.caixas) if(cx.volta>0) cx.volta-=DT;
   c.perigos=c.perigos.filter(g=>c.t-g.t<14);
+  c.efeitos=c.efeitos.filter(e=>c.t-e.t<0.75);
 
   /* ── contato entre carros ──
      Sem isto eles se atravessam e a corrida perde a disputa corpo a corpo,
@@ -1007,7 +1053,7 @@ function passoCorrida(){
       if(p.item==="tranco") usar = c.pilotos.some(o=>o!==p&&o.terminou<0&&
                               Math.hypot(o.x-p.x,o.z-p.z)<34&&
                               ((o.x-p.x)*Math.cos(p.h)+(o.z-p.z)*Math.sin(p.h))>0);
-      if(p.item==="reparo") usar = (p.temp>90)||(p.pneu<70);
+      if(p.item==="reparo") usar = (p.nitro||0)<45;
       if(p.item==="estouro")usar = true;
       // Sem prazo, o carro segurava óleo ou reparo pra sempre esperando a
       // condição perfeita — e enquanto segura NÃO PEGA MAIS NADA. Era isso
@@ -1021,14 +1067,15 @@ function passoCorrida(){
       for(const o of c.pilotos){ if(o===p||o.terminou>=0) continue;
         if(o.prog>melhor){ melhor=o.prog; alvo=o; } }
       if(alvo && alvo.prog>p.prog){
-        alvo.travado=1.5; alvo.vx*=0.44; alvo.vz*=0.44; alvo.oleado=1.2;
+        alvo.travado=1.5; alvo.vx*=0.44; alvo.vz*=0.44; alvo.oleado=1.2; efeito(c,alvo,"estouro");
         c.aviso = alvo.ia ? "ESTOURO NO LÍDER" : "VOCÊ FOI ESTOURADO";
         c.avisoAte=c.t+2.2;
       } else if(!p.ia) continue;
     }
-    if(p.item==="turbo")  p.nitro=NITRO.max;
-    if(p.item==="oleo")   c.perigos.push({x:p.x-Math.cos(p.h)*4,z:p.z-Math.sin(p.h)*4,t:c.t,de:p});
-    if(p.item==="reparo"){ p.temp=Math.max(22,p.temp-32); p.pneu=cl(p.pneu+26,0,100); }
+    if(p.item==="turbo"){ p.nitro=NITRO.max; efeito(c,p,"turbo"); }
+    if(p.item==="oleo"){  c.perigos.push({x:p.x-Math.cos(p.h)*4,z:p.z-Math.sin(p.h)*4,t:c.t,de:p});
+                          efeito(c,{x:p.x-Math.cos(p.h)*4,z:p.z-Math.sin(p.h)*4},"oleo"); }
+    if(p.item==="reparo"){ p.nitro=cl((p.nitro||0)+55,0,NITRO.max); efeito(c,p,"reparo"); }
     if(p.item==="tranco"){
       let alvo=null, melhor=1e9;
       for(const o of c.pilotos){
@@ -1038,7 +1085,7 @@ function passoCorrida(){
         if(((dx*Math.cos(p.h)+dz*Math.sin(p.h))/d)<0.5) continue;
         if(d<melhor){ melhor=d; alvo=o; }
       }
-      if(alvo){ alvo.travado=1.1; alvo.vx*=0.55; alvo.vz*=0.55;
+      if(alvo){ alvo.travado=1.1; alvo.vx*=0.55; alvo.vz*=0.55; efeito(c,alvo,"tranco");
         if(!alvo.ia){ c.aviso="VOCÊ LEVOU UM TRANCO"; c.avisoAte=c.t+1.8; }
         else if(!p.ia){ c.aviso="TRANCO ACERTOU"; c.avisoAte=c.t+1.6; } }
       else if(!p.ia) continue;   // jogador só gasta se tiver alvo
@@ -1213,7 +1260,15 @@ function quadro(agora){
     if(!corrida.cam) corrida.cam=alvo.slice();
     for(let i=0;i<3;i++) corrida.cam[i]=lerp(corrida.cam[i],alvo[i],1-Math.pow(0.0016,dt));
     olho=corrida.cam;
-    proj=m4p(0.80+cl(spd/120,0,.22),asp,.15,420);
+    // o turbo abre o ângulo e treme a câmera: sem isso o turbo é só uma
+    // barra descendo, e ele precisa ser SENTIDO
+    const kick=(p.turbando?1:0);
+    corrida.kick=lerp(corrida.kick||0,kick,1-Math.pow(0.004,dt));
+    proj=m4p(0.80+cl(spd/120,0,.22)+corrida.kick*0.16,asp,.15,420);
+    if(corrida.kick>0.02){
+      const a=corrida.kick*0.16;
+      olho[0]+=(Math.random()-.5)*a; olho[1]+=(Math.random()-.5)*a; olho[2]+=(Math.random()-.5)*a;
+    }
     // mira um pouco à frente do carro: é o que dá sensação de estar indo pra algum lugar
     vista=m4look(olho,[p.x+Math.cos(p.h)*4.5, 0.95, p.z+Math.sin(p.h)*4.5],[0,1,0]);
     motorSom(cl(spd/corrida.at.vmax,0,1), (teclas.arrowup||teclas.w)?1:0.2);
@@ -1239,6 +1294,7 @@ function quadro(agora){
   gl.uniformMatrix4fv(gl.getUniformLocation(pObj,"uV"),false,vista);
   gl.uniform3fv(gl.getUniformLocation(pObj,"uEye"),new Float32Array(olho));
   gl.uniform1f(gl.getUniformLocation(pObj,"uNeb"),neb);
+  gl.uniform3f(gl.getUniformLocation(pObj,"uTinta"),1,1,1);
 
   if(tela==="corrida"&&corrida){
     desenhar(malhaPista,m4pose(0,0,0,0));
@@ -1248,13 +1304,28 @@ function quadro(agora){
       const e=0.6+vida*0.6;
       desenhar(malhaMancha,new Float32Array([e,0,0,0, 0,0,e,0, 0,e,0,0, g.x,0.05,g.z,1]));
     }
+    // a caixa cicla pelas cores dos itens: comunica sozinha que o que vem
+    // de dentro é sorteio, em vez de ser sempre a mesma estrela laranja
+    const paleta=Object.values(ITENS).map(it=>hex(it.cor));
     for(const cx of corrida.caixas){
       if(cx.volta>0) continue;
+      const f=(corrida.t*0.8+cx.x*0.05)%paleta.length;
+      const c0=paleta[Math.floor(f)], c1=paleta[(Math.floor(f)+1)%paleta.length], k=f%1;
+      gl.uniform3f(gl.getUniformLocation(pObj,"uTinta"),
+        lerp(c0[0],c1[0],k)*2.2, lerp(c0[1],c1[1],k)*2.2, lerp(c0[2],c1[2],k)*2.2);
       desenhar(malhaCaixa,m4pose(cx.x,2.3+Math.sin(corrida.t*2.4+cx.x)*0.28,cx.z,corrida.t*2.1));
+      gl.uniform3f(gl.getUniformLocation(pObj,"uTinta"),1,1,1);
+    }
+    for(const e of corrida.efeitos){
+      const v=(corrida.t-e.t)/0.75, r=e.raio*(0.25+v*1.5), br=(1-v)*(1-v);
+      gl.uniform3f(gl.getUniformLocation(pObj,"uTinta"),e.cor[0]*br,e.cor[1]*br,e.cor[2]*br);
+      desenhar(malhaAnel,new Float32Array([r,0,0,0, 0,0,r,0, 0,r,0,0, e.x,0.35,e.z,1]));
+      gl.uniform3f(gl.getUniformLocation(pObj,"uTinta"),1,1,1);
     }
     corrida.pilotos.forEach((p,i)=>{
       const m=i===0?malhaCarro:malhaRival[(i-1)%malhaRival.length];
-      desenhar(m,m4pose(p.x,0,p.z,-p.h));
+      desenharCarro(m,m4pose(p.x,0,p.z,-p.h), p.giroRoda||0, (p.dir||0)*0.5);
+      if(p.turbando) fogoTurbo(m,p);
     });
   } else if(tela==="mapa"){
     desenhar(malhaChao,m4pose(0,0,0,0));
@@ -1266,7 +1337,8 @@ function quadro(agora){
     });
     mapa.carros.forEach((c,i)=>{
       const m=c.meu?malhaCarro:malhaRival[i%malhaRival.length];
-      desenhar(m,m4pose(c.x,0,c.z,-c.h,2.1));
+      c.giroRoda=(c.giroRoda||0)+dt*c.vel*1.6;
+      desenharCarro(m,m4pose(c.x,0,c.z,-c.h,2.1), c.giroRoda, 0);
     });
     // seta em cima do meu carro: sem isto não dá pra achar quem é você
     const eu=mapa.carros[0];
@@ -1277,7 +1349,7 @@ function quadro(agora){
     const g=1+mapa.brilho*0.35, ang=mapa.t*0.9, ca=Math.cos(ang)*g, sa=Math.sin(ang)*g;
     desenhar(malhaSeta,new Float32Array([ca,0,sa,0, -sa,0,ca,0, 0,g,0,0, eu.x,0.10,eu.z,1]));
   } else {
-    desenhar(malhaCarro,m4pose(0,0,0,0));
+    desenharCarro(malhaCarro,m4pose(0,0,0,0),0,0);
   }
 
   atualizarHUD();
@@ -1314,18 +1386,24 @@ function atualizarHUD(){
     else if(corrida.t<0.9) av.textContent="VAI";
     else av.textContent="";
     $("bNitro").style.width=(p.nitro||0)+"%";
-    const qi=$("qItem");
-    qi.textContent=p.item?ITENS[p.item].nome:"—";
-    qi.style.color=p.item?ITENS[p.item].cor:"var(--tx3)";
-    const tq=cl(((p.temp||22)-22)/(110-22),0,1);
-    const bt=$("bTemp"); bt.style.width=(tq*100)+"%";
-    bt.style.background = (p.temp||22)>85 ? "var(--oxide)" : (p.temp||22)>72 ? "var(--amber)" : "var(--patina)";
-    $("qTemp").textContent=Math.round(p.temp||22)+"°";
-    const pn=(p.pneu===undefined?100:p.pneu);
-    const bp=$("bPneu"); bp.style.width=pn+"%";
-    bp.style.background = pn<25 ? "var(--oxide)" : pn<55 ? "var(--amber)" : "var(--patina)";
-    $("qPneu").textContent=Math.round(pn)+"%";
-
+    const cxi=$("item"), qi=$("qItem"), oq=$("oqItem");
+    if(p.item!==ultimoItem){
+      ultimoItem=p.item;
+      cxi.classList.remove("novo"); void cxi.offsetWidth;
+      if(p.item) cxi.classList.add("novo");
+    }
+    if(p.item){
+      const it=ITENS[p.item];
+      qi.textContent=it.nome; qi.style.color=it.cor;
+      cxi.classList.add("tem");
+      cxi.firstElementChild.style.borderColor=it.cor;
+      oq.textContent="APERTE E — "+DESCRICAO[p.item];
+    } else {
+      qi.textContent="vazio"; qi.style.color="var(--tx3)";
+      cxi.classList.remove("tem");
+      cxi.firstElementChild.style.borderColor="var(--line)";
+      oq.textContent="pegue uma caixa na pista";
+    }
     const pe=$("pericia");
     if(corrida.avisoAte<=corrida.t){
       if(p.derrapa>ORCAMENTO_DESLIZE){ pe.textContent="+ PERÍCIA · NITRO";
@@ -1335,7 +1413,14 @@ function atualizarHUD(){
   }
 }
 function abrirModal(html){ const m=$("modal"); m.innerHTML='<div class="cartao">'+html+'</div>'; m.classList.add("on"); }
-let dicaT=null, ultimoTick=-1;
+let dicaT=null, ultimoTick=-1, ultimoItem="__";
+const DESCRICAO={
+  turbo:  "enche o nitro na hora",
+  oleo:   "solta poça atrás de você",
+  tranco: "trava quem está na sua frente",
+  reparo: "recarrega meio nitro",
+  estouro:"acerta o líder onde ele estiver",
+};
 function mostrarDica(txt,ms=5200){ $("dica").textContent=txt; clearTimeout(dicaT);
   dicaT=setTimeout(()=>{$("dica").textContent=dicaPadrao();},ms); }
 function dicaPadrao(){
@@ -1421,7 +1506,7 @@ function montarGaragem(){
 
 /* ── partida ── */
 reconstruirCarro(); reconstruirPista(); construirPoco(); construirChao(); construirSeta();
-construirCaixa(); construirMancha(); montarGaragem();
+construirCaixa(); construirMancha(); construirChama(); construirAnel(); montarGaragem();
 $("dica").textContent=dicaPadrao();
 requestAnimationFrame(quadro);
 </script>
