@@ -134,6 +134,13 @@
   .med .bar i{position:absolute;inset:0 auto 0 0;background:var(--patina);width:100%;transition:width .1s linear}
   .med b{font-family:var(--f-m);font-size:11px;text-align:right;font-variant-numeric:tabular-nums;
          text-shadow:0 1px 6px rgba(0,0,0,.9)}
+  /* vinheta vermelha pulsando: o alvo tem que SENTIR que está na mira, não
+     ler um texto e voltar a olhar a pista */
+  #perigo{position:absolute;inset:0;pointer-events:none;opacity:0;
+     background:radial-gradient(ellipse at center,rgba(0,0,0,0) 38%,rgba(226,40,24,.62) 100%);
+     transition:opacity .12s linear}
+  #perigo.on{animation:pulsaPerigo .62s infinite}
+  @keyframes pulsaPerigo{0%,100%{opacity:.35}50%{opacity:.95}}
   #aviso{position:absolute;left:50%;top:38%;transform:translateX(-50%);text-align:center;
          font-family:var(--f-d);font-size:78px;letter-spacing:.02em;text-shadow:0 4px 30px rgba(0,0,0,.9)}
   #aviso small{display:block;font-size:15px;letter-spacing:.2em;color:var(--tx2);margin-top:4px}
@@ -192,8 +199,9 @@
          background:rgba(12,16,20,.92);border:1px solid var(--line);padding:9px 15px;
          font-family:var(--f-m);font-size:10.5px;letter-spacing:.11em;text-transform:uppercase;
          color:var(--tx2);white-space:nowrap}
-  #girar.on{display:block;animation:somedica 6s forwards}
-  @keyframes somedica{0%,70%{opacity:1}100%{opacity:0;visibility:hidden}}
+  #girar.on{display:flex;gap:12px;align-items:center}
+  #girar button{font-family:var(--f-d);font-size:12px;letter-spacing:.06em;text-transform:uppercase;
+    background:var(--amber);color:#141414;border:0;padding:7px 12px;cursor:pointer;font-weight:600}
 
   /* ── telas estreitas ── */
   @media (max-width:860px){
@@ -246,7 +254,12 @@
     #volta{top:92px;left:14px}
     #tempos{top:92px;right:14px}
     #nitro{left:14px;right:auto;width:150px;top:auto;bottom:176px}
-    #item{left:auto;right:0;width:240px;height:200px;top:auto;bottom:0;transform:none}
+    /* EM PÉ: não há largura para o arco, então as habilidades empilham
+       ACIMA do turbo, uma sobre a outra, no alcance do mesmo polegar */
+    #item{left:auto;right:0;width:120px;height:280px;top:auto;bottom:0;transform:none}
+    #slot0{right:16px !important; bottom:120px !important}
+    #slot1{right:16px !important; bottom:200px !important}
+    #item .oq{display:none}
     #item .cx span{font-size:16px}
     #nav.someNaCorrida{display:none}
   }
@@ -309,6 +322,7 @@
     </div>
     <div class="oq" id="oqItem">pegue as caixas na pista</div>
   </div>
+  <div id="perigo"></div>
   <div id="aviso"></div>
   <div id="pericia"></div>
 </div>
@@ -321,7 +335,10 @@
   </div>
   <button id="sairCorrida" aria-label="sair da corrida">✕</button>
 </div>
-<div class="ui" id="girar" hidden>Deite o celular para ver mais pista</div>
+<div class="ui" id="girar" hidden>
+  <span>Deite o celular para ver mais pista</span>
+  <button id="btDeitar">Travar deitado</button>
+</div>
 <div class="ui" id="modal"></div>
 <div class="ui" id="dica"></div>
 
@@ -536,6 +553,20 @@ const FORMAS = {
     B.boxR(0,0,.10,1.50,.22,.14,-0.6,PAL.aco2);
     B.boxR(.66,-.48,.10,.34,.34,.16,-0.6,PAL.ambar);
     return 2.6;
+  },
+  escudo(B){
+    const c=hex("#5AC8E9"), b=hex("#2A6E88"), m=hex("#E9E4DA");
+    // brasão: placa larga com bico embaixo
+    B.quad([-.86,.95,0],[.86,.95,0],[.86,.10,0],[-.86,.10,0],c);
+    B.tri([-.86,.10,0],[.86,.10,0],[0,-1.05,0],c);
+    B.quad([-.86,.95,-.22],[.86,.95,-.22],[.86,.10,-.22],[-.86,.10,-.22],b);
+    B.tri([.86,.10,-.22],[-.86,.10,-.22],[0,-1.05,-.22],b);
+    B.quad([-.86,.95,0],[-.86,.95,-.22],[-.86,.10,-.22],[-.86,.10,0],b);
+    B.quad([.86,.95,-.22],[.86,.95,0],[.86,.10,0],[.86,.10,-.22],b);
+    B.quad([-.86,.95,0],[.86,.95,0],[.86,.95,-.22],[-.86,.95,-.22],esc(c,1.35));
+    B.box(0,.15,.06,.26,1.15,.14,m);
+    B.box(0,.52,.06,.90,.26,.14,m);
+    return 2.4;
   },
   chassi(B){
     for(const z of [-.52,.52]) B.box(0,0,z,1.80,.16,.16,PAL.aco2);
@@ -872,12 +903,15 @@ const NITRO = { max:100, gasto:34, forca:1.85, calor:0, porDeslize:11, porVacuo:
 const ITENS = {
   turbo:  { nome:"Turbo",  cor:"#E9992B", peso:[4,5,7,8], ic:"turbo" },
   oleo:   { nome:"Óleo",   cor:"#7A6A50", peso:[7,5,3,2], ic:"oleo" },
-  tranco: { nome:"Tranco", cor:"#D2604A", peso:[0,3,6,9], ic:"tranco" },
+  tranco: { nome:"Tranco", cor:"#D2604A", peso:[0,2,4,6], ic:"tranco" },
   reparo: { nome:"Recarga",cor:"#5AA894", peso:[3,4,5,5], ic:"recarga" },
   // ESTOURO: só cai pra quem está em 3º ou 4º e acerta o LÍDER onde ele
   // estiver. É o que impede a corrida de virar procissão depois que alguém
   // abre vantagem — sem algo assim, quem lidera aos 40% vence sempre.
-  estouro:{ nome:"Estouro", cor:"#E9552B", peso:[0,1,5,9], ic:"estouro" },
+  estouro:{ nome:"Estouro", cor:"#E9552B", peso:[0,0,2,5], ic:"estouro" },
+  // Escudo é ITEM, não um improviso: quem se prepara para o estouro tomou
+  // uma decisão, em vez de simplesmente ter sobrado algo no bolso.
+  escudo: { nome:"Escudo",  cor:"#5AC8E9", peso:[7,6,4,3], ic:"escudo" },
 };
 function sortearItem(posicao){
   const ch=Object.keys(ITENS), i=cl(posicao-1,0,3);
@@ -1339,7 +1373,7 @@ function motorSom(rpm,carga){
    ESTADO DE CENA
    ══════════════════════════════════════════════════════════════════════════ */
 let tela="garagem";
-let malhaCarro=null, malhaPista=null, malhaCenario=null, malhaRival=[], malhaPoco=null, malhaChao=null, malhaSeta=null, malhaCaixa=null, malhaMancha=null, malhaBrasa=null, malhaNucleo=null, malhaAnel=null, malhaSombra=null;
+let malhaCarro=null, malhaPista=null, malhaCenario=null, malhaRival=[], malhaPoco=null, malhaChao=null, malhaSeta=null, malhaCaixa=null, malhaMancha=null, malhaBrasa=null, malhaNucleo=null, malhaAnel=null, malhaBrilho=null, malhaMissil=null, malhaEscudo=null;
 let pista=gerarPista(3,'asfalto');
 let corrida=null, mapa=null;
 let camY=0.6, camDist=9.5, camAng=-0.7, girando=true;
@@ -1383,6 +1417,7 @@ const manche = { dir:0, freio:false, id:null, cx:0, cy:0, r:56 };
   }
 })();
 document.getElementById("sairCorrida").addEventListener("click",()=>irPara("garagem"));
+document.getElementById("btDeitar").addEventListener("click",travarDeitado);
 // no celular o próprio encaixe é o botão: um toque solta AQUELE item, sem modo
 for(const el of document.querySelectorAll(".slot")){
   const i=el.dataset.i;
@@ -1407,6 +1442,21 @@ for(const b of document.querySelectorAll(".tq")){
   b.addEventListener("contextmenu",e=>e.preventDefault());
 }
 function ligarSomSeMudo(){ if(som.ctx&&som.ctx.state==="suspended") som.ctx.resume(); }
+/* Travar a orientação só funciona em tela cheia, e o Safari do iPhone não
+   implementa a API. Então é BOTÃO, não automático: onde dá, trava; onde não
+   dá, o aviso de deitar continua valendo e nada quebra. */
+async function travarDeitado(){
+  try{
+    const el=document.documentElement;
+    if(el.requestFullscreen) await el.requestFullscreen();
+    else if(el.webkitRequestFullscreen) await el.webkitRequestFullscreen();
+    if(screen.orientation && screen.orientation.lock) await screen.orientation.lock("landscape");
+    mostrarDica("TELA TRAVADA NA HORIZONTAL",3000);
+  }catch(e){
+    mostrarDica("SEU APARELHO NÃO DEIXA TRAVAR A TELA — GIRE NA MÃO MESMO",4200);
+  }
+}
+
 function atualizarToque(){
   const mostrar = ehToque && tela==="corrida";
   $("toque").hidden=!mostrar; $("toque").classList.toggle("on",mostrar);
@@ -1493,10 +1543,10 @@ function soltarBrasa(c,m,p){
       y:ey + (Math.random()-.5)*.12,
       z:p.z - ex*sn + lz*cs,
       // sai para trás do carro e espalha um pouco
-      vx:-Math.cos(p.h)*(6+vel*.16) + (Math.random()-.5)*3.2,
-      vz:-Math.sin(p.h)*(6+vel*.16) + (Math.random()-.5)*3.2,
+      vx:-Math.cos(p.h)*(4+vel*.10) + (Math.random()-.5)*1.6,
+      vz:-Math.sin(p.h)*(4+vel*.10) + (Math.random()-.5)*1.6,
       vy:.25+Math.random()*.75,
-      t:0, vida:.42+Math.random()*.34, giro:Math.random()*6.28,
+      t:0, vida:.20+Math.random()*.16, giro:0,
     });
   }
 }
@@ -1509,29 +1559,32 @@ function passoBrasas(c,dt){
   }
   c.brasas=c.brasas.filter(b=>b.t<b.vida && b.y>0);
 }
-function desenharBrasas(c){
+function desenharBrasas(c,vista){
+  gl.blendFunc(gl.SRC_ALPHA, gl.ONE);      // aditiva: luz soma, não tapa
+  gl.depthMask(false);
+  const uT=gl.getUniformLocation(pObj,"uTinta"), uA=gl.getUniformLocation(pObj,"uAlfa");
   for(const b of c.brasas){
     /* Nitro queima AZUL. O núcleo sai branco-ciano estourado — valor bem
        acima de 1 para o tonemap saturar e virar brilho — e esfria para azul
        profundo antes de sumir. */
     const k=1-b.t/b.vida;
     const q=cl(k*k*1.7,0,1);                 // o quanto ainda está quente
-    const brilho=.5+q*2.4;
-    gl.uniform3f(gl.getUniformLocation(pObj,"uTinta"),brilho,brilho,brilho);
-    // estica no sentido do movimento: partícula quadrada não lê como rastro
-    const v=Math.hypot(b.vx,b.vz)||1, ang=Math.atan2(b.vz,b.vx);
-    const c0=Math.cos(-ang), s0=Math.sin(-ang);
-    const comp=(.10+k*.30)*(1+cl(v/26,0,1.7)), larg=.07+k*.17;
-    desenhar(q>.55?malhaNucleo:malhaBrasa, new Float32Array([
-      c0*comp,0,s0*comp, 0,  0,larg,0,0,  -s0*larg,0,c0*larg,0,  b.x,b.y,b.z,1]));
+    // azul de nitro: verde e azul altos, vermelho quase nada, e o miolo
+    // recém-saído puxa para o branco
+    gl.uniform3f(uT, .05+q*q*.55, .30+q*.75, .95+q*.65);
+    gl.uniform1f(uA, .035+q*.085);
+    desenhar(malhaBrilho, billboard(b.x,b.y,b.z, .13+(1-k)*.22, vista));
   }
-  gl.uniform3f(gl.getUniformLocation(pObj,"uTinta"),1,1,1);
+  gl.uniform3f(uT,1,1,1); gl.uniform1f(uA,1);
+  gl.depthMask(true);
+  gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 }
 
 /* ── anéis de efeito: é o que torna item visível ── */
 function efeito(c,p,tipo){
   const cores={turbo:[3.0,1.6,.4], oleo:[.9,.8,.5], tranco:[3.0,1.0,.6],
-               estouro:[3.4,.8,.3], reparo:[.7,2.4,1.9], batida:[2.4,2.4,2.6]};
+               estouro:[3.4,.8,.3], reparo:[.7,2.4,1.9], escudo:[.5,2.2,3.2],
+               batida:[2.4,2.4,2.6]};
   c.efeitos.push({x:p.x,z:p.z,t:c.t,cor:cores[tipo]||cores.batida,
                   raio: tipo==="estouro"?11:tipo==="tranco"?7:5});
 }
@@ -1607,35 +1660,61 @@ function construirChao(){
   }
   malhaChao=subir(B);
 }
-function construirSombra(){
-  /* Sem sombra o carro flutua: não há nada dizendo onde ele encosta no chão.
-     Um disco escuro semitransparente resolve por quase nada de triângulo. */
-  const B=new M();
-  B.disco(0,0,0,1,20,[0,0,0]);
-  malhaSombra=subir(B);
+function construirMissil(){
+  const B=new M(), corpo=hex("#C8CDD2"), faixa=hex("#D2604A"), aleta=hex("#2A323A");
+  for(let i=0;i<8;i++){ const a=i/8*6.2832,a2=(i+1)/8*6.2832;
+    B.tri([1.5,0,0],[.55,Math.cos(a)*.34,Math.sin(a)*.34],
+                    [.55,Math.cos(a2)*.34,Math.sin(a2)*.34],faixa); }
+  B.cilX(-.10,0,0,.34,1.30,10,corpo);
+  B.cilX(.30,0,0,.35,.26,10,faixa);
+  for(let k=0;k<4;k++){ const a=k/4*6.2832;
+    B.box(-.78,Math.cos(a)*.44,Math.sin(a)*.44,.52,.46,.10,aleta); }
+  malhaMissil=subir(B);
 }
-function sombraDe(p,comp,larg){
-  const g=gl.getUniformLocation(pObj,"uAlfa");
-  gl.uniform1f(g,0.30);
-  gl.uniform3f(gl.getUniformLocation(pObj,"uTinta"),1,1,1);
-  gl.depthMask(false);
-  const ca=Math.cos(-p.h), sa=Math.sin(-p.h);
-  // disco no plano XY deitado no chão e esticado no sentido do carro
-  desenhar(malhaSombra,new Float32Array([
-    ca*comp,0,sa*comp, 0,  -sa*larg,0,ca*larg,0,  0,1,0,0,  p.x,0.035,p.z,1]));
-  gl.depthMask(true);
-  gl.uniform1f(g,1);
+function construirEscudo(){
+  // casca facetada: lê como campo de força e some por dentro com alfa baixo
+  const B=new M(), c=[.20,1.9,3.0];
+  const seg=12, anel=5;
+  for(let j=0;j<anel;j++){
+    const f0=(j/anel-0.5)*Math.PI, f1=((j+1)/anel-0.5)*Math.PI;
+    const y0=Math.sin(f0), y1=Math.sin(f1), r0=Math.cos(f0), r1=Math.cos(f1);
+    for(let i=0;i<seg;i++){
+      const a0=i/seg*6.2832, a1=(i+1)/seg*6.2832;
+      B.quad([Math.cos(a0)*r0,y0,Math.sin(a0)*r0],[Math.cos(a1)*r0,y0,Math.sin(a1)*r0],
+             [Math.cos(a1)*r1,y1,Math.sin(a1)*r1],[Math.cos(a0)*r1,y1,Math.sin(a0)*r1], c);
+    }
+  }
+  malhaEscudo=subir(B);
 }
 function construirChama(){
-  /* A COR AZUL FICA NA MALHA e a tinta é só brilho. Com a cor na tinta, os
-     três canais subiam juntos, o tonemap saturava e a chama virava cubo
-     branco — que foi exatamente o que apareceu na primeira tentativa. */
-  const B=new M();
-  B.box(0,0,0,1,1,1,[.06,.34,1.0]);
-  malhaBrasa=subir(B);
-  const N=new M();
-  N.box(0,0,0,1,1,1,[.55,.92,1.0]);      // núcleo, quase branco-ciano
-  malhaNucleo=subir(N);
+  /* LUZ, NÃO CUBO. Partícula sólida continua parecendo caixinha por mais que
+     se pinte de azul. O que lê como luz é um leque radial que nasce claro no
+     centro e MORRE em preto na borda, desenhado com mistura aditiva: soma no
+     que já está na tela em vez de tapar, que é o que a luz faz.
+     A queda suave vem da própria geometria — sem textura, como o resto. */
+  const B=new M(), seg=28, aneis=6;
+  // queda em seis anéis com curva quadrática: com dois, o degrau de cor
+  // aparecia como raio de roda em volta da luz
+  const bri=t=>{const v=Math.pow(1-t,2.1); return [v,v,v];};
+  for(let i=0;i<seg;i++){
+    const a0=i/seg*6.2832, a1=(i+1)/seg*6.2832;
+    for(let j=0;j<aneis;j++){
+      const r0=j/aneis, r1=(j+1)/aneis;
+      const c0=bri(r0), c1=bri(r1);
+      const A=[Math.cos(a0)*r0,Math.sin(a0)*r0,0], Bp=[Math.cos(a1)*r0,Math.sin(a1)*r0,0];
+      const C=[Math.cos(a1)*r1,Math.sin(a1)*r1,0], D=[Math.cos(a0)*r1,Math.sin(a0)*r1,0];
+      B.tri(A,Bp,C,c0); B.tri(A,C,D,c1);
+    }
+  }
+  malhaBrilho=subir(B);
+}
+
+/* Matriz que faz o leque olhar sempre para a câmera. Sem isso ele vira uma
+   folha de papel de perfil e some. */
+function billboard(x,y,z,tam,vista){
+  const dx=vista[0]*tam, dy=vista[4]*tam, dz=vista[8]*tam;    // direita da câmera
+  const ux=vista[1]*tam, uy=vista[5]*tam, uz=vista[9]*tam;    // cima da câmera
+  return new Float32Array([dx,dy,dz,0, ux,uy,uz,0, 0,0,1,0, x,y,z,1]);
 }
 function construirAnel(){
   const B=new M(), c=[1,1,1];
@@ -1681,13 +1760,16 @@ function construirPoco(){
    CORRIDA
    ══════════════════════════════════════════════════════════════════════════ */
 const VOLTAS=2;
+const GRID=8;   // com quatro dava para passar todo mundo em uma volta
 function novoPiloto(i){
-  const p=pista.pontos[0];
-  const off=(i-1.5)*3.4;
+  // largada em duas colunas, como grid de verdade
+  const fila=Math.floor(i/2), col=(i%2)?1:-1;
+  const p=pista.pontos[(pista.n - fila*3) % pista.n];
+  const off=col*3.6;
   const r=semente(1000+i*37+Math.floor(Math.random()*9999));
   return {x:p.x+p.nx*off, z:p.z+p.nz*off, h:Math.atan2(p.tz,p.tx),
           vx:0,vz:0,vl:0,dir:0,derrapa:0,
-          nitro:0, itens:[null,null], desde:[0,0], sel:0,
+          nitro:0, itens:[null,null], desde:[0,0], sel:0, escudo:0,
           oleado:0, travado:0, turbando:0,
           seg:0, volta:0, prog:0, terminou:-1, ia:i>0,
           // PERSONALIDADE: sem isto os rivais andam em fila indiana feito trenzinho
@@ -1714,9 +1796,9 @@ function montarCaixas(){
 function iniciarCorrida(){
   const at=atributos();
   corrida={
-    pilotos:[novoPiloto(0),novoPiloto(1),novoPiloto(2),novoPiloto(3)],
+    pilotos:Array.from({length:GRID},(_,i)=>novoPiloto(i)),
     at, t:-3.2, tVolta:0, melhor:-1, acabou:false, perLog:[], marcas:[],
-    periciaGanha:0, pico:0, caixas:montarCaixas(), perigos:[], efeitos:[], brasas:[], estouroVindo:null, aviso:"", avisoAte:0,
+    periciaGanha:0, pico:0, caixas:montarCaixas(), perigos:[], efeitos:[], brasas:[], missil:null, aviso:"", avisoAte:0,
   };
   corrida.pilotos[0].ia=false;
   document.getElementById("hud").classList.add("on");
@@ -1784,7 +1866,7 @@ function iaEntrada(p, at, t, rivais){
   // VONTADE DE GANHAR: quem está atrás do líder anda um pouco mais no limite.
   // Sem isto o pelotão se esparrama e ninguém volta pra briga.
   const lider=Math.max(...rivais.map(o=>o.prog||0));
-  const atraso=cl(((lider-(p.prog||0))/n)*1.9,0,0.17);
+  const atraso=cl(((lider-(p.prog||0))/n)*1.5,0,0.11);
 
   const vAlvo=Math.min(at.vmax, vCurva)*P.coragem*(1+atraso);
 
@@ -1882,7 +1964,7 @@ function passoCorrida(){
       for(const cx of c.caixas){
         if(cx.volta>0) continue;
         if(Math.hypot(cx.x-p.x,cx.z-p.z)<5.4){
-          cx.volta=11;
+          cx.volta=18;
           p.itens[livre]=sortearItem(ordem.indexOf(p)+1); p.desde[livre]=c.t;
           if(!p.ia){
             if(p.itens[1-livre]===null) p.sel=livre;
@@ -1925,16 +2007,33 @@ function passoCorrida(){
 
   for(const m of c.marcas) m.v-=DT*0.09;
 
-  /* ── estouro a caminho: resolve ou é defendido ── */
-  if(c.estouroVindo && c.t>=c.estouroVindo.em){
-    const a=c.estouroVindo.alvo;
-    if(a.terminou<0){
-      a.travado=1.5; a.vx*=0.44; a.vz*=0.44; a.oleado=1.2; efeito(c,a,"estouro");
-      c.aviso = a.ia ? "ESTOURO ACERTOU O LÍDER" : "VOCÊ FOI ESTOURADO";
-      c.avisoAte=c.t+2.0;
+  /* ── o míssil viaja, e só então acerta ── */
+  if(c.missil){
+    const m=c.missil, a=m.alvo;
+    m.t+=DT;
+    const dx=a.x-m.x, dz=a.z-m.z, d=Math.hypot(dx,dz);
+    // persegue o alvo, acelerando no fim para sempre alcançar
+    const vel=26 + 70*(m.t/m.dur);
+    if(d>0.01){ m.h=Math.atan2(dz,dx); m.x+=dx/d*vel*DT; m.z+=dz/d*vel*DT; }
+    m.y=1.0+Math.sin(m.t*7)*0.25;
+    m.rastro.push({x:m.x,y:m.y,z:m.z,t:0});
+    if(m.rastro.length>26) m.rastro.shift();
+    for(const g of m.rastro) g.t+=DT;
+
+    if(a.escudo>0){                       // escudo derruba o míssil no ar
+      a.escudo=0; efeito(c,a,"escudo"); c.missil=null;
+      c.aviso = a.ia ? "O LÍDER SEGUROU COM ESCUDO" : "SEU ESCUDO DERRUBOU O MÍSSIL";
+      c.avisoAte=c.t+2.2;
+    } else if(d<3.2 || m.t>m.dur+2){
+      if(a.terminou<0){
+        a.travado=1.8; a.vx*=0.38; a.vz*=0.38; a.oleado=1.4; efeito(c,a,"estouro");
+        c.aviso = a.ia ? "MÍSSIL ACERTOU O LÍDER" : "VOCÊ FOI ATINGIDO";
+        c.avisoAte=c.t+2.0;
+      }
+      c.missil=null;
     }
-    c.estouroVindo=null;
   }
+  for(const p of c.pilotos) if(p.escudo>0) p.escudo-=DT;
 
   /* ── uso de item ──────────────────────────────────────────────────────
      São DOIS encaixes agora. No teclado, TAB troca o selecionado e E solta;
@@ -1942,18 +2041,6 @@ function passoCorrida(){
      com o ícone do item dentro — um toque, sem modo. */
   for(const p of c.pilotos){
     if(p.terminou>=0) continue;
-
-    // DEFESA contra o estouro: vale qualquer item dos dois
-    if(c.estouroVindo && c.estouroVindo.alvo===p && p.itens.some(Boolean)){
-      const defende = p.ia ? true : (!!teclas.e||!!teclas.control||!!teclas["1"]||!!teclas["2"]);
-      if(defende){
-        const i=p.itens.findIndex(Boolean);
-        c.estouroVindo=null; p.itens[i]=null; efeito(c,p,"reparo");
-        c.aviso = p.ia ? "O LÍDER DEFENDEU" : "VOCÊ DEFENDEU O ESTOURO";
-        c.avisoAte=c.t+2.0;
-        continue;
-      }
-    }
 
     for(let i=0;i<2;i++){
       const it=p.itens[i];
@@ -1970,7 +2057,8 @@ function passoCorrida(){
                             ((o.x-p.x)*Math.cos(p.h)+(o.z-p.z)*Math.sin(p.h))>0);
         if(it==="reparo") usar = (p.nitro||0)<45;
         if(it==="estouro")usar = true;
-        if(!usar && c.t-(p.desde[i]||0) > 12) usar = true;
+        if(it==="escudo") usar = !!c.missil && c.missil.alvo===p;
+        if(!usar && c.t-(p.desde[i]||0) > 18) usar = true;
       } else {
         usar = (!!teclas[String(i+1)]) || ((p.sel===i) && (!!teclas.e||!!teclas.control));
       }
@@ -1980,12 +2068,18 @@ function passoCorrida(){
         let alvo=null, melhor=-1;
         for(const o of c.pilotos){ if(o===p||o.terminou>=0) continue;
           if(o.prog>melhor){ melhor=o.prog; alvo=o; } }
-        if(alvo && alvo.prog>p.prog && !c.estouroVindo){
-          c.estouroVindo={ alvo, em:c.t+1.6, de:p };
-          c.aviso = alvo.ia ? "ESTOURO A CAMINHO DO LÍDER" : "ESTOURO VINDO — USE UM ITEM PARA DEFENDER";
-          c.avisoAte=c.t+1.6;
+        if(alvo && alvo.prog>p.prog && !c.missil){
+          /* O míssil VOA. Antes era um temporizador invisível e o alvo levava
+             um susto do nada; agora ele vê a coisa vindo e tem 5 s para
+             resolver — dá para defender, e dá para tentar chegar numa caixa. */
+          c.missil={ alvo, de:p, t:0, dur:5.0,
+                     x:p.x, y:1.0, z:p.z, h:p.h, rastro:[] };
+          c.aviso = alvo.ia ? "MÍSSIL A CAMINHO DO LÍDER" : "MÍSSIL VINDO NA SUA DIREÇÃO";
+          c.avisoAte=c.t+2.4;
         } else if(!p.ia) continue;
       }
+      if(it==="escudo"){ p.escudo=14; efeito(c,p,"escudo");
+        if(!p.ia){ c.aviso="ESCUDO LIGADO"; c.avisoAte=c.t+1.8; } }
       if(it==="turbo"){ p.nitro=NITRO.max; efeito(c,p,"turbo"); }
       if(it==="oleo"){  c.perigos.push({x:p.x-Math.cos(p.h)*4,z:p.z-Math.sin(p.h)*4,t:c.t,de:p});
                         efeito(c,{x:p.x-Math.cos(p.h)*4,z:p.z-Math.sin(p.h)*4},"oleo"); }
@@ -1999,7 +2093,9 @@ function passoCorrida(){
           if(((dx*Math.cos(p.h)+dz*Math.sin(p.h))/d)<0.5) continue;
           if(d<melhor){ melhor=d; alvo=o; }
         }
-        if(alvo){ alvo.travado=1.1; alvo.vx*=0.55; alvo.vz*=0.55; efeito(c,alvo,"tranco");
+        if(alvo && alvo.escudo>0){ alvo.escudo=0; efeito(c,alvo,"escudo");
+        c.aviso = alvo.ia ? "ESCUDO SEGUROU" : "SEU ESCUDO SEGUROU"; c.avisoAte=c.t+1.8; }
+      else if(alvo){ alvo.travado=1.1; alvo.vx*=0.55; alvo.vz*=0.55; efeito(c,alvo,"tranco");
           if(!alvo.ia){ c.aviso="VOCÊ LEVOU UM TRANCO"; c.avisoAte=c.t+1.8; }
           else if(!p.ia){ c.aviso="TRANCO ACERTOU"; c.avisoAte=c.t+1.6; } }
         else if(!p.ia) continue;
@@ -2017,7 +2113,12 @@ function terminarCorrida(){
   const c=corrida; if(c.acabou)return; c.acabou=true;
   const eu=c.pilotos[0];
   const pos=1+c.pilotos.filter(p=>p!==eu && (p.terminou>=0&&p.terminou<eu.terminou)).length;
-  const per=Math.round(c.periciaGanha), suc=Math.round(52+Math.max(0,4-pos)*22+per*0.8);
+  /* Só os cinco primeiros levam, e a queda depois do terceiro é dura: é o
+     que faz brigar pelo pódio valer mais do que só terminar. */
+  const FATOR=[1.00,0.66,0.42,0.18,0.08];
+  const premio=FATOR[pos-1]||0;
+  const per=Math.round(c.periciaGanha*(0.45+premio*0.55));
+  const suc=Math.round((90+per*0.9)*premio);
   estado.pericia+=per; estado.sucata+=suc; estado.corridas++;
   if(pos===1) estado.vitorias=(estado.vitorias||0)+1;
   for(const k of ["chassi","motor","rodas","aero"])
@@ -2027,7 +2128,7 @@ function terminarCorrida(){
   document.getElementById("hud").classList.remove("on");
   abrirModal(`
     <h2>${pos===1?icone("trofeu",44)+" Vitória":pos+"º lugar"}</h2>
-    <div class="sub">${VOLTAS} voltas · ${["","primeiro","segundo","terceiro","quarto"][pos]} de 4</div>
+    <div class="sub">${VOLTAS} voltas · ${pos}º de ${GRID}${pos>5?" · fora da pontuação":""}</div>
     <div class="linha"><span>Melhor volta</span><b>${tempo(c.melhor)}</b></div>
     <div class="linha"><span>Velocidade de pico</span><b>${Math.round(c.pico*3.6)} km/h</b></div>
     <div class="linha d"><span>Perícia ganha</span><b>+${per}</b></div>
@@ -2258,8 +2359,37 @@ function quadro(agora){
       desenhar(malhaCaixa,m4pose(cx.x,2.0+Math.sin(corrida.t*2.4+cx.x)*0.26,cx.z,corrida.t*2.1,0.82));
       gl.uniform3f(gl.getUniformLocation(pObj,"uTinta"),1,1,1);
     }
+    // escudo em volta de quem está protegido
+    for(const p of corrida.pilotos){
+      if(!(p.escudo>0)) continue;
+      const pulso=1+Math.sin(corrida.t*9)*0.05;
+      gl.blendFunc(gl.SRC_ALPHA, gl.ONE);       // aditiva: campo de força, não pedra
+      gl.uniform1f(gl.getUniformLocation(pObj,"uAlfa"),0.10+Math.sin(corrida.t*6)*0.035);
+      gl.depthMask(false);
+      desenhar(malhaEscudo,m4pose(p.x,0.95,p.z,corrida.t*1.2, 1.95*pulso));
+      gl.depthMask(true);
+      gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+      gl.uniform1f(gl.getUniformLocation(pObj,"uAlfa"),1);
+    }
+    if(corrida.missil){
+      const m=corrida.missil;
+      desenhar(malhaMissil,m4pose(m.x,m.y,m.z,-m.h,1.5));
+    }
     passoBrasas(corrida,dt);
-    desenharBrasas(corrida);
+    desenharBrasas(corrida,vista);
+    if(corrida.missil){
+      // rastro do míssil, também como luz
+      gl.blendFunc(gl.SRC_ALPHA, gl.ONE); gl.depthMask(false);
+      const uT=gl.getUniformLocation(pObj,"uTinta"), uA=gl.getUniformLocation(pObj,"uAlfa");
+      for(const g of corrida.missil.rastro){
+        const k=cl(1-g.t/0.7,0,1);
+        gl.uniform3f(uT, 2.6*k+.3, .9*k*k+.15, .25*k*k);
+        gl.uniform1f(uA, .07+k*.22);
+        desenhar(malhaBrilho, billboard(g.x,g.y,g.z, .22+(1-k)*.52, vista));
+      }
+      gl.uniform3f(uT,1,1,1); gl.uniform1f(uA,1);
+      gl.depthMask(true); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+    }
     for(const e of corrida.efeitos){
       const v=(corrida.t-e.t)/0.75, r=e.raio*(0.25+v*1.5), br=(1-v)*(1-v);
       gl.uniform3f(gl.getUniformLocation(pObj,"uTinta"),e.cor[0]*br,e.cor[1]*br,e.cor[2]*br);
@@ -2268,9 +2398,8 @@ function quadro(agora){
     }
     corrida.pilotos.forEach((p,i)=>{
       const m=i===0?malhaCarro:malhaRival[(i-1)%malhaRival.length];
-      sombraDe(p,2.15,1.0);
       desenharCarro(m,m4pose(p.x,0,p.z,-p.h), p.giroRoda||0, (p.dir||0)*0.5);
-      if(p.turbando){ soltarBrasa(corrida,m,p); if(Math.random()<.7) soltarBrasa(corrida,m,p); }
+      if(p.turbando && Math.random()<.8) soltarBrasa(corrida,m,p);
 
     });
   } else if(tela==="mapa"){
@@ -2283,7 +2412,6 @@ function quadro(agora){
     });
     mapa.carros.forEach((c,i)=>{
       const m=c.meu?malhaCarro:malhaRival[i%malhaRival.length];
-      sombraDe(c,5.2,2.5);
       c.giroRoda=(c.giroRoda||0)+dt*c.vel*1.6;
       desenharCarro(m,m4pose(c.x,0,c.z,-c.h,2.1), c.giroRoda, 0);
     });
@@ -2322,6 +2450,9 @@ function atualizarHUD(){
     $("velN").textContent=Math.round(Math.hypot(p.vx,p.vz)*3.6);
     $("vAtual").textContent=Math.min(VOLTAS,p.volta+1);
     $("pisoHud").textContent=PISOS[estado.piso].nome;
+    const naMira = !!corrida.missil && corrida.missil.alvo===p;
+    $("perigo").classList.toggle("on",naMira);
+    if(!naMira) $("perigo").style.opacity=0; else $("perigo").style.opacity="";
     $("tAtual").textContent=tempo(Math.max(0,corrida.tVolta));
     $("tMelhor").textContent=tempo(corrida.melhor);
     const pe0=$("pericia");
@@ -2366,6 +2497,7 @@ const DESCRICAO={
   tranco: "trava quem está na sua frente",
   reparo: "recarrega meio nitro",
   estouro:"acerta o líder onde ele estiver",
+  escudo: "segura o próximo golpe que vier",
 };
 function mostrarDica(txt,ms=5200){ $("dica").textContent=txt; clearTimeout(dicaT);
   dicaT=setTimeout(()=>{$("dica").textContent=dicaPadrao();},ms); }
@@ -2528,8 +2660,8 @@ $("icS").innerHTML=icone("sucata",22);
 const voltou=carregar();
 if(!voltou) sortearProxima();
 reconstruirCarro(); reconstruirPista(); construirPoco(); construirChao(); construirSeta();
-construirCaixa(); construirMancha(); construirChama(); construirAnel(); construirSombra();
-montarGaragem();
+construirCaixa(); construirMancha(); construirChama(); construirAnel();
+construirMissil(); construirEscudo(); montarGaragem();
 if(voltou){
   // recupera o idle do tempo em que a aba esteve fechada
   const seg=Math.min(8*3600,(Date.now()-(estado.idleUltimo||Date.now()))/1000);
