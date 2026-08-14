@@ -658,9 +658,9 @@ function novoPiloto(i){
           // PERSONALIDADE: sem isto os rivais andam em fila indiana feito trenzinho
           perfil:{
             linha:   (r()*2-1)*0.62,      // quanto puxa pra dentro ou pra fora
-            coragem: 0.86+r()*0.30,       // o quão tarde freia
-            forca:   0.90+r()*0.14,       // potência relativa
-            erro:    0.05+r()*0.13,       // amplitude do erro de volante
+            coragem: 0.84+r()*0.22,       // leque de dificuldade: 0,84 dá pra passar, 1,06 dá trabalho
+            forca:   0.93+r()*0.11,       // potência relativa
+            erro:    0.04+r()*0.14,       // amplitude do erro de volante
             ritmo:   0.5+r()*1.4,         // frequência do erro
             fase:    r()*6.28,
           }};
@@ -678,7 +678,7 @@ function iniciarCorrida(){
 }
 function iaEntrada(p, at, t, rivais){
   const n=pista.n, spd=Math.hypot(p.vx,p.vz), P=p.perfil;
-  const look=Math.round(4+spd*0.30);
+  const look=Math.round(4+spd*0.20);
   const norm=a=>{while(a>Math.PI)a-=6.2832; while(a<-Math.PI)a+=6.2832; return a;};
   const aqui=pista.pontos[p.seg];
 
@@ -701,22 +701,56 @@ function iaEntrada(p, at, t, rivais){
   const ax=ap.x+ap.nx*desvio, az=ap.z+ap.nz*desvio;
   const ang=norm(Math.atan2(az-p.z,ax-p.x)-p.h);
 
+  /* CORREÇÃO LATERAL COM AMORTECIMENTO (PD).
+     Só com o termo de posição a IA oscilava de um lado ao outro da pista até
+     ser cuspida pra fora — instabilidade clássica de malha de controle: ganho
+     alto, resposta atrasada, nenhum amortecimento. O termo derivativo é a
+     velocidade lateral em relação à pista, que dá pra ler direto do vetor
+     velocidade sem guardar histórico. */
   const lat=(p.x-aqui.x)*aqui.nx+(p.z-aqui.z)*aqui.nz;
-  const correcao=-cl((lat-desvio)*0.09,-0.8,0.8);
+  const vLatPista=p.vx*aqui.nx+p.vz*aqui.nz;
+  const correcao=-cl((lat-desvio)*0.055 + vLatPista*0.17, -0.75, 0.75);
 
-  const frente=pista.pontos[(p.seg+look*2)%n];
-  const curva=Math.abs(norm(Math.atan2(frente.z-p.z,frente.x-p.x)-p.h));
+  /* VELOCIDADE-ALVO PELA CURVATURA REAL DA PISTA.
+     Antes ela media o ângulo até um ponto a `look*2` de distância — a 40 m/s
+     isso dava 255 m à frente, numa pista que tem curva a cada 111 m. Sempre
+     havia curva no horizonte dela, então a velocidade-alvo nunca subia e ela
+     nunca acelerava de verdade. Era isso que fazia os rivais parecerem
+     passageiros em vez de adversários.
+
+     Agora mede a curvatura entre as TANGENTES da própria pista, numa janela
+     do tamanho da distância de frenagem, e resolve v = raiz(aderência/κ) —
+     que é a velocidade que a curva de fato aguenta. */
+  const esp=pista.comprimento/n, FREIO=24;
+  // Varre TODOS os pontos dentro da distância de frenagem: para cada um,
+  // calcula a velocidade que aquela curva aguenta e, de trás pra frente,
+  // qual velocidade eu posso ter AGORA e ainda chegar lá freando a tempo.
+  // É por isso que ela passa a acelerar na reta e frear cedo pra curva.
+  let vCurva=at.vmax;
+  const alcance=Math.max(6, Math.round((spd*spd/(2*FREIO)+22)/esp));
+  for(let d=2; d<=alcance; d+=2){
+    const a=pista.pontos[(p.seg+d)%n], b=pista.pontos[(p.seg+d+3)%n];
+    const kap=Math.abs(norm(Math.atan2(b.tz,b.tx)-Math.atan2(a.tz,a.tx)))/(3*esp);
+    const vLa=Math.sqrt((at.aderencia*1.70)/Math.max(1e-5,kap));
+    vCurva=Math.min(vCurva, Math.sqrt(vLa*vLa + 2*FREIO*d*esp));
+  }
+
+  // VONTADE DE GANHAR: quem está atrás do líder anda um pouco mais no limite.
+  // Sem isto o pelotão se esparrama e ninguém volta pra briga.
+  const lider=Math.max(...rivais.map(o=>o.prog||0));
+  const atraso=cl(((lider-(p.prog||0))/n)*1.6,0,0.16);
+
+  const vAlvo=Math.min(at.vmax, vCurva)*P.coragem*(1+atraso);
 
   // erro humano: mão que treme e às vezes entra torto
   const tremor=Math.sin(t*P.ritmo+P.fase)*P.erro;
+  const curvaAgora=Math.abs(norm(Math.atan2(
+    pista.pontos[(p.seg+5)%n].z-p.z, pista.pontos[(p.seg+5)%n].x-p.x)-p.h));
 
-  // controlador de velocidade-alvo: ele estima o quanto a curva aguenta e
-  // persegue esse número. Limiar fixo não escala com a potência do carro.
-  const vAlvo=at.vmax*cl(1.06-curva*1.25,0.20,1)*P.coragem;
-  return {dir:cl(ang*1.9+correcao+tremor,-1,1),
-          acel: spd<vAlvo ? P.forca : 0.16,
-          freio: spd>vAlvo*1.14,
-          mao: curva>1.0&&spd>vAlvo*1.35};
+  return {dir:cl(ang*1.45+correcao+tremor,-1,1),
+          acel: spd<vAlvo ? 1 : 0.08,
+          freio: spd>vAlvo*1.10,
+          mao: curvaAgora>0.85&&spd>vAlvo*1.3};
 }
 function passoCorrida(){
   const c=corrida; if(!c)return;
