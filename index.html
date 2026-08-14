@@ -817,7 +817,7 @@ function terminarCorrida(){
    O ritmo aqui é ~53x o da Fase 1 porque o mapa roda em TEMPO ACELERADO: um
    minuto olhando é uma hora de jogo. 8 h de bateria = 8 min de tela = 4,8
    corridas, que bate com o modelo econômico. */
-const ZONA={ raio:300, intervalo:0.45, valor:10, maxCargas:34, aceleracao:60 };
+const ZONA={ raio:190, intervalo:0.45, valor:10, maxCargas:34, aceleracao:60 };
 
 function surgirCarga(m,r){
   const rr=r||Math.random;
@@ -828,7 +828,7 @@ function surgirCarga(m,r){
 function iniciarMapa(){
   const r=semente(91), carros=[];
   for(let i=0;i<12;i++) carros.push({
-    x:(r()-.5)*520, z:(r()-.5)*520, h:r()*6.2832,
+    x:(r()-.5)*330, z:(r()-.5)*330, h:r()*6.2832,
     vel:16+r()*10, giro:1.5+r()*1.0, meu:i===0, coletou:0, alvo:-1,
   });
   carros[0].vel=21; carros[0].giro=2.3;      // o seu carro é o melhor do mapa
@@ -951,7 +951,7 @@ function quadro(agora){
     if(!mapa.cam) mapa.cam=[eu.x,eu.z];
     const k=1-Math.pow(0.0025,dt);
     mapa.cam[0]=lerp(mapa.cam[0],eu.x,k); mapa.cam[1]=lerp(mapa.cam[1],eu.z,k);
-    const alt=56*mapa.zoom;
+    const alt=165*mapa.zoom;   // enquadra a zona quase inteira: com a camera baixa a tela ficava vazia
     olho=[mapa.cam[0], alt, mapa.cam[1]+alt*0.60];
     proj=m4p(0.72,asp,.5,900); neb=420;
     vista=m4look(olho,[mapa.cam[0],0,mapa.cam[1]],[0,1,0]);
@@ -978,9 +978,9 @@ function quadro(agora){
     desenhar(malhaChao,m4pose(0,0,0,0));
     mapa.cargas.forEach(g=>{
       const idade=mapa.t-g.nasceu;
-      const pulso=0.85+Math.sin(mapa.t*3.4+g.x)*0.13;
+      const pulso=1.05+Math.sin(mapa.t*3.4+g.x)*0.18;
       const nascendo=cl(idade*2.5,0,1);
-      desenhar(malhaPoco,m4pose(g.x,0,g.z,mapa.t*1.1,pulso*nascendo*1.15));
+      desenhar(malhaPoco,m4pose(g.x,0,g.z,mapa.t*1.1,pulso*nascendo*1.7));
     });
     mapa.carros.forEach((c,i)=>{
       const m=c.meu?malhaCarro:malhaRival[i%malhaRival.length];
@@ -989,8 +989,11 @@ function quadro(agora){
     // seta em cima do meu carro: sem isto não dá pra achar quem é você
     const eu=mapa.carros[0];
     // o anel é construído no plano XY, então deita no chão com uma pose própria
+    // deita o anel: X do modelo -> X do mundo, Y do modelo -> Z do mundo,
+    // e Z do modelo (a espessura) -> Y do mundo. Trocar as duas últimas fazia
+    // o anel virar duas lascas de pé.
     const g=1+mapa.brilho*0.35, ang=mapa.t*0.9, ca=Math.cos(ang)*g, sa=Math.sin(ang)*g;
-    desenhar(malhaSeta,new Float32Array([ca,0,-sa,0, 0,0,g,0, sa,0,ca,0, eu.x,0.06,eu.z,1]));
+    desenhar(malhaSeta,new Float32Array([ca,0,sa,0, -sa,0,ca,0, 0,g,0,0, eu.x,0.10,eu.z,1]));
   } else {
     desenhar(malhaCarro,m4pose(0,0,0,0));
   }
