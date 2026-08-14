@@ -39,6 +39,9 @@
      background:rgba(21,27,33,.9);color:var(--tx2);border:1px solid var(--line);
      padding:8px 15px;cursor:pointer;transition:.12s}
   #nav button:hover,.btn:hover{color:var(--tx);border-color:var(--tx3)}
+  #nav button{display:flex;align-items:center;gap:7px}
+  #nav .mi{display:flex;align-items:center}
+  #nav button[aria-pressed=true] .ic{filter:brightness(.25) saturate(0)}
   #nav button[aria-pressed=true]{background:var(--amber);color:#141414;border-color:var(--amber);font-weight:600}
   .btn.p{background:var(--amber);color:#141414;border-color:var(--amber);font-weight:600}
   .btn.p:hover{background:#c9821f;color:#141414}
@@ -236,14 +239,14 @@
     #nav button:last-child{border-right:0}
     #garagem{top:auto;bottom:47px;height:58vh;width:100%;
              border-left:0;border-top:1px solid var(--line)}
-    #toque .lado.dir{bottom:150px;right:16px}
-    #manche{bottom:80px;left:14px;width:120px;height:120px}
+    #toque .lado.dir{bottom:22px;right:18px}
+    #manche{bottom:26px;left:16px;width:124px;height:124px}
     #manche i{width:50px;height:50px}
-    #vel{bottom:58px}
+    #vel{left:50%;transform:translateX(-50%);bottom:8px}
     #volta{top:92px;left:14px}
     #tempos{top:92px;right:14px}
-    #nitro{left:14px;right:14px;width:auto;top:auto;bottom:214px}
-    #item{left:auto;right:14px;width:auto;top:auto;bottom:16px;transform:none}
+    #nitro{left:14px;right:auto;width:150px;top:auto;bottom:176px}
+    #item{left:auto;right:0;width:240px;height:200px;top:auto;bottom:0;transform:none}
     #item .cx span{font-size:16px}
     #nav.someNaCorrida{display:none}
   }
@@ -284,10 +287,10 @@
 </div>
 
 <div class="ui" id="nav">
-  <button id="nGar" aria-pressed="true">Garagem</button>
-  <button id="nMapa" aria-pressed="false">Mapa</button>
-  <button id="nCor" aria-pressed="false">Correr</button>
-  <button id="nSom" aria-pressed="false" title="som do motor">Som</button>
+  <button id="nGar" aria-pressed="true"><span class="mi"></span>Garagem</button>
+  <button id="nMapa" aria-pressed="false"><span class="mi"></span>Mapa</button>
+  <button id="nCor" aria-pressed="false"><span class="mi"></span>Correr</button>
+  <button id="nSom" aria-pressed="false" title="som do motor"><span class="mi"></span>Som</button>
 </div>
 
 <aside class="ui" id="garagem"></aside>
@@ -350,6 +353,26 @@ const SVG = {
   pericia:(t,c)=>`<svg class="ic" width="${t}" height="${t}" viewBox="0 0 24 24" fill="none">
     <path d="M12 2.6 14.6 9h6.8l-5.5 4 2.1 6.6L12 15.6 6 19.6 8.1 13l-5.5-4h6.8L12 2.6Z"
       fill="${c||'#E9992B'}" stroke="#0C1014" stroke-width="1.4" stroke-linejoin="round"/></svg>`,
+  mGaragem:(t,c)=>`<svg class="ic" width="${t}" height="${t}" viewBox="0 0 24 24" fill="none">
+    <path d="M3 10.2 12 4l9 6.2V21H3V10.2Z" fill="${c||'#8A939B'}" stroke="#0C1014"
+      stroke-width="1.5" stroke-linejoin="round"/>
+    <path d="M6.6 13h10.8M6.6 16.2h10.8M6.6 19.4h10.8" stroke="#0C1014" stroke-width="1.5"/></svg>`,
+  mMapa:(t,c)=>`<svg class="ic" width="${t}" height="${t}" viewBox="0 0 24 24" fill="none">
+    <path d="M2.6 5.6 9 3.2v15.2l-6.4 2.4V5.6Z" fill="${c||'#5AA894'}" stroke="#0C1014"
+      stroke-width="1.4" stroke-linejoin="round"/>
+    <path d="M9 3.2 15 5.6v15.2L9 18.4V3.2Z" fill="${c||'#8A939B'}" stroke="#0C1014"
+      stroke-width="1.4" stroke-linejoin="round"/>
+    <path d="M15 5.6 21.4 3.2v15.2L15 20.8V5.6Z" fill="${c||'#5E666E'}" stroke="#0C1014"
+      stroke-width="1.4" stroke-linejoin="round"/></svg>`,
+  mCorrer:(t,c)=>`<svg class="ic" width="${t}" height="${t}" viewBox="0 0 24 24" fill="none">
+    <path d="M5 3v18" stroke="#0C1014" stroke-width="2.2" stroke-linecap="round"/>
+    <path d="M6.6 4.2h13.8v9.2H6.6V4.2Z" fill="${c||'#E9E4DA'}" stroke="#0C1014" stroke-width="1.4"/>
+    <path d="M6.6 4.2h4.6v3.1H6.6zM15.8 4.2h4.6v3.1h-4.6zM11.2 7.3h4.6v3.1h-4.6zM6.6 10.4h4.6v3h-4.6zM15.8 10.4h4.6v3h-4.6z" fill="#0C1014"/></svg>`,
+  mSom:(t,c)=>`<svg class="ic" width="${t}" height="${t}" viewBox="0 0 24 24" fill="none">
+    <path d="M4 9.2h3.6L12.6 5v14l-5-4.2H4V9.2Z" fill="${c||'#8A939B'}" stroke="#0C1014"
+      stroke-width="1.4" stroke-linejoin="round"/>
+    <path d="M15.8 9.2c1.4 1.6 1.4 4 0 5.6M18.4 6.6c2.8 3 2.8 7.8 0 10.8"
+      stroke="${c||'#E9992B'}" stroke-width="1.9" stroke-linecap="round"/></svg>`,
   sucata:(t,c)=>`<svg class="ic" width="${t}" height="${t}" viewBox="0 0 24 24" fill="none">
     <path d="M3 15.5 8 9l4.4 3.6L16.4 7l4.6 8.5v4.2H3v-4.2Z" fill="${c||'#8A939B'}"
       stroke="#0C1014" stroke-width="1.4" stroke-linejoin="round"/>
@@ -544,6 +567,8 @@ function gerarIcones(){
   gl.enable(gl.DEPTH_TEST); gl.depthMask(true); gl.disable(gl.BLEND);
   gl.uniform1f(gl.getUniformLocation(pObj,"uNeb"),1e6);
   gl.uniform3f(gl.getUniformLocation(pObj,"uTinta"),1,1,1);
+  gl.uniform1f(gl.getUniformLocation(pObj,"uAlfa"),1);
+  gl.uniform1f(gl.getUniformLocation(pObj,"uAlfa"),1);
 
   for(const nome of Object.keys(FORMAS)){
     const B=new M();
@@ -661,11 +686,11 @@ const PECAS = {
 const G_BASE={length:4.25,width:1.88,ride:.22,hoodH:.78,roofH:1.28,deckH:.92,tHood:.28,tWs:.44,
   tRoof:.62,tDeck:.80,noseDrop:.08,ducktail:.03,noseTaper:.13,tailTaper:.10,tumble:.30,chamfer:.10,
   flare:.10,wheelR:.34,rearRatio:1,wheelW:.24,spokes:5,axF:.21,axR:.80,wing:1,engine:0,exhaust:0,
-  pattern:0,colBody:"#C8452E",colAcc:"#E9E4DA"};
+  pattern:0,colBody:"#E8321C",colAcc:"#F2EDE2"};
 
 const estado={
   build:{chassi:0,motor:0,rodas:0,aero:1},
-  cor:"#C8452E", acc:"#E9E4DA",
+  cor:"#E8321C", acc:"#F2EDE2",
   energia:480, pericia:0, sucata:0,
   melhorVolta:-1, corridas:0,
   piso:"asfalto", sementePista:3, vitorias:0,
@@ -1024,16 +1049,26 @@ function construirCarro(P){
   /* A roda sai do corpo e vira malha própria, em raio 1 e centrada na origem.
      Assada dentro do corpo ela não tinha como girar — e carro com roda parada
      lê como maquete. Aqui ela é desenhada 4 vezes, com giro e esterço. */
-  const W=new M(), seg=18, ri=.62, cubo=.16, meia=P.wheelW*.5;
-  W.aro(0,0,-meia,meia,1,seg,pneu);
-  W.anel(0,0,-meia,ri,1,seg,esc(pneu,1.5));
-  W.anel(0,0, meia,ri,1,seg,esc(pneu,1.5));
-  W.disco(0,0,meia-.02,ri,seg,fundoAro);
-  W.anel(0,0,meia-.035,ri*.87,ri,seg,metal);
-  const ns=Math.max(3,Math.round(P.spokes)), raioCor=esc(metal,.78);
-  for(let k=0;k<ns;k++){const ang=k/ns*6.2832, rr=ri*.47;
-    W.boxR(Math.cos(ang)*rr, Math.sin(ang)*rr, meia-.032, ri*.80, ri*.17,.05,ang,raioCor);}
-  W.cilZ(0,0,meia-.03,cubo,.06,10,metal);
+  /* DUAS malhas de roda, uma por lado, em vez de espelhar por escala.
+     Escala negativa inverte o determinante da matriz: a normal vira ao
+     contrário E o gl_FrontFacing também, então a correção de face dupla se
+     anula e o lado esquerdo saía cinza-chapado enquanto o direito ficava
+     preto. Construir os dois é mais barato que acertar isso no shader. */
+  const seg=18, ri=.62, cubo=.16, meia=P.wheelW*.5;
+  const fazRoda=(sinal)=>{
+    const W=new M(), fora=sinal*meia;          // face decorada para fora
+    W.aro(0,0,-meia,meia,1,seg,pneu);
+    W.anel(0,0,-meia,ri,1,seg,esc(pneu,1.5));
+    W.anel(0,0, meia,ri,1,seg,esc(pneu,1.5));
+    W.disco(0,0,fora-sinal*.02,ri,seg,fundoAro);
+    W.anel(0,0,fora-sinal*.035,ri*.87,ri,seg,metal);
+    const ns=Math.max(3,Math.round(P.spokes)), raioCor=esc(metal,.78);
+    for(let k=0;k<ns;k++){const ang=k/ns*6.2832, rr=ri*.47;
+      W.boxR(Math.cos(ang)*rr, Math.sin(ang)*rr, fora-sinal*.032, ri*.80, ri*.17,.05,ang,raioCor);}
+    W.cilZ(0,0,fora-sinal*.03,cubo,.06,10,metal);
+    return W;
+  };
+  const W=fazRoda(1), Wesq=fazRoda(-1);
   const posRodas=[];
   for(const [t,R,frente] of [[P.axF,RF,true],[P.axR,RR,false]]){
     const x=L*.5-t*L, hw=meiaLarg(P,t);
@@ -1062,7 +1097,7 @@ function construirCarro(P){
 
   const cano=esc(metal,.62);
   for(const s of[-1,1]) B.cilX(-L*.5+.09,P.ride+.045,s*P.width*.17,.044,.32,10,cano);
-  return { corpo:B, roda:W, posRodas, escape:[-L*.5+.02, P.ride+.05, P.width*.17] };
+  return { corpo:B, roda:W, rodaEsq:Wesq, posRodas, escape:[-L*.5+.02, P.ride+.05, P.width*.17] };
 }
 
 
@@ -1146,17 +1181,17 @@ function construirCenario(pista, piso){
       if(piso==="terra"){
         if(r()<.62) arvore(x,z,.9+r()*.6);
         else if(r()<.6) pedra(x,z);
-        if(curva>.22 && r()<.5) feno(p.x+p.nx*lado*(p.larg/2+3), p.z+p.nz*lado*(p.larg/2+3), ang);
+        if(curva>.22 && r()<.5) feno(p.x+p.nx*lado*(p.larg/2+5), p.z+p.nz*lado*(p.larg/2+5), ang);
       } else if(piso==="chuva"){
-        if(r()<.85) predio(p.x+p.nx*lado*(p.larg/2+16+r()*10),
-                           p.z+p.nz*lado*(p.larg/2+16+r()*10), 14+r()*30);
-        if(r()<.5) poste(p.x+p.nx*lado*(p.larg/2+2.4), p.z+p.nz*lado*(p.larg/2+2.4), lado);
+        if(r()<.85) predio(p.x+p.nx*lado*(p.larg/2+34+r()*22),
+                           p.z+p.nz*lado*(p.larg/2+34+r()*22), 14+r()*30);
+        if(r()<.5) poste(p.x+p.nx*lado*(p.larg/2+5.5), p.z+p.nz*lado*(p.larg/2+5.5), lado);
       } else {
         if(r()<.22) arquibancada(x,z,ang);
         else if(r()<.30) torreLuz(x,z);
         else if(r()<.45) arvore(x,z,.7+r()*.4);
-        if(curva>.25 && r()<.55) muroPneu(p.x+p.nx*lado*(p.larg/2+2.6),
-                                          p.z+p.nz*lado*(p.larg/2+2.6), ang+1.5708);
+        if(curva>.25 && r()<.55) muroPneu(p.x+p.nx*lado*(p.larg/2+5.0),
+                                          p.z+p.nz*lado*(p.larg/2+5.0), ang+1.5708);
       }
     }
   }
@@ -1220,7 +1255,7 @@ layout(location=0)in vec3 aP;layout(location=1)in vec3 aN;layout(location=2)in v
 uniform mat4 uP,uV,uM;out vec3 vN,vW,vC;
 void main(){vec4 w=uM*vec4(aP,1.);vW=w.xyz;vN=mat3(uM)*aN;vC=aC;gl_Position=uP*uV*w;}`,
 `#version 300 es
-precision highp float;in vec3 vN,vW,vC;uniform vec3 uEye;uniform float uNeb;uniform vec3 uTinta;out vec4 o;
+precision highp float;in vec3 vN,vW,vC;uniform vec3 uEye;uniform float uNeb;uniform vec3 uTinta;uniform float uAlfa;out vec4 o;
 ${TONE}
 void main(){
   vec3 N=normalize(vN); if(!gl_FrontFacing)N=-N;
@@ -1233,14 +1268,28 @@ void main(){
   c+=vec3(.42,.58,.82)*pow(1.-max(dot(N,V),0.),3.4)*.22;
   float d=length(uEye-vW);
   c=mix(c, vec3(.030,.042,.056), clamp((d-70.)/uNeb,0.,.82));
-  o=vec4(saida(c),1.);}`);
+  o=vec4(saida(c),uAlfa);}`);
 
 const pFundo=prog(`#version 300 es
 out vec2 vU;void main(){vec2 p=vec2((gl_VertexID<<1)&2,gl_VertexID&2);vU=p;gl_Position=vec4(p*2.-1.,0.,1.);}`,
 `#version 300 es
-precision highp float;in vec2 vU;uniform float uLuz;out vec4 o;${TONE}
-void main(){vec3 c=mix(vec3(.008,.012,.018),vec3(.072,.090,.112),pow(vU.y,1.3));
-  c+=vec3(.055,.048,.030)*smoothstep(.75,.05,distance(vU,vec2(.5,.60)));
+precision highp float;in vec2 vU;uniform float uLuz;uniform vec3 uCeu;out vec4 o;${TONE}
+void main(){
+  // céu em três faixas — alto, meio e horizonte — mais um sol baixo que
+  // sangra na linha do chão. Gradiente de duas cores era o teto do visual.
+  float h=vU.y;
+  vec3 alto = uCeu*vec3(.10,.14,.22);
+  vec3 meio = uCeu*vec3(.30,.34,.40);
+  vec3 baixo= uCeu*vec3(.62,.56,.48);
+  vec3 c = h>.55 ? mix(meio,alto,smoothstep(.55,1.,h))
+                 : mix(baixo,meio,smoothstep(.10,.55,h));
+  // sol: um halo largo e um núcleo pequeno, ambos rentes ao horizonte
+  vec2 sol=vec2(.68,.30);
+  float d=distance(vU*vec2(1.7,1.),sol*vec2(1.7,1.));
+  c += uCeu*vec3(.9,.62,.32)*smoothstep(.62,.0,d)*.55;
+  c += uCeu*vec3(1.6,1.2,.7)*smoothstep(.075,.0,d);
+  // banda quente colada no horizonte
+  c += uCeu*vec3(.34,.24,.14)*smoothstep(.22,.02,abs(h-.16));
   c*=uLuz; o=vec4(saida(c),1.);}`);
 
 const vazio=gl.createVertexArray();
@@ -1290,7 +1339,7 @@ function motorSom(rpm,carga){
    ESTADO DE CENA
    ══════════════════════════════════════════════════════════════════════════ */
 let tela="garagem";
-let malhaCarro=null, malhaPista=null, malhaCenario=null, malhaRival=[], malhaPoco=null, malhaChao=null, malhaSeta=null, malhaCaixa=null, malhaMancha=null, malhaChama=null, malhaAnel=null;
+let malhaCarro=null, malhaPista=null, malhaCenario=null, malhaRival=[], malhaPoco=null, malhaChao=null, malhaSeta=null, malhaCaixa=null, malhaMancha=null, malhaBrasa=null, malhaNucleo=null, malhaAnel=null, malhaSombra=null;
 let pista=gerarPista(3,'asfalto');
 let corrida=null, mapa=null;
 let camY=0.6, camDist=9.5, camAng=-0.7, girando=true;
@@ -1415,7 +1464,8 @@ cv.addEventListener("touchend",()=>{toqueAnt=null;pincaAnt=0;},{passive:true});
 
 function prepararCarro(P){
   const c=construirCarro(P);
-  return { corpo:subir(c.corpo), roda:subir(c.roda), posRodas:c.posRodas, escape:c.escape };
+  return { corpo:subir(c.corpo), roda:subir(c.roda), rodaEsq:subir(c.rodaEsq),
+           posRodas:c.posRodas, escape:c.escape };
 }
 function reconstruirCarro(){
   malhaCarro=prepararCarro(montar());
@@ -1427,18 +1477,55 @@ function reconstruirCarro(){
   }
 }
 
-function fogoTurbo(m,p){
+/* ── PARTÍCULAS DO TURBO ──────────────────────────────────────────────────
+   Um cone fixo no escapamento não lê como velocidade: ele anda junto com o
+   carro, então a vista não tem nada se mexendo em relação a ele. Partícula
+   que NASCE no escapamento e FICA PARA TRÁS mostra o quanto se está andando.
+   Cada uma é um cubinho que encolhe e esfria de laranja para cinza. */
+function soltarBrasa(c,m,p){
   const [ex,ey,ez]=m.escape;
   const cs=Math.cos(-p.h), sn=Math.sin(-p.h);
-  const tremida=0.75+Math.random()*0.55;
+  const vel=Math.hypot(p.vx,p.vz);
   for(const lado of [-1,1]){
-    const lx=ex, lz=ez*lado;
-    const wx=p.x + lx*cs + lz*sn;
-    const wz=p.z - lx*sn + lz*cs;
-    const e=new Float32Array([cs*tremida,0,-sn*tremida, 0, 0,tremida,0,0,
-                              sn*tremida,0,cs*tremida, 0, wx,ey,wz,1]);
-    desenhar(malhaChama,e);
+    const lz=ez*lado;
+    c.brasas.push({
+      x:p.x + ex*cs + lz*sn,
+      y:ey + (Math.random()-.5)*.12,
+      z:p.z - ex*sn + lz*cs,
+      // sai para trás do carro e espalha um pouco
+      vx:-Math.cos(p.h)*(6+vel*.16) + (Math.random()-.5)*3.2,
+      vz:-Math.sin(p.h)*(6+vel*.16) + (Math.random()-.5)*3.2,
+      vy:.25+Math.random()*.75,
+      t:0, vida:.42+Math.random()*.34, giro:Math.random()*6.28,
+    });
   }
+}
+function passoBrasas(c,dt){
+  for(const b of c.brasas){
+    b.t+=dt;
+    b.x+=b.vx*dt; b.y+=b.vy*dt; b.z+=b.vz*dt;
+    b.vy-=2.4*dt; b.vx*=1-1.8*dt; b.vz*=1-1.8*dt;
+    b.giro+=dt*5;
+  }
+  c.brasas=c.brasas.filter(b=>b.t<b.vida && b.y>0);
+}
+function desenharBrasas(c){
+  for(const b of c.brasas){
+    /* Nitro queima AZUL. O núcleo sai branco-ciano estourado — valor bem
+       acima de 1 para o tonemap saturar e virar brilho — e esfria para azul
+       profundo antes de sumir. */
+    const k=1-b.t/b.vida;
+    const q=cl(k*k*1.7,0,1);                 // o quanto ainda está quente
+    const brilho=.5+q*2.4;
+    gl.uniform3f(gl.getUniformLocation(pObj,"uTinta"),brilho,brilho,brilho);
+    // estica no sentido do movimento: partícula quadrada não lê como rastro
+    const v=Math.hypot(b.vx,b.vz)||1, ang=Math.atan2(b.vz,b.vx);
+    const c0=Math.cos(-ang), s0=Math.sin(-ang);
+    const comp=(.10+k*.30)*(1+cl(v/26,0,1.7)), larg=.07+k*.17;
+    desenhar(q>.55?malhaNucleo:malhaBrasa, new Float32Array([
+      c0*comp,0,s0*comp, 0,  0,larg,0,0,  -s0*larg,0,c0*larg,0,  b.x,b.y,b.z,1]));
+  }
+  gl.uniform3f(gl.getUniformLocation(pObj,"uTinta"),1,1,1);
 }
 
 /* ── anéis de efeito: é o que torna item visível ── */
@@ -1459,39 +1546,96 @@ function m4rodaLocal(w,giro,esterco){
   const cy=Math.cos(esterco), sy=Math.sin(esterco);
   // escala (r,r,1) · giro em Z · esterço em Y · translação
   const r=w.r;
-  const e=w.lado||1;   // -1 espelha a face decorada para o lado de fora
-  const a=new Float32Array([ cz*r,sz*r,0,0,  -sz*r,cz*r,0,0,  0,0,e,0,  0,0,0,1]);
+  const a=new Float32Array([ cz*r,sz*r,0,0,  -sz*r,cz*r,0,0,  0,0,1,0,  0,0,0,1]);
   const b=new Float32Array([ cy,0,-sy,0,  0,1,0,0,  sy,0,cy,0,  w.x,w.y,w.z,1]);
   return m4mul(b,a);
 }
 function desenharCarro(m,pose,giro,esterco){
   desenhar(m.corpo,pose);
   for(const w of m.posRodas)
-    desenhar(m.roda, m4mul(pose, m4rodaLocal(w,giro,w.frente?esterco:0)));
+    desenhar(w.lado<0 ? m.rodaEsq : m.roda,
+             m4mul(pose, m4rodaLocal(w,giro,w.frente?esterco:0)));
 }
 function reconstruirPista(){
   malhaPista=subir(construirPista(pista, estado.piso));
   malhaCenario=subir(construirCenario(pista, estado.piso));
 }
 function construirChao(){
-  const B=new M(), a=[.028,.034,.040], b=[.020,.025,.030];
-  const L=300, P=13;
-  for(let i=-P;i<P;i++) for(let j=-P;j<P;j++){
-    const x0=i*L/P*1.6, z0=j*L/P*1.6, w=L/P*1.6;
-    B.quad([x0,-.02,z0],[x0+w,-.02,z0],[x0+w,-.02,z0+w],[x0,-.02,z0+w], (i+j)%2?a:b);
+  /* Xadrez sem textura é chão de software de modelagem, não de jogo. Aqui o
+     terreno tem manchas irregulares de tom próximo e vegetação por cima —
+     o mesmo truque do cenário da pista: a variação vem da forma, não de mapa
+     de imagem. */
+  const B=new M(), r=semente(31);
+  // tons quase iguais: variação forte redesenha a grade que a gente veio tirar
+  const tons=[hex("#233020"),hex("#212E1F"),hex("#253322"),hex("#1F2C1E")];
+  const L=560, P=40, w=L*2/P;
+  for(let i=-P/2;i<P/2;i++) for(let j=-P/2;j<P/2;j++){
+    const x0=i*w, z0=j*w;
+    const t=tons[Math.floor(r()*tons.length)];
+    B.quad([x0,-.02,z0],[x0+w,-.02,z0],[x0+w,-.02,z0+w],[x0,-.02,z0+w],t);
+  }
+  // vegetação e pedra espalhadas, evitando o miolo onde os carros rodam
+  const arv=(x,z)=>{
+    const h=6+r()*5;
+    B.cilY(x,h*.28,z,.7,h*.56,6,hex("#4A3524"));
+    for(let k=0;k<3;k++){ const yy=h*(.5+k*.2), rr=3.4-k*.9;
+      for(let i=0;i<6;i++){ const a=i/6*6.2832,a2=(i+1)/6*6.2832;
+        B.tri([x,yy+3,z],[x+Math.cos(a)*rr,yy,z+Math.sin(a)*rr],
+              [x+Math.cos(a2)*rr,yy,z+Math.sin(a2)*rr], hex(r()<.5?"#2E5B3A":"#254A31")); } }
+  };
+  const moita=(x,z)=>{
+    const t=1.0+r()*1.5, c=hex(r()<.5?"#2A4A2C":"#213C24");
+    for(let i=0;i<5;i++){ const a=i/5*6.2832,a2=(i+1)/5*6.2832;
+      B.tri([x,t*1.9,z],[x+Math.cos(a)*t,0,z+Math.sin(a)*t],
+            [x+Math.cos(a2)*t,0,z+Math.sin(a2)*t],c); }
+  };
+  // vegetação EM BOSQUES: espalhar uniforme lê como grama de golfe, e
+  // aglomerado é o que dá desenho ao terreno visto de cima
+  for(let b=0;b<26;b++){
+    const ab=r()*6.2832, db=90+Math.sqrt(r())*400;
+    const bx=Math.cos(ab)*db, bz=Math.sin(ab)*db;
+    const quantos=4+Math.floor(r()*14);
+    for(let k=0;k<quantos;k++){
+      const a=r()*6.2832, d=Math.sqrt(r())*46;
+      const x=bx+Math.cos(a)*d, z=bz+Math.sin(a)*d;
+      const q=r();
+      if(q<.5) arv(x,z);
+      else if(q<.82) moita(x,z);
+      else { const t=1.6+r()*3.0;
+        B.boxR(x,t*.35,z,t*1.7,t*.8,t*1.4,r()*3, hex(r()<.5?"#4A5158":"#3C434A")); }
+    }
   }
   malhaChao=subir(B);
 }
+function construirSombra(){
+  /* Sem sombra o carro flutua: não há nada dizendo onde ele encosta no chão.
+     Um disco escuro semitransparente resolve por quase nada de triângulo. */
+  const B=new M();
+  B.disco(0,0,0,1,20,[0,0,0]);
+  malhaSombra=subir(B);
+}
+function sombraDe(p,comp,larg){
+  const g=gl.getUniformLocation(pObj,"uAlfa");
+  gl.uniform1f(g,0.30);
+  gl.uniform3f(gl.getUniformLocation(pObj,"uTinta"),1,1,1);
+  gl.depthMask(false);
+  const ca=Math.cos(-p.h), sa=Math.sin(-p.h);
+  // disco no plano XY deitado no chão e esticado no sentido do carro
+  desenhar(malhaSombra,new Float32Array([
+    ca*comp,0,sa*comp, 0,  -sa*larg,0,ca*larg,0,  0,1,0,0,  p.x,0.035,p.z,1]));
+  gl.depthMask(true);
+  gl.uniform1f(g,1);
+}
 function construirChama(){
-  const B=new M(), q=[4.0,1.1,.18], a=[4.4,2.8,1.4];
-  // cone apontando pra trás, com um miolo mais claro
-  const r=.20, L=1.15;
-  for(let i=0;i<7;i++){
-    const a0=i/7*6.2832, a1=(i+1)/7*6.2832;
-    B.tri([-L,0,0],[0,Math.sin(a0)*r,Math.cos(a0)*r],[0,Math.sin(a1)*r,Math.cos(a1)*r],q);
-    B.tri([-L*.45,0,0],[0,Math.sin(a1)*r*.5,Math.cos(a1)*r*.5],[0,Math.sin(a0)*r*.5,Math.cos(a0)*r*.5],a);
-  }
-  malhaChama=subir(B);
+  /* A COR AZUL FICA NA MALHA e a tinta é só brilho. Com a cor na tinta, os
+     três canais subiam juntos, o tonemap saturava e a chama virava cubo
+     branco — que foi exatamente o que apareceu na primeira tentativa. */
+  const B=new M();
+  B.box(0,0,0,1,1,1,[.06,.34,1.0]);
+  malhaBrasa=subir(B);
+  const N=new M();
+  N.box(0,0,0,1,1,1,[.55,.92,1.0]);      // núcleo, quase branco-ciano
+  malhaNucleo=subir(N);
 }
 function construirAnel(){
   const B=new M(), c=[1,1,1];
@@ -1572,7 +1716,7 @@ function iniciarCorrida(){
   corrida={
     pilotos:[novoPiloto(0),novoPiloto(1),novoPiloto(2),novoPiloto(3)],
     at, t:-3.2, tVolta:0, melhor:-1, acabou:false, perLog:[], marcas:[],
-    periciaGanha:0, pico:0, caixas:montarCaixas(), perigos:[], efeitos:[], estouroVindo:null, aviso:"", avisoAte:0,
+    periciaGanha:0, pico:0, caixas:montarCaixas(), perigos:[], efeitos:[], brasas:[], estouroVindo:null, aviso:"", avisoAte:0,
   };
   corrida.pilotos[0].ia=false;
   document.getElementById("hud").classList.add("on");
@@ -2027,6 +2171,11 @@ function quadro(agora){
   gl.useProgram(pFundo);
   gl.uniform1f(gl.getUniformLocation(pFundo,"uLuz"),
     tela==="corrida" ? (PISOS[estado.piso]||PISOS.asfalto).ceu : 1.0);
+  const tomCeu = tela!=="corrida" ? [1,1,1]
+    : estado.piso==="chuva" ? [.62,.72,.92]      // cinza-azulado de chuva
+    : estado.piso==="terra" ? [1.10,.98,.82]     // poeira quente
+    : [1,1,1];
+  gl.uniform3f(gl.getUniformLocation(pFundo,"uCeu"),tomCeu[0],tomCeu[1],tomCeu[2]);
   gl.bindVertexArray(vazio); gl.drawArrays(gl.TRIANGLES,0,3);
   gl.enable(gl.DEPTH_TEST); gl.depthMask(true);
 
@@ -2109,6 +2258,8 @@ function quadro(agora){
       desenhar(malhaCaixa,m4pose(cx.x,2.0+Math.sin(corrida.t*2.4+cx.x)*0.26,cx.z,corrida.t*2.1,0.82));
       gl.uniform3f(gl.getUniformLocation(pObj,"uTinta"),1,1,1);
     }
+    passoBrasas(corrida,dt);
+    desenharBrasas(corrida);
     for(const e of corrida.efeitos){
       const v=(corrida.t-e.t)/0.75, r=e.raio*(0.25+v*1.5), br=(1-v)*(1-v);
       gl.uniform3f(gl.getUniformLocation(pObj,"uTinta"),e.cor[0]*br,e.cor[1]*br,e.cor[2]*br);
@@ -2117,8 +2268,10 @@ function quadro(agora){
     }
     corrida.pilotos.forEach((p,i)=>{
       const m=i===0?malhaCarro:malhaRival[(i-1)%malhaRival.length];
+      sombraDe(p,2.15,1.0);
       desenharCarro(m,m4pose(p.x,0,p.z,-p.h), p.giroRoda||0, (p.dir||0)*0.5);
-      if(p.turbando) fogoTurbo(m,p);
+      if(p.turbando){ soltarBrasa(corrida,m,p); if(Math.random()<.7) soltarBrasa(corrida,m,p); }
+
     });
   } else if(tela==="mapa"){
     desenhar(malhaChao,m4pose(0,0,0,0));
@@ -2130,6 +2283,7 @@ function quadro(agora){
     });
     mapa.carros.forEach((c,i)=>{
       const m=c.meu?malhaCarro:malhaRival[i%malhaRival.length];
+      sombraDe(c,5.2,2.5);
       c.giroRoda=(c.giroRoda||0)+dt*c.vel*1.6;
       desenharCarro(m,m4pose(c.x,0,c.z,-c.h,2.1), c.giroRoda, 0);
     });
@@ -2365,6 +2519,8 @@ function montarGaragem(){
 /* ── partida ── */
 gerarIcones();
 // ícones fixos da barra de topo, uma vez só
+for(const [id,nome] of [["nGar","mGaragem"],["nMapa","mMapa"],["nCor","mCorrer"],["nSom","mSom"]])
+  $(id).firstElementChild.innerHTML=icone(nome,17);
 $("icE").innerHTML=icone("energia",22);
 $("icP").innerHTML=icone("pericia",22);
 $("icS").innerHTML=icone("sucata",22);
@@ -2372,7 +2528,8 @@ $("icS").innerHTML=icone("sucata",22);
 const voltou=carregar();
 if(!voltou) sortearProxima();
 reconstruirCarro(); reconstruirPista(); construirPoco(); construirChao(); construirSeta();
-construirCaixa(); construirMancha(); construirChama(); construirAnel(); montarGaragem();
+construirCaixa(); construirMancha(); construirChama(); construirAnel(); construirSombra();
+montarGaragem();
 if(voltou){
   // recupera o idle do tempo em que a aba esteve fechada
   const seg=Math.min(8*3600,(Date.now()-(estado.idleUltimo||Date.now()))/1000);
