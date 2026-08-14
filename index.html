@@ -1309,8 +1309,13 @@ function quadro(agora){
     const paleta=Object.values(ITENS).map(it=>hex(it.cor));
     for(const cx of corrida.caixas){
       if(cx.volta>0) continue;
-      const f=(corrida.t*0.8+cx.x*0.05)%paleta.length;
-      const c0=paleta[Math.floor(f)], c1=paleta[(Math.floor(f)+1)%paleta.length], k=f%1;
+      // módulo SEMPRE positivo: corrida.t começa em -3,2 na contagem
+      // regressiva e cx.x é negativo em metade da pista. O % do JavaScript
+      // preserva o sinal, então paleta[índice negativo] era undefined e a
+      // corrida explodia no primeiro quadro.
+      const n=paleta.length;
+      const f=(((corrida.t*0.8+cx.x*0.05)%n)+n)%n;
+      const c0=paleta[Math.floor(f)], c1=paleta[(Math.floor(f)+1)%n], k=f%1;
       gl.uniform3f(gl.getUniformLocation(pObj,"uTinta"),
         lerp(c0[0],c1[0],k)*2.2, lerp(c0[1],c1[1],k)*2.2, lerp(c0[2],c1[2],k)*2.2);
       desenhar(malhaCaixa,m4pose(cx.x,2.3+Math.sin(corrida.t*2.4+cx.x)*0.28,cx.z,corrida.t*2.1));
