@@ -64,6 +64,18 @@
   .st .b i{position:absolute;inset:0 auto 0 0;background:var(--amber);transition:width .18s}
   .st .b.g i{background:var(--patina)} .st .b.r i{background:var(--oxide)}
   .st .q{font-family:var(--f-m);font-size:10.5px;text-align:right;font-variant-numeric:tabular-nums}
+  .grp h3 .dur{float:right;font-family:var(--f-m);font-size:10px;letter-spacing:.06em;text-transform:none}
+  .prox{background:#10161C}
+  .prox .pisoNome{font-family:var(--f-d);font-size:27px;color:var(--amber);line-height:1;text-transform:uppercase}
+  .prox .pisoDica{font-size:12.5px;color:var(--tx2);margin-top:4px}
+  .opc button em{font-style:normal;font-family:var(--f-m);font-size:9.5px;letter-spacing:.08em;
+                 text-transform:uppercase;margin-left:5px}
+  .opc button em.bom{color:var(--patina)} .opc button em.ruim{color:var(--oxide)}
+  .opc button.trava{opacity:.45}
+  .opc button.trava.pode{opacity:.85;border-color:var(--amber)}
+  .opc button.trava::after{content:none}
+  .opc .preco{font-family:var(--f-m);font-size:10.5px;color:var(--amber);white-space:nowrap}
+  .btn.semGrana{opacity:.45}
 
   /* ── HUD de corrida ── */
   #hud{inset:0;display:none}
@@ -79,6 +91,8 @@
   #volta{left:34px;top:76px;position:absolute}
   #volta .v{font-family:var(--f-d);font-size:32px;line-height:1}
   #volta .p{font-family:var(--f-m);font-size:11px;letter-spacing:.14em;color:var(--tx3);text-transform:uppercase}
+  #volta .piso{font-family:var(--f-m);font-size:11px;letter-spacing:.16em;color:var(--amber);
+               text-transform:uppercase;margin-top:6px}
   #nitro{position:absolute;left:34px;bottom:118px;width:240px}
   #nitro .nb{height:11px;background:rgba(10,14,18,.8);position:relative;overflow:hidden;margin-top:5px;
              border:1px solid rgba(255,255,255,.10)}
@@ -148,7 +162,8 @@
 <aside class="ui" id="garagem"></aside>
 
 <div class="ui" id="hud">
-  <div id="volta"><div class="p">Volta</div><div class="v"><span id="vAtual">1</span>/2</div></div>
+  <div id="volta"><div class="p">Volta</div><div class="v"><span id="vAtual">1</span>/2</div>
+    <div class="piso" id="pisoHud">Asfalto</div></div>
   <div id="tempos"><div class="l">Volta atual</div><div class="t" id="tAtual">0.00</div>
     <div class="l" style="margin-top:8px">Melhor</div><div class="t d" id="tMelhor">—</div></div>
   <div id="vel"><div class="n" id="velN">0</div><div class="u">km/h</div></div>
@@ -200,27 +215,42 @@ const tempo=s=>s<0?"—":(Math.floor(s/60)?Math.floor(s/60)+":":"")+ (s%60).toFi
 const CUSTO_CORRIDA = 120;
 const BATERIA = 800;
 
+/* ── PISOS ────────────────────────────────────────────────────────────────
+   A Lei L5 (nenhuma peça pode ser boa em tudo) só existe de verdade se as
+   corridas rodarem em pisos diferentes. Com um piso só, não há motivo para
+   montar mais de um carro — e a garagem inteira perde o sentido.
+   O piso da próxima corrida é anunciado ANTES, para a escolha ser sua. */
+const PISOS = {
+  asfalto: { nome:"Asfalto", aderencia:1.00, arrasto:1.00,
+             pista:[.019,.021,.024], grama:[.020,.045,.026], ceu:1.00 },
+  terra:   { nome:"Terra",   aderencia:0.76, arrasto:1.06,
+             pista:[.052,.032,.018], grama:[.038,.040,.020], ceu:1.06 },
+  chuva:   { nome:"Chuva",   aderencia:0.68, arrasto:0.96,
+             pista:[.013,.016,.024], grama:[.014,.030,.024], ceu:0.62 },
+};
+const ORDEM_PISO = ["asfalto","terra","chuva"];
+
 /* ── peças: cada uma muda a GEOMETRIA e muda a FÍSICA ── */
 const PECAS = {
   chassi:[
-    {nome:"Ferro-Velho",  desc:"equilibrado", g:{length:4.15,width:1.84,ride:.25,hoodH:.82,roofH:1.34,deckH:1.02,noseDrop:.03,tHood:.30,tWs:.44,tRoof:.64,tDeck:.82,noseTaper:.08,tailTaper:.07,tumble:.20,chamfer:.06,flare:.08}, peso:1.00,aderencia:1.00,pot:1.00},
-    {nome:"Cunha GT",     desc:"leve, cola no chão", g:{length:4.5,width:2.02,ride:.16,hoodH:.62,roofH:1.12,deckH:.78,noseDrop:.22,tHood:.36,tWs:.51,tRoof:.66,tDeck:.83,noseTaper:.22,tailTaper:.13,tumble:.34,chamfer:.09,flare:.18}, peso:.88,aderencia:1.14,pot:1.00},
-    {nome:"Buggy",        desc:"alto, bom fora da pista", g:{length:3.85,width:1.92,ride:.40,hoodH:.84,roofH:1.50,deckH:1.12,noseDrop:.04,tHood:.26,tWs:.40,tRoof:.60,tDeck:.78,noseTaper:.15,tailTaper:.17,tumble:.38,chamfer:.08,flare:.25}, peso:1.06,aderencia:.90,pot:1.00,terra:1.35},
+    {nome:"Ferro-Velho", desc:"aguenta qualquer piso", custo:0, g:{length:4.15,width:1.84,ride:.25,hoodH:.82,roofH:1.34,deckH:1.02,noseDrop:.03,tHood:.30,tWs:.44,tRoof:.64,tDeck:.82,noseTaper:.08,tailTaper:.07,tumble:.20,chamfer:.06,flare:.08}, peso:1.00,aderencia:1.00,pot:1.00, piso:{asfalto:1.00,terra:1.00,chuva:1.02}},
+    {nome:"Cunha GT",    desc:"voa no asfalto, sofre na terra", custo:900, pericia:20, g:{length:4.5,width:2.02,ride:.16,hoodH:.62,roofH:1.12,deckH:.78,noseDrop:.22,tHood:.36,tWs:.51,tRoof:.66,tDeck:.83,noseTaper:.22,tailTaper:.13,tumble:.34,chamfer:.09,flare:.18}, peso:.88,aderencia:1.14,pot:1.00, piso:{asfalto:1.14,terra:0.80,chuva:0.86}},
+    {nome:"Buggy",       desc:"dono da terra e da chuva", custo:750, pericia:12, g:{length:3.85,width:1.92,ride:.40,hoodH:.84,roofH:1.50,deckH:1.12,noseDrop:.04,tHood:.26,tWs:.40,tRoof:.60,tDeck:.78,noseTaper:.15,tailTaper:.17,tumble:.38,chamfer:.08,flare:.25}, peso:1.06,aderencia:.90,pot:1.00, piso:{asfalto:0.90,terra:1.28,chuva:1.20}},
   ],
   motor:[
-    {nome:"1.6 Aspirado", desc:"+0%",  g:{engine:0}, pot:1.00, peso:1.00},
-    {nome:"Turbo",        desc:"+24% de força", g:{engine:2}, pot:1.24, peso:1.05},
-    {nome:"Compressor",   desc:"+45%, pesado",  g:{engine:3}, pot:1.45, peso:1.12},
+    {nome:"1.6 Aspirado", desc:"o que veio de fábrica", custo:0, g:{engine:0}, pot:1.00, peso:1.00},
+    {nome:"Turbo",        desc:"+24% de força", custo:700, pericia:15, g:{engine:2}, pot:1.24, peso:1.05},
+    {nome:"Compressor",   desc:"+45%, e pesado", custo:1600, pericia:40, g:{engine:3}, pot:1.45, peso:1.12},
   ],
   rodas:[
-    {nome:"Pneu de rua",  desc:"cru, mas perdoa", g:{wheelW:.22,wheelR:.33,spokes:8}, aderencia:1.00},
-    {nome:"Slick",        desc:"cola no asfalto, odeia grama", g:{wheelW:.35,wheelR:.34,spokes:6}, aderencia:1.26, terra:.62},
-    {nome:"Cravo",        desc:"morde a terra", g:{wheelW:.31,wheelR:.42,spokes:5}, aderencia:.92, terra:1.55},
+    {nome:"Pneu de rua", desc:"nunca é o melhor, nunca é o pior", custo:0, g:{wheelW:.22,wheelR:.33,spokes:8}, aderencia:1.00, piso:{asfalto:1.00,terra:0.98,chuva:1.12}},
+    {nome:"Slick",       desc:"imbatível no seco, inútil no resto", custo:600, pericia:10, g:{wheelW:.35,wheelR:.34,spokes:6}, aderencia:1.26, piso:{asfalto:1.22,terra:0.60,chuva:0.52}},
+    {nome:"Cravo",       desc:"morde terra e chuva", custo:600, pericia:10, g:{wheelW:.31,wheelR:.42,spokes:5}, aderencia:.92, piso:{asfalto:0.84,terra:1.36,chuva:1.24}},
   ],
   aero:[
-    {nome:"Sem aerofólio",desc:"velocidade final", g:{wing:0}, arrasto:1.00, aderencia:1.00},
-    {nome:"Asa média",    desc:"equilíbrio",       g:{wing:2}, arrasto:1.07, aderencia:1.11},
-    {nome:"Asa grande",   desc:"gruda nas curvas", g:{wing:3}, arrasto:1.18, aderencia:1.24},
+    {nome:"Sem aerofólio",desc:"toda a velocidade final", custo:0, g:{wing:0}, arrasto:1.00, aderencia:1.00, piso:{asfalto:1,terra:1,chuva:1}},
+    {nome:"Asa média",    desc:"equilíbrio",       custo:450, g:{wing:2}, arrasto:1.07, aderencia:1.11, piso:{asfalto:1,terra:1,chuva:1}},
+    {nome:"Asa grande",   desc:"gruda na curva, custa reta", custo:1100, pericia:25, g:{wing:3}, arrasto:1.18, aderencia:1.24, piso:{asfalto:1,terra:1,chuva:1}},
   ],
 };
 const G_BASE={length:4.25,width:1.88,ride:.22,hoodH:.78,roofH:1.28,deckH:.92,tHood:.28,tWs:.44,
@@ -233,28 +263,75 @@ const estado={
   cor:"#C8452E", acc:"#E9E4DA",
   energia:480, pericia:0, sucata:0,
   melhorVolta:-1, corridas:0,
+  piso:"asfalto", sementePista:3, vitorias:0,
+  // o que já foi comprado, e o quanto cada peça equipada aguenta ainda
+  destravado:{chassi:[0],motor:[0],rodas:[0],aero:[0]},
+  dur:{chassi:100,motor:100,rodas:100,aero:100},
   idleUltimo:Date.now(), idleSemente:7,
 };
+
+/* ── PERSISTÊNCIA ─────────────────────────────────────────────────────────
+   O portão da Fase 2 é retenção: alguém voltar no dia seguinte. Sem salvar,
+   fechar a aba apagava tudo e o portão era impossível de medir. */
+const CHAVE="circuito-aberto-v1";
+function salvar(){
+  try{ localStorage.setItem(CHAVE, JSON.stringify({
+    build:estado.build, cor:estado.cor, acc:estado.acc,
+    energia:estado.energia, pericia:estado.pericia, sucata:estado.sucata,
+    melhorVolta:estado.melhorVolta, corridas:estado.corridas, vitorias:estado.vitorias,
+    idleUltimo:estado.idleUltimo, piso:estado.piso, sementePista:estado.sementePista,
+    destravado:estado.destravado, dur:estado.dur,
+  })); }catch(e){}
+}
+function carregar(){
+  try{
+    const d=JSON.parse(localStorage.getItem(CHAVE)||"null");
+    if(!d) return false;
+    Object.assign(estado,d);
+    // o que ficou salvo pode ser de uma versão anterior: completa o que faltar
+    for(const k of ["chassi","motor","rodas","aero"]){
+      if(!estado.destravado[k]) estado.destravado[k]=[0];
+      if(estado.dur[k]===undefined) estado.dur[k]=100;
+      if(!estado.destravado[k].includes(estado.build[k])) estado.build[k]=0;
+    }
+    return true;
+  }catch(e){ return false; }
+}
 
 function montar(){
   const g={...G_BASE, colBody:estado.cor, colAcc:estado.acc};
   for(const k of ["chassi","motor","rodas","aero"]) Object.assign(g, PECAS[k][estado.build[k]].g);
   return g;
 }
-function atributos(){
+/* Peça gasta rende menos. Não é punição no meio da corrida — é conta a pagar
+   entre uma e outra, que é onde a Sucata deixa de ser número decorativo. */
+function fatorDur(k){ return 0.62 + 0.38*cl((estado.dur[k]||0)/100,0,1); }
+function custoReparo(){
+  let t=0;
+  for(const k of ["chassi","motor","rodas","aero"]){
+    const falta=100-(estado.dur[k]||0);
+    t += falta * (0.5 + PECAS[k][estado.build[k]].custo/900);
+  }
+  return Math.round(t);
+}
+function atributos(piso){
+  const P=PISOS[piso||estado.piso||"asfalto"];
   const p=k=>PECAS[k][estado.build[k]];
   const c=p("chassi"), m=p("motor"), r=p("rodas"), a=p("aero");
+  const nomePiso=piso||estado.piso||"asfalto";
+  const af=(x)=>(x.piso&&x.piso[nomePiso])||1;      // afinidade da peça com o piso
   const peso=c.peso*m.peso;
-  const potencia = 11.5 * c.pot * m.pot / peso;
-  const arrasto  = 0.0026 * a.arrasto;
+  const potencia = 11.5 * c.pot * m.pot * fatorDur("motor") / peso;
+  const arrasto  = 0.0026 * a.arrasto * P.arrasto;
   // velocidade terminal resolvida da própria equação de movimento, para o
   // número da garagem ser o número que o carro faz de verdade na pista
   const vmax = (-0.18 + Math.sqrt(0.0324 + 4*arrasto*potencia)) / (2*arrasto);
   return {
-    potencia, arrasto, vmax,
-    aderencia: 3.05 * c.aderencia * r.aderencia * a.aderencia,
-    terra: (c.terra||1) * (r.terra||1),
-    peso,
+    potencia, arrasto, vmax, peso, piso:nomePiso,
+    aderencia: 3.05 * c.aderencia * r.aderencia * a.aderencia
+             * P.aderencia * af(c) * af(r) * af(a)
+             * (0.70+0.30*fatorDur("rodas")) * (0.85+0.15*fatorDur("chassi")),
+    terra: 0.55 + 0.45*af(c)*af(r),      // o quanto sofre fora da pista
   };
 }
 
@@ -546,13 +623,13 @@ function construirCarro(P){
 }
 
 /* ── malha da pista: asfalto, meio-fio, grama, linha de largada ── */
-function construirPista(pista){
-  const B=new M();
-  const asf=[.019,.021,.024], mf1=[.30,.045,.035], mf2=[.62,.60,.56], gr=[.020,.045,.026];
+function construirPista(pista, nomePiso){
+  const B=new M(), PI=PISOS[nomePiso||"asfalto"];
+  const asf=PI.pista, mf1=[.30,.045,.035], mf2=[.62,.60,.56], gr=PI.grama;
   const pts=pista.pontos, n=pista.n;
   // chão até onde a névoa alcança: sem isto a grama termina numa parede e
   // aparece o vazio do lado de fora das curvas
-  const F=900, ch=[.014,.030,.019];
+  const F=900, ch=esc(PI.grama,0.62);
   B.quad([-F,-.09,-F],[F,-.09,-F],[F,-.09,F],[-F,-.09,F],ch);
   for(let i=0;i<n;i++){
     const p=pts[i], q=pts[(i+1)%n];
@@ -620,9 +697,10 @@ void main(){
 const pFundo=prog(`#version 300 es
 out vec2 vU;void main(){vec2 p=vec2((gl_VertexID<<1)&2,gl_VertexID&2);vU=p;gl_Position=vec4(p*2.-1.,0.,1.);}`,
 `#version 300 es
-precision highp float;in vec2 vU;out vec4 o;${TONE}
+precision highp float;in vec2 vU;uniform float uLuz;out vec4 o;${TONE}
 void main(){vec3 c=mix(vec3(.008,.012,.018),vec3(.072,.090,.112),pow(vU.y,1.3));
-  c+=vec3(.055,.048,.030)*smoothstep(.75,.05,distance(vU,vec2(.5,.60)));o=vec4(saida(c),1.);}`);
+  c+=vec3(.055,.048,.030)*smoothstep(.75,.05,distance(vU,vec2(.5,.60)));
+  c*=uLuz; o=vec4(saida(c),1.);}`);
 
 const vazio=gl.createVertexArray();
 function subir(mesh){
@@ -745,7 +823,7 @@ function desenharCarro(m,pose,giro,esterco){
   for(const w of m.posRodas)
     desenhar(m.roda, m4mul(pose, m4rodaLocal(w,giro,w.frente?esterco:0)));
 }
-function reconstruirPista(){ malhaPista=subir(construirPista(pista)); }
+function reconstruirPista(){ malhaPista=subir(construirPista(pista, estado.piso)); }
 function construirChao(){
   const B=new M(), a=[.028,.034,.040], b=[.020,.025,.030];
   const L=300, P=13;
@@ -756,9 +834,9 @@ function construirChao(){
   malhaChao=subir(B);
 }
 function construirChama(){
-  const B=new M(), q=[3.2,1.5,.35], a=[3.6,2.4,.9];
+  const B=new M(), q=[4.0,1.1,.18], a=[4.4,2.8,1.4];
   // cone apontando pra trás, com um miolo mais claro
-  const r=.30, L=1.7;
+  const r=.20, L=1.15;
   for(let i=0;i<7;i++){
     const a0=i/7*6.2832, a1=(i+1)/7*6.2832;
     B.tri([-L,0,0],[0,Math.sin(a0)*r,Math.cos(a0)*r],[0,Math.sin(a1)*r,Math.cos(a1)*r],q);
@@ -834,7 +912,7 @@ function montarCaixas(){
   // renderam 6 itens numa prova inteira. Mais fileiras, mais larguras.
   for(let i=8;i<pista.n;i+=13){
     const p=pista.pontos[i];
-    for(const lado of [-0.62,-0.31,0,0.31,0.62])
+    for(const lado of [-0.50,-0.25,0,0.25,0.50])
       cx.push({x:p.x+p.nx*p.larg*lado*0.80, z:p.z+p.nz*p.larg*lado*0.80, volta:0});
   }
   return cx;
@@ -1101,8 +1179,13 @@ function terminarCorrida(){
   const c=corrida; if(c.acabou)return; c.acabou=true;
   const eu=c.pilotos[0];
   const pos=1+c.pilotos.filter(p=>p!==eu && (p.terminou>=0&&p.terminou<eu.terminou)).length;
-  const per=Math.round(c.periciaGanha), suc=Math.round(38+Math.max(0,4-pos)*14+per*0.6);
+  const per=Math.round(c.periciaGanha), suc=Math.round(52+Math.max(0,4-pos)*22+per*0.8);
   estado.pericia+=per; estado.sucata+=suc; estado.corridas++;
+  if(pos===1) estado.vitorias=(estado.vitorias||0)+1;
+  for(const k of ["chassi","motor","rodas","aero"])
+    estado.dur[k]=cl((estado.dur[k]||100) - (7+Math.random()*5), 0, 100);
+  sortearProxima();
+  salvar();
   document.getElementById("hud").classList.remove("on");
   abrirModal(`
     <h2>${pos===1?"Vitória":pos+"º lugar"}</h2>
@@ -1211,6 +1294,7 @@ function passoMapa(dt){
       if(c.meu){
         m.minhas++; m.brilho=1;
         estado.energia=cl(estado.energia+ZONA.valor,0,BATERIA);
+        if(m.minhas%10===0) salvar();
       }
     }
   }
@@ -1245,7 +1329,10 @@ function quadro(agora){
   redim(); gl.viewport(0,0,cv.width,cv.height);
   gl.clear(gl.DEPTH_BUFFER_BIT);
   gl.depthMask(false); gl.disable(gl.DEPTH_TEST);
-  gl.useProgram(pFundo); gl.bindVertexArray(vazio); gl.drawArrays(gl.TRIANGLES,0,3);
+  gl.useProgram(pFundo);
+  gl.uniform1f(gl.getUniformLocation(pFundo,"uLuz"),
+    tela==="corrida" ? (PISOS[estado.piso]||PISOS.asfalto).ceu : 1.0);
+  gl.bindVertexArray(vazio); gl.drawArrays(gl.TRIANGLES,0,3);
   gl.enable(gl.DEPTH_TEST); gl.depthMask(true);
 
   const asp=cv.width/cv.height;
@@ -1318,7 +1405,7 @@ function quadro(agora){
       const c0=paleta[Math.floor(f)], c1=paleta[(Math.floor(f)+1)%n], k=f%1;
       gl.uniform3f(gl.getUniformLocation(pObj,"uTinta"),
         lerp(c0[0],c1[0],k)*2.2, lerp(c0[1],c1[1],k)*2.2, lerp(c0[2],c1[2],k)*2.2);
-      desenhar(malhaCaixa,m4pose(cx.x,2.3+Math.sin(corrida.t*2.4+cx.x)*0.28,cx.z,corrida.t*2.1));
+      desenhar(malhaCaixa,m4pose(cx.x,2.0+Math.sin(corrida.t*2.4+cx.x)*0.26,cx.z,corrida.t*2.1,0.82));
       gl.uniform3f(gl.getUniformLocation(pObj,"uTinta"),1,1,1);
     }
     for(const e of corrida.efeitos){
@@ -1380,6 +1467,7 @@ function atualizarHUD(){
     const p=corrida.pilotos[0];
     $("velN").textContent=Math.round(Math.hypot(p.vx,p.vz)*3.6);
     $("vAtual").textContent=Math.min(VOLTAS,p.volta+1);
+    $("pisoHud").textContent=PISOS[estado.piso].nome;
     $("tAtual").textContent=tempo(Math.max(0,corrida.tVolta));
     $("tMelhor").textContent=tempo(corrida.melhor);
     const pe0=$("pericia");
@@ -1447,7 +1535,12 @@ function gastarEnergia(){
     $("mMapa").onclick=()=>irPara("mapa"); $("mFechar").onclick=()=>$("modal").classList.remove("on");
     return false;
   }
-  estado.energia-=CUSTO_CORRIDA; return true;
+  estado.energia-=CUSTO_CORRIDA; salvar(); return true;
+}
+function sortearProxima(){
+  estado.piso = ORDEM_PISO[Math.floor(Math.random()*ORDEM_PISO.length)];
+  estado.sementePista = Math.floor(Math.random()*9999);
+  salvar();
 }
 function irPara(t){
   tela=t;
@@ -1458,7 +1551,7 @@ function irPara(t){
   if(t==="mapa") iniciarMapa();
   if(t==="corrida"){ if(!gastarEnergia()){ tela="garagem"; $("garagem").style.display="block";
       $("nGar").setAttribute("aria-pressed","true"); $("nCor").setAttribute("aria-pressed","false"); return; }
-    pista=gerarPista(Math.floor(Math.random()*9999)); reconstruirPista(); iniciarCorrida(); }
+    pista=gerarPista(estado.sementePista); reconstruirPista(); iniciarCorrida(); }
   $("dica").textContent=dicaPadrao();
 }
 $("nGar").onclick=()=>irPara("garagem");
@@ -1470,48 +1563,120 @@ $("nSom").onclick=e=>{ ligarSom(); som.on=!som.on; if(som.ctx&&som.ctx.state==="
 
 function montarGaragem(){
   const g=$("garagem"); g.innerHTML="";
+  const at=atributos(estado.piso);
+  const PI=PISOS[estado.piso];
+
+  /* ── a próxima corrida é anunciada ANTES: é o que transforma a garagem
+        em decisão em vez de vitrine ── */
+  const prox=document.createElement("div"); prox.className="grp prox";
+  const dica={asfalto:"pede pneu liso e carro baixo",
+              terra:"pede cravo e altura",
+              chuva:"pede aderência, esqueça o slick"}[estado.piso];
+  prox.innerHTML=`<h3>Próxima corrida</h3>
+    <div class="pisoNome">${PI.nome}</div><div class="pisoDica">${dica}</div>`;
+  g.append(prox);
+
   const rotulos={chassi:"Chassi",motor:"Motor",rodas:"Rodas e pneus",aero:"Aerodinâmica"};
   for(const k of ["chassi","motor","rodas","aero"]){
     const d=document.createElement("div"); d.className="grp";
-    d.innerHTML=`<h3>${rotulos[k]}</h3>`;
+    const dur=Math.round(estado.dur[k]||0);
+    const corDur = dur<30?"var(--oxide)":dur<65?"var(--amber)":"var(--patina)";
+    d.innerHTML=`<h3>${rotulos[k]}<span class="dur" style="color:${corDur}">${dur}%</span></h3>`;
     const box=document.createElement("div"); box.className="opc";
     PECAS[k].forEach((pc,i)=>{
+      const temEle=estado.destravado[k].includes(i);
+      const afin=(pc.piso&&pc.piso[estado.piso])||1;
+      const marca = afin>=1.15?"<em class='bom'>ótimo aqui</em>"
+                  : afin<=0.85?"<em class='ruim'>ruim aqui</em>":"";
       const b=document.createElement("button");
-      b.innerHTML=`<span>${pc.nome}<br><small>${pc.desc}</small></span>`;
-      b.setAttribute("aria-pressed",String(estado.build[k]===i));
-      b.onclick=()=>{ estado.build[k]=i; reconstruirCarro(); montarGaragem(); };
+      if(temEle){
+        b.innerHTML=`<span>${pc.nome}<br><small>${pc.desc} ${marca}</small></span>`;
+        b.setAttribute("aria-pressed",String(estado.build[k]===i));
+        b.onclick=()=>{ estado.build[k]=i; salvar(); reconstruirCarro(); montarGaragem(); };
+      } else {
+        const podeS=estado.sucata>=pc.custo, podeP=estado.pericia>=(pc.pericia||0);
+        b.className="trava"+((podeS&&podeP)?" pode":"");
+        // a afinidade com o piso importa MAIS na hora de comprar do que
+        // depois de comprada — é aqui que a decisão acontece
+        b.innerHTML=`<span>${pc.nome}<br><small>${pc.desc} ${marca}</small></span>`
+          +`<b class="preco">${pc.custo} S${pc.pericia?" · "+pc.pericia+" P":""}</b>`;
+        b.onclick=()=>{
+          if(estado.sucata<pc.custo||estado.pericia<(pc.pericia||0)){
+            mostrarDica("Falta "+(estado.sucata<pc.custo?"sucata":"perícia")+" para destravar "+pc.nome,3200);
+            return;
+          }
+          estado.sucata-=pc.custo; estado.pericia-=(pc.pericia||0);
+          estado.destravado[k].push(i); estado.build[k]=i;
+          salvar(); reconstruirCarro(); montarGaragem();
+          mostrarDica(pc.nome.toUpperCase()+" DESTRAVADO E EQUIPADO",3200);
+        };
+      }
       box.append(b);
     });
     d.append(box); g.append(d);
   }
-  const d=document.createElement("div"); d.className="grp"; d.innerHTML="<h3>Atributos</h3>";
-  const at=atributos();
+
+  /* ── oficina ── */
+  const rep=custoReparo();
+  const of=document.createElement("div"); of.className="grp";
+  of.innerHTML="<h3>Oficina</h3>";
+  const br=document.createElement("button");
+  br.className="btn"; br.style.width="100%";
+  if(rep<=0){ br.textContent="Carro inteiro"; br.disabled=true; }
+  else{
+    br.textContent="Reparar tudo — "+rep+" de sucata";
+    if(estado.sucata<rep) br.classList.add("semGrana");
+    br.onclick=()=>{
+      if(estado.sucata<rep){ mostrarDica("Sucata insuficiente para o reparo",3000); return; }
+      estado.sucata-=rep;
+      for(const k of ["chassi","motor","rodas","aero"]) estado.dur[k]=100;
+      salvar(); montarGaragem(); mostrarDica("CARRO REPARADO",2600);
+    };
+  }
+  of.append(br); g.append(of);
+
+  /* ── atributos, já calculados PARA O PISO da próxima corrida ── */
+  const d=document.createElement("div"); d.className="grp";
+  d.innerHTML=`<h3>Atributos <span class="dur">no ${PI.nome.toLowerCase()}</span></h3>`;
   const barras=[
-    ["Força",   cl((at.potencia-22)/22,0,1),"a", Math.round(at.potencia)],
-    ["Aderência",cl((at.aderencia-2.5)/1.9,0,1),"g", at.aderencia.toFixed(1)],
-    ["Vel. máx", cl((at.vmax-36)/24,0,1),"a", Math.round(at.vmax*3.6)],
-    ["Fora-pista",cl((at.terra-.6)/1.4,0,1),"g", at.terra.toFixed(2)],
-    ["Peso",     cl((at.peso-.85)/.35,0,1),"r", at.peso.toFixed(2)],
+    ["Força",     cl((at.potencia-8)/8,0,1),"a", Math.round(at.potencia*10)],
+    ["Aderência", cl((at.aderencia-1.6)/2.6,0,1),"g", at.aderencia.toFixed(1)],
+    ["Vel. máx",  cl((at.vmax-32)/28,0,1),"a", Math.round(at.vmax*3.6)],
+    ["Fora-pista",cl((at.terra-.6)/.9,0,1),"g", at.terra.toFixed(2)],
+    ["Peso",      cl((at.peso-.85)/.35,0,1),"r", at.peso.toFixed(2)],
   ];
-  for(const[n,v,k,q] of barras)
+  for(const[n,v,kk,q] of barras)
     d.innerHTML+=`<div class="st"><div class="n">${n}</div>
-      <div class="b ${k==="g"?"g":k==="r"?"r":""}"><i style="width:${v*100}%"></i></div>
+      <div class="b ${kk==="g"?"g":kk==="r"?"r":""}"><i style="width:${v*100}%"></i></div>
       <div class="q">${q}</div></div>`;
   g.append(d);
 
   const e=document.createElement("div"); e.className="grp";
   e.innerHTML=`<h3>Registro</h3>
     <div class="st"><div class="n">Melhor volta</div><div class="q" style="grid-column:2/4;text-align:left">${tempo(estado.melhorVolta)}</div></div>
-    <div class="st"><div class="n">Corridas</div><div class="q" style="grid-column:2/4;text-align:left">${estado.corridas}</div></div>`;
+    <div class="st"><div class="n">Corridas</div><div class="q" style="grid-column:2/4;text-align:left">${estado.corridas} · ${estado.vitorias||0} vitória${(estado.vitorias||0)===1?"":"s"}</div></div>`;
   const b=document.createElement("button"); b.className="btn p"; b.style.width="100%"; b.style.marginTop="12px";
-  b.textContent=`Correr — ${CUSTO_CORRIDA} de energia`;
+  b.textContent=`Correr no ${PI.nome.toLowerCase()} — ${CUSTO_CORRIDA} de energia`;
   b.onclick=()=>irPara("corrida");
   e.append(b); g.append(e);
 }
 
 /* ── partida ── */
+const voltou=carregar();
+if(!voltou) sortearProxima();
 reconstruirCarro(); reconstruirPista(); construirPoco(); construirChao(); construirSeta();
 construirCaixa(); construirMancha(); construirChama(); construirAnel(); montarGaragem();
+if(voltou){
+  // recupera o idle do tempo em que a aba esteve fechada
+  const seg=Math.min(8*3600,(Date.now()-(estado.idleUltimo||Date.now()))/1000);
+  estado.idleUltimo=Date.now();
+  if(seg>120){
+    const r=simularIdle(seg,0); salvar();
+    if(r.ganho>1) setTimeout(()=>mostrarDica(
+      "BEM-VINDO DE VOLTA · SEU CARRO COLETOU "+Math.round(r.ganho)+" DE ENERGIA"
+      +(r.cheia?" E ENCHEU A BATERIA":""), 7000), 400);
+  }
+}
 $("dica").textContent=dicaPadrao();
 requestAnimationFrame(quadro);
 </script>
