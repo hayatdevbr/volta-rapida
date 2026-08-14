@@ -79,6 +79,13 @@
   #volta{left:34px;top:76px;position:absolute}
   #volta .v{font-family:var(--f-d);font-size:32px;line-height:1}
   #volta .p{font-family:var(--f-m);font-size:11px;letter-spacing:.14em;color:var(--tx3);text-transform:uppercase}
+  #carro{position:absolute;left:34px;bottom:112px;display:flex;flex-direction:column;gap:7px;width:210px}
+  .med{display:grid;grid-template-columns:44px 1fr 40px;gap:8px;align-items:center}
+  .med span{font-family:var(--f-m);font-size:9.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--tx3)}
+  .med .bar{height:5px;background:rgba(10,14,18,.75);position:relative;overflow:hidden}
+  .med .bar i{position:absolute;inset:0 auto 0 0;background:var(--patina);width:100%;transition:width .1s linear}
+  .med b{font-family:var(--f-m);font-size:11px;text-align:right;font-variant-numeric:tabular-nums;
+         text-shadow:0 1px 6px rgba(0,0,0,.9)}
   #aviso{position:absolute;left:50%;top:38%;transform:translateX(-50%);text-align:center;
          font-family:var(--f-d);font-size:78px;letter-spacing:.02em;text-shadow:0 4px 30px rgba(0,0,0,.9)}
   #aviso small{display:block;font-size:15px;letter-spacing:.2em;color:var(--tx2);margin-top:4px}
@@ -130,6 +137,10 @@
   <div id="tempos"><div class="l">Volta atual</div><div class="t" id="tAtual">0.00</div>
     <div class="l" style="margin-top:8px">Melhor</div><div class="t d" id="tMelhor">—</div></div>
   <div id="vel"><div class="n" id="velN">0</div><div class="u">km/h</div></div>
+  <div id="carro">
+    <div class="med"><span>Motor</span><div class="bar"><i id="bTemp"></i></div><b id="qTemp">22°</b></div>
+    <div class="med"><span>Pneu</span><div class="bar"><i id="bPneu"></i></div><b id="qPneu">100%</b></div>
+  </div>
   <div id="aviso"></div>
   <div id="pericia"></div>
 </div>
@@ -278,6 +289,37 @@ function maisProximo(pista, x, z, ult){
 const DT=1/120;
 const ORCAMENTO_DESLIZE = 4.2;   // m/s de lateral que o pneu aguenta de graça
 
+/* ── PROBLEMAS DO CARRO ──────────────────────────────────────────────────
+   Sem nada quebrando, quem larga na frente ganha e a corrida não tem
+   reviravolta. Temperatura e pneu valem para TODOS os carros, inclusive os
+   da IA, e é o que faz quem forçou demais no começo ser pego no fim.
+
+   Motor esquenta com acelerador cheio em velocidade e esfria ao aliviar.
+   Passou do limite, perde força. Pneu gasta com o tempo e MUITO mais com
+   derrapagem — quem anda de lado a corrida inteira chega no fim sem nada. */
+const MOTOR = { limite:84, teto:112, sobe:5.5, desce:2.0, perdaMax:0.34 };
+const PNEU  = { base:0.16, porDeslize:1.60, pisoAderencia:0.56 };
+
+function passoDesgaste(c, ent, spd, vmax){
+  // Temperatura PROPORCIONAL ao quanto se está forçando, não liga/desliga.
+  // Binário fazia todo mundo saturar no teto e o sistema virava um handicap
+  // igual pra todos, que não diferencia ninguém e não gera reviravolta.
+  const carga = (ent.acel||0) * Math.pow(cl(spd/Math.max(1,vmax),0,1), 1.2);
+  c.temp = cl((c.temp||20) + (MOTOR.sobe*carga - MOTOR.desce*(1-carga*0.55))*DT, 22, MOTOR.teto);
+  // Pneu: o gasto de verdade vem de andar de lado, não de rodar
+  const excesso = Math.max(0, (c.derrapa||0) - ORCAMENTO_DESLIZE);
+  const gasto = (PNEU.base + excesso*PNEU.porDeslize) * (spd>4?1:0);
+  c.pneu = cl((c.pneu===undefined?100:c.pneu) - gasto*DT, 0, 100);
+}
+function fatorMotor(c){
+  const t=c.temp||20;
+  return t<=MOTOR.limite ? 1
+    : 1 - ((t-MOTOR.limite)/(MOTOR.teto-MOTOR.limite))*MOTOR.perdaMax;
+}
+function fatorPneu(c){
+  return PNEU.pisoAderencia + (1-PNEU.pisoAderencia)*((c.pneu===undefined?100:c.pneu)/100);
+}
+
 function passo(c, ent, at, naPista, terra){
   const spd=Math.hypot(c.vx,c.vz);
 
@@ -292,7 +334,7 @@ function passo(c, ent, at, naPista, terra){
   let vl= c.vx*cs+c.vz*sn, vt=-c.vx*sn+c.vz*cs;
 
   const superficie = naPista?1:terra;
-  if(ent.acel>0) vl += ent.acel*at.potencia*superficie*DT;
+  if(ent.acel>0) vl += ent.acel*at.potencia*fatorMotor(c)*superficie*DT;
   if(ent.freio)  vl -= (vl>0.5?26:8)*DT;          // segurando parado, engata a ré
   vl -= vl*Math.abs(vl)*at.arrasto*DT;
   vl *= 1-(naPista?0.18:1.7)*DT;
@@ -304,7 +346,7 @@ function passo(c, ent, at, naPista, terra){
   // EXCESSO arranha — que é o que faz curva rápida ser prazerosa e derrapada
   // grande ser cara.
   const freioDeMao = ent.mao ? 0.30 : 1;
-  const ader = at.aderencia*(naPista?1:0.5*terra)*freioDeMao;
+  const ader = at.aderencia*(naPista?1:0.5*terra)*freioDeMao*fatorPneu(c);
   vt *= Math.exp(-ader*DT);
   const excesso = Math.max(0, Math.abs(vt) - ORCAMENTO_DESLIZE);
   vl -= excesso*1.15*DT;
@@ -313,6 +355,7 @@ function passo(c, ent, at, naPista, terra){
   c.vl=vl;
   c.vx=vl*cs-vt*sn; c.vz=vl*sn+vt*cs;
   c.x+=c.vx*DT; c.z+=c.vz*DT;
+  passoDesgaste(c, ent, spd, at.vmax);
 }
 
 /* ── mapa idle: simulado por tick, recuperável offline ──
@@ -654,7 +697,8 @@ function novoPiloto(i){
   const off=(i-1.5)*3.4;
   const r=semente(1000+i*37+Math.floor(Math.random()*9999));
   return {x:p.x+p.nx*off, z:p.z+p.nz*off, h:Math.atan2(p.tz,p.tx),
-          vx:0,vz:0,vl:0,dir:0,derrapa:0, seg:0, volta:0, prog:0, terminou:-1, ia:i>0,
+          vx:0,vz:0,vl:0,dir:0,derrapa:0, temp:22, pneu:100,
+          seg:0, volta:0, prog:0, terminou:-1, ia:i>0,
           // PERSONALIDADE: sem isto os rivais andam em fila indiana feito trenzinho
           perfil:{
             linha:   (r()*2-1)*0.62,      // quanto puxa pra dentro ou pra fora
@@ -740,15 +784,28 @@ function iaEntrada(p, at, t, rivais){
   const lider=Math.max(...rivais.map(o=>o.prog||0));
   const atraso=cl(((lider-(p.prog||0))/n)*1.6,0,0.16);
 
-  const vAlvo=Math.min(at.vmax, vCurva)*P.coragem*(1+atraso);
+  // ADMINISTRAÇÃO: alivia quando o motor está no limite e anda mais macio
+  // quando o pneu acabou. É isto que vira estratégia — quem forçou no começo
+  // paga no fim, e quem poupou vem buscar.
+  const quente=cl(((p.temp||20)-MOTOR.limite+12)/22,0,1);
+  const gasto=1-(p.pneu===undefined?100:p.pneu)/100;
+  const cuidado=1 - quente*0.30*(1.4-P.coragem) - gasto*0.20*(1.3-P.coragem);
+  const vAlvo=Math.min(at.vmax, vCurva)*P.coragem*(1+atraso)*cuidado;
 
   // erro humano: mão que treme e às vezes entra torto
   const tremor=Math.sin(t*P.ritmo+P.fase)*P.erro;
   const curvaAgora=Math.abs(norm(Math.atan2(
     pista.pontos[(p.seg+5)%n].z-p.z, pista.pontos[(p.seg+5)%n].x-p.x)-p.h));
 
+  // ALÍVIO DE ACELERADOR quando o motor passa do limite. Baixar a
+  // velocidade-alvo não fazia ela tirar o pé — o acelerador é liga/desliga,
+  // então todo mundo saturava no teto de temperatura e o sistema não
+  // diferenciava ninguém. Piloto cauteloso alivia mais que o corajoso.
+  const alivio = (p.temp||22) > MOTOR.limite
+    ? cl(1 - ((p.temp-MOTOR.limite)/16)*(1.55-P.coragem)*1.5, 0.22, 1) : 1;
+
   return {dir:cl(ang*1.45+correcao+tremor,-1,1),
-          acel: spd<vAlvo ? 1 : 0.08,
+          acel: spd<vAlvo ? alivio : 0.08,
           freio: spd>vAlvo*1.10,
           mao: curvaAgora>0.85&&spd>vAlvo*1.3};
 }
@@ -768,12 +825,14 @@ function passoCorrida(){
     }
     p.seg=np.i;
     const naPista=np.dist < pista.pontos[np.i].larg/2 + 0.6;
-    const ent = p.ia ? iaEntrada(p,c.at,c.t,c.pilotos)
-      : (c.t<0 ? {dir:0,acel:0,freio:false}
-        : {dir:(teclas.arrowleft||teclas.a?-1:0)+(teclas.arrowright||teclas.d?1:0),
-           acel:(teclas.arrowup||teclas.w)?1:0,
-           freio:!!(teclas.arrowdown||teclas.s),
-           mao:!!(teclas[" "]||teclas.shift)});
+    // A largada vale pra todo mundo. Antes o gate de contagem regressiva só
+    // existia no ramo do jogador e as IAs saíam 3,2 s na frente.
+    const ent = c.t<0 ? {dir:0,acel:0,freio:false,mao:false}
+      : p.ia ? iaEntrada(p,c.at,c.t,c.pilotos)
+      : {dir:(teclas.arrowleft||teclas.a?-1:0)+(teclas.arrowright||teclas.d?1:0),
+         acel:(teclas.arrowup||teclas.w)?1:0,
+         freio:!!(teclas.arrowdown||teclas.s),
+         mao:!!(teclas[" "]||teclas.shift)};
     const at = p.ia ? {...c.at, potencia:c.at.potencia*p.perfil.forca,
                        aderencia:c.at.aderencia*(0.94+p.perfil.coragem*0.06)} : c.at;
     passo(p, ent, at, naPista, c.at.terra);
@@ -1063,6 +1122,15 @@ function atualizarHUD(){
       av.textContent=n>0?String(Math.min(3,n)):"VAI";}
     else if(corrida.t<0.9) av.textContent="VAI";
     else av.textContent="";
+    const tq=cl(((p.temp||22)-22)/(110-22),0,1);
+    const bt=$("bTemp"); bt.style.width=(tq*100)+"%";
+    bt.style.background = (p.temp||22)>85 ? "var(--oxide)" : (p.temp||22)>72 ? "var(--amber)" : "var(--patina)";
+    $("qTemp").textContent=Math.round(p.temp||22)+"°";
+    const pn=(p.pneu===undefined?100:p.pneu);
+    const bp=$("bPneu"); bp.style.width=pn+"%";
+    bp.style.background = pn<25 ? "var(--oxide)" : pn<55 ? "var(--amber)" : "var(--patina)";
+    $("qPneu").textContent=Math.round(pn)+"%";
+
     const pe=$("pericia");
     if(p.derrapa>ORCAMENTO_DESLIZE){ pe.textContent="+ PERÍCIA";
       pe.style.opacity=Math.min(1,(p.derrapa-ORCAMENTO_DESLIZE)*0.25); }
