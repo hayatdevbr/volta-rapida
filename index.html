@@ -1388,6 +1388,109 @@ function construirCenario(pista, piso){
     B.box(x+lado*1.1,8.2,z,2.4,.3,.3,hex("#5E666E"));
     B.box(x+lado*2.1,8.0,z,1.1,.42,.7,[3.0,2.6,1.6]);
   };
+  /* ═══ O pátio de ferro-velho ═══════════════════════════════════════
+     O circuito é improvisado num pátio grande, traçado com o que havia por
+     perto. Estas peças aparecem em TODOS os pisos, porque são a identidade
+     do lugar — não decoração de um mapa só. */
+
+  /* Guindaste: a silhueta que mais diz o nome do jogo. Lança inclinada com
+     treliça em X, e o disco do eletroímã pendurado num cabo. */
+  const guindaste=(x,z,ang)=>{
+    const aco=hex("#6B6259"), ferrugem=hex("#8A5A3A"), escuro=hex("#2A323A");
+    const co=Math.cos(ang), si=Math.sin(ang);
+    B.box(x,1.1,z,7.0,2.2,4.4,escuro);                      // esteira
+    B.box(x,3.0,z,4.6,2.0,4.0,ferrugem);                    // corpo
+    const bx=6.5, by=13.5;                                  // ponta da lança
+    const pe=[x,4.2,z];
+    const nos=8;
+    for(let k=0;k<nos;k++){
+      const t0=k/nos, t1=(k+1)/nos;
+      const p0=[pe[0]+co*bx*t0, pe[1]+(by-4.2)*t0, pe[2]+si*bx*t0];
+      const p1=[pe[0]+co*bx*t1, pe[1]+(by-4.2)*t1, pe[2]+si*bx*t1];
+      const w=0.44-0.16*t0;
+      B.box((p0[0]+p1[0])/2,(p0[1]+p1[1])/2,(p0[2]+p1[2])/2, w*2.4, 1.25, w*2.4, aco);
+    }
+    const px=pe[0]+co*bx, py=by, pz=pe[2]+si*bx;
+    B.box(px,py-2.4,pz,.16,4.6,.16,escuro);                 // cabo
+    B.cilY(px,py-5.1,pz,1.35,.55,10,hex("#3A444E"));        // eletroímã
+  };
+
+  /* Container: empilhado de jeitos diferentes, faz metade de um cenário
+     sozinho. As nervuras verticais são o que faz ler como container. */
+  const container=(x,z,ang,n)=>{
+    const cores=["#3E6B58","#8A4A38","#3A5570","#6B6259","#7A6B3A"];
+    for(let k=0;k<n;k++){
+      const c=hex(cores[Math.floor(r()*cores.length)]);
+      const dx=(r()-.5)*1.1, dz=(r()-.5)*0.6;
+      const cy=1.35+k*2.72;
+      B.boxR(x+dx,cy,z+dz,6.1,2.6,2.5,ang,c);
+      // nervura: quatro vincos no flanco longo
+      for(let i=-1;i<=1;i++)
+        B.boxR(x+dx+Math.cos(ang)*i*1.7, cy, z+dz+Math.sin(ang)*i*1.7,
+               .22,2.4,2.62,ang,esc(c,0.80));
+      B.boxR(x+dx,cy+1.32,z+dz,6.2,.12,2.6,ang,esc(c,1.18));
+    }
+  };
+
+  /* Pilha de carcaças prensadas: o material bruto do pátio. Sem roda, sem
+     vidro, achatadas — é o que sobra depois da prensa. */
+  const carcacas=(x,z,ang)=>{
+    const tons=["#7A3A30","#3A5570","#6B6259","#5A6B3A","#8A6B38"];
+    for(let k=0;k<4;k++){
+      const c=hex(tons[Math.floor(r()*tons.length)]);
+      const a=ang+(r()-.5)*0.7;
+      B.boxR(x+(r()-.5)*1.3, .55+k*1.02, z+(r()-.5)*1.3, 4.3, .95, 2.0, a, c);
+      B.boxR(x+(r()-.5)*1.3, .55+k*1.02+.52, z+(r()-.5)*1.3, 2.2, .16, 1.9, a, esc(c,0.7));
+    }
+  };
+
+  /* Torre de água: ponto de referência que se lê de longe, e por isso ajuda
+     o jogador a saber em que parte da volta está. */
+  const torreAgua=(x,z)=>{
+    const perna=hex("#6B6259"), tanque=hex("#8A9099"), teto=hex("#5A4A3A");
+    for(const a of [0.79,2.36,3.93,5.50])
+      B.cilY(x+Math.cos(a)*2.3, 6.0, z+Math.sin(a)*2.3, .28, 12.0, 5, perna);
+    B.box(x,7.4,z,5.2,.34,5.2,perna);                        // cinta
+    B.cilY(x,14.2,z,3.1,5.4,10,tanque);
+    for(let i=0;i<10;i++){ const a=i/10*6.2832,a2=(i+1)/10*6.2832;
+      B.tri([x,18.6,z],[x+Math.cos(a)*3.2,16.9,z+Math.sin(a)*3.2],
+                       [x+Math.cos(a2)*3.2,16.9,z+Math.sin(a2)*3.2],teto); }
+  };
+
+  /* Ponte sobre a pista: dá um "teto" que multiplica a sensação de
+     velocidade quando se passa por baixo, e o painel em branco é lugar de
+     placa nossa depois. */
+  const ponte=(x,z,ang,larg)=>{
+    const conc=hex("#7A7266"), viga=hex("#4A5158"), painel=hex("#D9D2C4");
+    const nx=-Math.sin(ang), nz=Math.cos(ang);      // atravessa a pista
+    const meia=larg/2+5.5;
+    for(const s of [-1,1]){
+      B.box(x+nx*s*meia, 3.4, z+nz*s*meia, 3.0, 6.8, 3.0, conc);
+    }
+    const L=meia*2+3.0;
+    B.boxR(x, 7.3, z, 3.6, 1.0, L, ang, conc);               // tabuleiro
+    B.boxR(x, 8.1, z, 3.7, .55, L, ang, viga);               // guarda-corpo
+    B.boxR(x, 6.35, z, 2.2, .9, L*0.55, ang, painel);        // painel em branco
+  };
+
+  /* Posto abandonado: marquise sobre duas colunas, duas bombas e a loja de
+     janela fechada com tábua. */
+  const posto=(x,z,ang)=>{
+    const conc=hex("#8A8375"), col=hex("#6B6259"), loja=hex("#7A6E5E");
+    const tabua=hex("#5A4A3A"), bomba=hex("#B0433A");
+    B.boxR(x,4.6,z,11.0,.7,7.0,ang,conc);                    // marquise
+    for(const s of [-1,1])
+      B.boxR(x+Math.cos(ang)*s*3.6, 2.3, z+Math.sin(ang)*s*3.6, .7, 4.6, .7, ang, col);
+    for(const s of [-1,1]){
+      const bx=x+Math.cos(ang)*s*1.9, bz=z+Math.sin(ang)*s*1.9;
+      B.boxR(bx,.9,bz,.9,1.8,1.4,ang,bomba);
+      B.boxR(bx,1.9,bz,.7,.4,1.2,ang,hex("#2A323A"));
+    }
+    const lx=x-Math.sin(ang)*6.4, lz=z+Math.cos(ang)*6.4;
+    B.boxR(lx,2.0,lz,7.0,4.0,5.0,ang,loja);
+    B.boxR(lx+Math.cos(ang)*0.2, 2.4, lz+Math.sin(ang)*0.2, 3.0, 1.6, 5.1, ang, tabua);
+  };
+
   const feno=(x,z,ang)=>{
     for(let k=-1;k<=1;k++)
       B.cilZ(x+Math.cos(ang)*k*2.4, 1.0, z+Math.sin(ang)*k*2.4, 1.0, 2.0, 8,
@@ -1418,7 +1521,27 @@ function construirCenario(pista, piso){
         if(curva>.25 && r()<.55) muroPneu(p.x+p.nx*lado*(p.larg/2+5.0),
                                           p.z+p.nz*lado*(p.larg/2+5.0), ang+1.5708);
       }
+
+      /* O pátio de ferro-velho aparece em TODOS os pisos: é o lugar, não a
+         decoração de um mapa. Longe da pista, para não virar parede. */
+      const dl = p.larg/2 + 26 + r()*30;
+      const lx = p.x+p.nx*lado*dl, lz = p.z+p.nz*lado*dl;
+      const sorte = r();
+      if(sorte<.07)      guindaste(lx,lz,ang+(r()-.5)*2);
+      else if(sorte<.17) container(lx,lz,ang+(r()-.5)*1.4, 1+Math.floor(r()*3));
+      else if(sorte<.24) carcacas(lx,lz,ang+(r()-.5)*2);
+      else if(sorte<.28) torreAgua(lx,lz);
+      else if(sorte<.31) posto(lx,lz,ang);
     }
+  }
+
+  /* A ponte atravessa a pista, então não entra no laço de "um lado e outro":
+     ela precisa do ponto do traçado e da largura ali. Duas por volta bastam —
+     mais que isso vira túnel. */
+  for(let k=0;k<2;k++){
+    const i=Math.floor((0.22+k*0.44+r()*0.10)*n)%n;
+    const p=pts[i];
+    ponte(p.x,p.z,Math.atan2(p.tz,p.tx),p.larg);
   }
   return B;
 }
@@ -1540,25 +1663,131 @@ function m4pose(x,y,z,ang,esc=1){const c=Math.cos(ang)*esc,s=Math.sin(ang)*esc;
 /* ══════════════════════════════════════════════════════════════════════════
    SOM — motor sintetizado, sem nenhum sample
    ══════════════════════════════════════════════════════════════════════════ */
-const som={ctx:null,on:false,osc:[],ganho:null,ruido:null};
+const som={ctx:null,on:false,osc:[],ganho:null,mestre:null,
+            pneu:null,pneuG:null,pneuF:null, vento:null,ventoG:null,ventoF:null,
+            ruidoBuf:null};
+
+/* Um segundo de ruído branco, gerado uma vez e reaproveitado em laço. Cada
+   fonte nova aponta para este mesmo buffer — criar ruído por evento encheria
+   a memória num jogo que dispara som o tempo todo. */
+function bufRuido(ctx){
+  if(som.ruidoBuf) return som.ruidoBuf;
+  const n=ctx.sampleRate, b=ctx.createBuffer(1,n,ctx.sampleRate), d=b.getChannelData(0);
+  for(let i=0;i<n;i++) d[i]=Math.random()*2-1;
+  som.ruidoBuf=b; return b;
+}
+/* Fonte de ruído contínua, com filtro próprio: é o molde do pneu e do vento,
+   que não são eventos e sim estados. */
+function ruidoContinuo(ctx,destino,tipoFiltro,freq,q){
+  const src=ctx.createBufferSource(); src.buffer=bufRuido(ctx); src.loop=true;
+  const f=ctx.createBiquadFilter(); f.type=tipoFiltro; f.frequency.value=freq;
+  if(q!=null) f.Q.value=q;
+  const g=ctx.createGain(); g.gain.value=0;
+  src.connect(f); f.connect(g); g.connect(destino); src.start();
+  return {src,f,g};
+}
+
 function ligarSom(){
   if(som.ctx)return;
   som.ctx=new (window.AudioContext||window.webkitAudioContext)();
-  const g=som.ctx.createGain(); g.gain.value=0; g.connect(som.ctx.destination);
+  const ctx=som.ctx;
+  const mestre=ctx.createGain(); mestre.gain.value=0.9; mestre.connect(ctx.destination);
+  som.mestre=mestre;
+
+  const g=ctx.createGain(); g.gain.value=0; g.connect(mestre);
   som.ganho=g;
   for(const[tipo,det,vol] of [["sawtooth",0,.22],["square",-.02,.11],["sawtooth",.013,.09]]){
-    const o=som.ctx.createOscillator(), gg=som.ctx.createGain();
+    const o=ctx.createOscillator(), gg=ctx.createGain();
     o.type=tipo; gg.gain.value=vol; o.connect(gg); gg.connect(g); o.start();
     som.osc.push({o,det});
   }
-  const f=som.ctx.createBiquadFilter(); f.type="lowpass"; f.frequency.value=1400;
+  /* Pneu: passa-banda estreito em ruído. O filtro abre com o deslize que a
+     física JÁ calcula — o canto do pneu não é enfeite, é leitura de estado. */
+  const pn=ruidoContinuo(ctx,mestre,"bandpass",1150,7.0);
+  som.pneu=pn.src; som.pneuF=pn.f; som.pneuG=pn.g;
+  /* Vento: passa-alta em ruído, volume pela velocidade. */
+  const vt=ruidoContinuo(ctx,mestre,"highpass",620,0.7);
+  som.vento=vt.src; som.ventoF=vt.f; som.ventoG=vt.g;
 }
+
 function motorSom(rpm,carga){
   if(!som.on||!som.ctx)return;
   const base=52+rpm*118;
   for(const{o,det} of som.osc) o.frequency.setTargetAtTime(base*(1+det),som.ctx.currentTime,.03);
   som.ganho.gain.setTargetAtTime(0.035+carga*0.075,som.ctx.currentTime,.05);
 }
+
+/* Estado contínuo da corrida: deslize e velocidade viram som sem disparar
+   evento nenhum. */
+function ambienteSom(desliza, velNorm, foraDaPista){
+  if(!som.on||!som.ctx)return;
+  const t=som.ctx.currentTime;
+  const canto=cl(desliza,0,1);
+  som.pneuG.gain.setTargetAtTime(canto*0.16, t, .05);
+  som.pneuF.frequency.setTargetAtTime(900+canto*1500, t, .06);
+  som.ventoG.gain.setTargetAtTime(cl(velNorm,0,1)*0.055, t, .12);
+  som.ventoF.frequency.setTargetAtTime(520+velNorm*900, t, .12);
+  // fora da pista o pneu troca de timbre: cascalho em vez de borracha
+  som.pneuF.Q.setTargetAtTime(foraDaPista?1.6:7.0, t, .08);
+}
+
+/* ── eventos ──────────────────────────────────────────────────────────
+   Um disparo = um punhado de nós que se auto-encerram. Nada fica pendurado:
+   `stop()` agendado libera o nó, senão uma corrida de dois minutos deixaria
+   milhares deles vivos. */
+function toque(freq, dur, tipo, vol, varre){
+  if(!som.on||!som.ctx)return;
+  const ctx=som.ctx, t=ctx.currentTime;
+  const o=ctx.createOscillator(), g=ctx.createGain();
+  o.type=tipo||"square"; o.frequency.setValueAtTime(freq,t);
+  if(varre) o.frequency.exponentialRampToValueAtTime(Math.max(24,varre), t+dur);
+  g.gain.setValueAtTime(0,t);
+  g.gain.linearRampToValueAtTime(vol==null?0.14:vol, t+0.008);
+  g.gain.exponentialRampToValueAtTime(0.0008, t+dur);
+  o.connect(g); g.connect(som.mestre);
+  /* O navegador recolhe a cadeia depois que a fonte termina, mas desconectar
+     na mão tira a dúvida — e numa corrida de dois minutos são centenas de
+     disparos pendurados no nó mestre. O `onended` vem ANTES do `stop`: depois
+     é ordem frágil, e a bancada pegou isso. */
+  o.onended=()=>{ try{ g.disconnect(); o.disconnect(); }catch(e){} };
+  o.start(t); o.stop(t+dur+0.02);
+}
+function baque(dur, corte, vol){
+  if(!som.on||!som.ctx)return;
+  const ctx=som.ctx, t=ctx.currentTime;
+  const src=ctx.createBufferSource(); src.buffer=bufRuido(ctx);
+  src.loop=false; src.playbackRate.value=0.6+Math.random()*0.5;
+  const f=ctx.createBiquadFilter(); f.type="lowpass";
+  f.frequency.setValueAtTime(corte||1800,t);
+  f.frequency.exponentialRampToValueAtTime(180, t+dur);
+  const g=ctx.createGain();
+  g.gain.setValueAtTime(vol==null?0.30:vol,t);
+  g.gain.exponentialRampToValueAtTime(0.0008, t+dur);
+  src.connect(f); f.connect(g); g.connect(som.mestre);
+  src.onended=()=>{ try{ g.disconnect(); f.disconnect(); src.disconnect(); }catch(e){} };
+  src.start(t); src.stop(t+dur+0.02);
+}
+
+/* Cada som diz o que aconteceu sem o jogador ler nada. Turbo sobe, batida
+   desce, escudo é limpo e agudo, míssil é varredura longa. */
+const SONS={
+  turbo:   ()=>{ toque(180,0.42,"sawtooth",0.11,760); baque(0.16,2600,0.14); },
+  escudo:  ()=>{ toque(880,0.30,"sine",0.13,1320); toque(1320,0.22,"sine",0.07); },
+  missil:  ()=>{ toque(140,0.75,"sawtooth",0.10,1400); baque(0.30,1400,0.20); },
+  estouro: ()=>{ baque(0.55,3200,0.42); toque(90,0.42,"square",0.13,38); },
+  tranco:  ()=>{ baque(0.22,2200,0.30); toque(150,0.16,"square",0.10,70); },
+  oleo:    ()=>{ toque(300,0.26,"triangle",0.08,120); },
+  reparo:  ()=>{ toque(520,0.16,"sine",0.10); setTimeout(()=>toque(780,0.22,"sine",0.10),90); },
+  pegou:   ()=>{ toque(620,0.09,"square",0.10); setTimeout(()=>toque(930,0.13,"square",0.10),75); },
+  batida:  (f)=>{ baque(0.34, 1200+2000*cl(f||0.5,0,1), 0.16+0.30*cl(f||0.5,0,1)); },
+  conta:   ()=>{ toque(520,0.16,"square",0.12); },
+  vai:     ()=>{ toque(1040,0.40,"square",0.15); },
+  chegada: ()=>{ toque(660,0.14,"square",0.12);
+                 setTimeout(()=>toque(880,0.14,"square",0.12),130);
+                 setTimeout(()=>toque(1320,0.34,"square",0.13),260); },
+  ui:      ()=>{ toque(1200,0.035,"square",0.05); },
+};
+function sfx(nome,arg){ const f=SONS[nome]; if(f) f(arg); }
 
 /* ══════════════════════════════════════════════════════════════════════════
    ESTADO DE CENA
@@ -1781,6 +2010,14 @@ function efeito(c,p,tipo){
                batida:[2.4,2.4,2.6]};
   c.efeitos.push({x:p.x,z:p.z,t:c.t,cor:cores[tipo]||cores.batida,
                   raio: tipo==="estouro"?11:tipo==="tranco"?7:5});
+  /* A simulação ANOTA o que aconteceu; quem toca é a camada de desenho.
+     Chamar `sfx` daqui fazia `passoCorrida` depender do áudio — e ele tem de
+     rodar no servidor, sem tela nenhuma. A bancada pegou isso na hora.
+
+     Só o que acontece COM VOCÊ entra na fila: oito carros disparando item
+     viraria pipoca, e o som perderia a informação que carrega — que aquilo
+     aconteceu com você. */
+  if(p===c.pilotos[0]) c.sons.push(tipo);
 }
 
 /* ── matrizes ── */
@@ -1994,7 +2231,7 @@ function iniciarCorrida(){
   corrida={
     pilotos:Array.from({length:GRID},(_,i)=>novoPiloto(i)),
     at, t:-3.2, tVolta:0, melhor:-1, acabou:false, perLog:[], marcas:[],
-    periciaGanha:0, pico:0, caixas:montarCaixas(), perigos:[], efeitos:[], brasas:[], misseis:[], aviso:"", avisoAte:0,
+    periciaGanha:0, pico:0, caixas:montarCaixas(), perigos:[], efeitos:[], brasas:[], misseis:[], sons:[], aviso:"", avisoAte:0,
   };
   corrida.pilotos[0].ia=false;
   document.getElementById("hud").classList.add("on");
@@ -2097,6 +2334,7 @@ function passoCorrida(){
     }
     p.seg=np.i;
     const naPista=np.dist < pista.pontos[np.i].larg/2 + 0.6;
+    p.naPista=naPista;          // o som do pneu lê isto; antes eu inventei um campo
     // A largada vale pra todo mundo. Antes o gate de contagem regressiva só
     // existia no ramo do jogador e as IAs saíam 3,2 s na frente.
     const ent = c.t<0 ? {dir:0,acel:0,freio:false,mao:false}
@@ -2166,6 +2404,7 @@ function passoCorrida(){
         if(Math.hypot(cx.x-p.x,cx.z-p.z)<5.4){
           cx.volta=18;
           p.itens[livre]=sortearItem(ordem.indexOf(p)+1); p.desde[livre]=c.t;
+          if(p===c.pilotos[0]) c.sons.push("pegou");
           if(!p.ia){
             if(p.itens[1-livre]===null) p.sel=livre;
             c.aviso="PEGOU "+ITENS[p.itens[livre]].nome.toUpperCase();
@@ -2282,6 +2521,7 @@ function passoCorrida(){
           c.misseis.push({ alvo, de:p, t:0, dur:5.0,
                      x:p.x, y:1.0, z:p.z, h:p.h, rastro:[] });
           efeito(c,p,"estouro");   // clarão em quem atirou
+          c.sons.push("missil");   // o tiro se ouve venha de quem vier
           c.aviso = alvo.ia ? "MÍSSIL A CAMINHO DO LÍDER" : "MÍSSIL VINDO NA SUA DIREÇÃO";
           c.avisoAte=c.t+2.4;
         } else if(!p.ia) continue;
@@ -2319,6 +2559,7 @@ function passoCorrida(){
 }
 function terminarCorrida(){
   const c=corrida; if(c.acabou)return; c.acabou=true;
+  c.sons.push("chegada");
   const eu=c.pilotos[0];
   const pos=1+c.pilotos.filter(p=>p!==eu && (p.terminou>=0&&p.terminou<eu.terminou)).length;
   /* Só os cinco primeiros levam, e a queda depois do terceiro é dura: é o
@@ -2512,7 +2753,16 @@ function quadro(agora){
     }
     // mira um pouco à frente do carro: é o que dá sensação de estar indo pra algum lugar
     vista=m4look(olho,[p.x+Math.cos(p.h)*4.5, 0.95, p.z+Math.sin(p.h)*4.5],[0,1,0]);
+    /* Esvazia a fila que a simulação encheu. `while` e não `for`, para a fila
+       ficar vazia mesmo se o quadro atrasar e vierem vários de uma vez. */
+    while(corrida.sons.length) sfx(corrida.sons.shift());
     motorSom(cl(spd/corrida.at.vmax,0,1), (teclas.arrowup||teclas.w)?1:0.2);
+    /* O canto do pneu sai do deslize que a física já calcula: a diferença
+       entre para onde o carro aponta e para onde ele de fato vai. */
+    const dir=Math.atan2(p.vz,p.vx);
+    let dif=dir-p.h; while(dif>Math.PI)dif-=6.2832; while(dif<-Math.PI)dif+=6.2832;
+    const desliza=cl(Math.abs(dif)*(spd>6?1:0)*1.7,0,1);
+    ambienteSom(desliza, cl(spd/corrida.at.vmax,0,1), p.naPista===false);
   } else if(tela==="mapa"){
     passoMapa(dt);
     const eu=mapa.carros[0];
@@ -2732,10 +2982,14 @@ function atualizarHUD(){
     const pe0=$("pericia");
     if(corrida.avisoAte>corrida.t){ pe0.textContent=corrida.aviso; pe0.style.opacity=1; }
     const av=$("aviso");
+    /* A contagem soa uma vez por número, e o "VAI" uma vez só: sem guardar o
+       último tocado, o laço de quadro dispararia o bipe 60 vezes por segundo. */
     if(corrida.t<0){const n=Math.ceil(-corrida.t);
+      if(corrida.ultConta!==n){ corrida.ultConta=n; sfx("conta"); }
       av.innerHTML=(n>3?"":n)+(n<=0?"<small>VAI</small>":"");
       av.textContent=n>0?String(Math.min(3,n)):"VAI";}
-    else if(corrida.t<0.9) av.textContent="VAI";
+    else if(corrida.t<0.9){ av.textContent="VAI";
+      if(!corrida.tocouVai){ corrida.tocouVai=true; sfx("vai"); } }
     else av.textContent="";
     $("bNitro").style.width=(p.nitro||0)+"%";
     for(let i=0;i<2;i++){
@@ -2807,6 +3061,9 @@ function irPara(t){
   $("modal").classList.remove("on"); $("hud").classList.remove("on");
   $("garagem").style.display = t==="garagem"?"block":"none";
   document.body.classList.toggle("correndo", t==="corrida");
+  // sair da corrida com o pneu ainda cantando é o tipo de coisa que só se
+  // percebe depois de publicado
+  if(t!=="corrida") ambienteSom(0,0,false);
   for(const[id,alvo] of [["nGar","garagem"],["nMapa","mapa"],["nCor","corrida"]])
     $(id).setAttribute("aria-pressed", String(t===alvo));
   if(t==="mapa") iniciarMapa();
