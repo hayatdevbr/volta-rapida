@@ -1375,14 +1375,21 @@ function idleDoCarro(build){
   };
 }
 
-/* Quanto o carro rende por segundo de tempo REAL, longe da tela. É a mesma
-   conta de `simularIdle`, isolada para poder ser cobrada por quadro. */
+/* QUEM PAGA É O CARRO ANDANDO. Não existe "taxa de tempo" no jogo: o carro
+   roda o pátio e pega carga, e é isso. Com o jogo fechado ninguém pode rodar a
+   simulação, então esta função é a APROXIMAÇÃO do mesmo pátio — e ela precisa
+   dar no mesmo lugar, senão o jogador é obrigado a deixar a aba aberta.
+
+   O ponto de referência vem do modelo da Fase 1, não de chute: conta grátis
+   enche a bateria em 8 horas. Antes eu tinha 55/h escrito na mão, o que enchia
+   em 12 h — o jogador voltava no dia seguinte e a bateria não estava cheia. */
+const HORAS_ATE_ENCHER = 8;
 function rendaPorSegundo(){
   const d=idleDoCarro();
-  const porHora=55*(1+d.faro*0.06);
   const forca=(d.vel/21 + d.giro/2.0)/2;
-  const disputa=cl(0.30+0.32*forca, 0.15, 0.95);
-  return porHora*disputa*2/3600;
+  // a build ainda importa: carro melhor disputa melhor e enche antes
+  const fator=(0.55+0.45*forca)*(1+d.faro*0.05);
+  return BATERIA/(HORAS_ATE_ENCHER*3600)*fator;
 }
 
 /* O carro está no pátio o tempo todo — não só quando você abre o mapa para
@@ -1392,29 +1399,32 @@ function rendaPorSegundo(){
    Isto é a linha que eu mesmo escrevi e estava quebrando: NÃO ASSISTIR É O
    NORMAL, ASSISTIR É O BÓNUS. O mapa segue rendendo ~52x mais por minuto de
    tela, que é o bónus de estar olhando. */
+/* O RELÓGIO tem um dono só: esta função, chamada no começo de todo quadro.
+   Dois donos davam crédito em dobro, e nenhum dono perdia o tempo da aba
+   escondida — já cometi os dois erros nesta mesma semana.
+
+   Pelo relógio e não pelo `dt` do quadro: `dt` é limitado a 0,05 s e aba em
+   segundo plano para de desenhar, então contar quadros perderia horas. */
 function correrIdleDeFundo(){
   const agora=Date.now();
-  if(tela==="mapa"){ estado.idleUltimo=agora; return; }  // lá a coleta é ao vivo
-  /* Pelo RELÓGIO, e não pelo `dt` do quadro. O `dt` é limitado a 0,05 s, e eu
-     estava adiantando `idleUltimo` a cada quadro: aba em segundo plano parava
-     de desenhar, os quadros sumiam, e meia hora de coleta ia embora. Foi uma
-     regressão que eu mesmo criei ao consertar o idle da garagem. */
   const seg=Math.min(8*3600,(agora-(estado.idleUltimo||agora))/1000);
   estado.idleUltimo=agora;
-  if(seg<=0 || estado.energia>=BATERIA) return;
+
+  // menos de 2 s quer dizer que o pátio esteve rodando e já pagou, ao vivo
+  if(seg<2) return;
+  // correndo, o carro está na pista e não no pátio: o tempo passa sem render
+  if(tela==="corrida") return;
+  if(estado.energia>=BATERIA) return;
   estado.energia=cl(estado.energia + rendaPorSegundo()*seg, 0, BATERIA);
 }
 
+/* O mesmo pátio, adiantado de uma vez para o tempo em que o jogo esteve
+   fechado. Usa a MESMA renda por segundo da coleta ao vivo — dois números
+   diferentes para a mesma coisa foi o que fez o dono ter de deixar a aba
+   aberta para conseguir energia. O sorteio só dá um tempero de disputa. */
 function simularIdle(segundos){
-  const d=idleDoCarro();
   const r=semente(estado.idleSemente++);
-  const porHora=55*(1+d.faro*0.06);
-  /* A fatia que coube ao seu carro sai de ele ser melhor ou pior que a média do
-     pátio (vel 21, giro 2,0). De fábrica dá ~0,55; no topo, ~0,69 — 1,25x, que
-     é o bastante para valer a pena sem virar corrida armamentista. */
-  const forca=(d.vel/21 + d.giro/2.0)/2;
-  const disputa=cl((0.30+0.32*forca)*(0.85+r()*0.30), 0.15, 0.95);
-  const ganho=porHora*(segundos/3600)*disputa*2;
+  const ganho=rendaPorSegundo()*segundos*(0.88+r()*0.24);
   const antes=estado.energia;
   estado.energia=cl(estado.energia+ganho,0,BATERIA);
   return {ganho:estado.energia-antes, cheia:estado.energia>=BATERIA};
@@ -3250,6 +3260,17 @@ function surgirCarga(m,r){
   m.cargas.push({x:Math.cos(a)*d, z:Math.sin(a)*d, nasceu:m.t});
 }
 
+/* O pátio não é uma tela que se visita: é o MUNDO, e ele nunca para enquanto
+   o jogo está aberto. Garagem e mercado são painéis POR CIMA dele.
+
+   O dono pediu isso com todas as letras, e resolve de uma vez a queixa de
+   "nunca tenho energia": antes, olhar o mapa rendia 60x mais que qualquer
+   outra tela, então quem ficava na garagem montando carro não coletava quase
+   nada. Agora o carro está no pátio o tempo todo, faça você o que fizer.
+
+   A economia não muda: a torneira já era travada pela BATERIA, não pelo ritmo.
+   15 min de jogo aberto e 8 h fora dão a mesma bateria cheia — que é exatamente
+   o que o modelo da Fase 1 diz. */
 function iniciarMapa(){
   const r=semente(91), carros=[];
   for(let i=0;i<12;i++) carros.push({
@@ -3261,17 +3282,10 @@ function iniciarMapa(){
   mapa={cargas:[], carros, t:0, proxima:0, minhas:0, total:0, zoom:1, cam:null, brilho:0};
   for(let i=0;i<26;i++) surgirCarga(mapa,r);
 
-  // recupera o que rendeu desde a última visita: nada disso precisa de aba aberta
-  const seg=Math.min(8*3600,(Date.now()-estado.idleUltimo)/1000);
-  estado.idleUltimo=Date.now();
-  const res=simularIdle(Math.max(seg,240));
-  if(res.ganho>1) mostrarDica("Seu carro coletou "+Math.round(res.ganho)+" de energia enquanto você esteve fora"
-    +(res.cheia?" · bateria encheu e ele parou":""),6000);
 }
 
 function passoMapa(dt){
   if(!mapa)return; const m=mapa; m.t+=dt;
-  estado.idleUltimo=Date.now();   // o tempo de tela já foi pago aqui, ao vivo
 
   m.proxima-=dt;
   if(m.proxima<=0){ if(m.cargas.length<ZONA.maxCargas) surgirCarga(m); m.proxima=ZONA.intervalo; }
@@ -3367,6 +3381,9 @@ function quadro(agora){
   gl.enable(gl.DEPTH_TEST); gl.depthMask(true);
 
   correrIdleDeFundo();
+  /* O pátio anda mesmo quando a câmera está noutro lugar. Só a corrida o
+     interrompe — lá o carro está na pista, não no pátio. */
+  if(tela!=="corrida" && tela!=="mapa" && mapa) passoMapa(dt);
 
   const asp=cv.width/cv.height;
   let proj, vista, olho, neb=140;
@@ -3418,7 +3435,7 @@ function quadro(agora){
     const desliza=cl(Math.abs(dif)*(spd>6?1:0)*1.7,0,1);
     ambienteSom(desliza, cl(spd/corrida.at.vmax,0,1), p.naPista===false, estado.piso);
   } else if(tela==="mapa"){
-    passoMapa(dt);
+    passoMapa(dt);   // com a câmera em cima dele
     const eu=mapa.carros[0];
     if(!mapa.cam) mapa.cam=[eu.x,eu.z];
     const k=1-Math.pow(0.0025,dt);
@@ -3749,6 +3766,13 @@ if(TESTE){
   };
 }
 
+/* A energia coletada com o jogo aberto só existia na memória: quem farmava e
+   fechava a aba sem comprar nada perdia tudo, porque `salvar` só era chamado
+   em compra, corrida e pintura. Um salvamento periódico e outro na saída. */
+setInterval(()=>{ if(tela!=="corrida") salvar(); }, 15000);
+addEventListener("pagehide", salvar);
+addEventListener("visibilitychange", ()=>{ if(document.hidden) salvar(); });
+
 $("dica").textContent=dicaPadrao();},ms); }
 function dicaPadrao(){
   return tela==="corrida" ? "SETAS OU WASD  ·  ESPAÇO FREIA  ·  R REINICIA  ·  ESC SAI"
@@ -3790,7 +3814,7 @@ function irPara(t){
   if(t!=="corrida") ambienteSom(0,0,false,estado.piso);
   for(const[id,alvo] of [["nGar","garagem"],["nMapa","mapa"],["nCor","corrida"]])
     $(id).setAttribute("aria-pressed", String(t===alvo));
-  if(t==="mapa") iniciarMapa();
+  if(t==="mapa" && !mapa) iniciarMapa();   // já está rodando; a tela só aponta a câmera
   if(t==="corrida"){ if(!gastarEnergia()){ tela="garagem"; $("garagem").style.display="block";
       $("nGar").setAttribute("aria-pressed","true"); $("nCor").setAttribute("aria-pressed","false"); return; }
     pista=gerarPista(estado.sementePista, estado.piso); reconstruirPista();
@@ -4020,6 +4044,7 @@ $("icS").innerHTML=icone("sucata",22);
 
 const voltou=carregar();
 if(!voltou) sortearProxima();
+iniciarMapa();          // o pátio começa a rodar antes de qualquer tela aparecer
 reconstruirCarro(); reconstruirPista(); construirPoco(); construirChao(); construirSeta();
 construirCaixa(); construirMancha(); construirChama(); construirAnel();
 construirMissil(); construirEscudo(); montarGaragem();
