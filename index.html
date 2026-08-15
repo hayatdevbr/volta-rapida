@@ -383,6 +383,26 @@
   .grp.perfil .classe i{font-family:var(--f-m);font-size:9px;font-style:normal;
     color:var(--tx3);margin-top:1px}
 
+  /* ── trocar de carro ── */
+  .grp.carros{display:flex;align-items:center;gap:10px}
+  .grp.carros .meio{flex:1;text-align:center;min-width:0}
+  .grp.carros .cnt{font-family:var(--f-d);font-size:17px;color:var(--tx)}
+  .seta{width:42px;height:42px;flex:0 0 auto;font-size:22px;line-height:1;
+    background:rgba(12,16,20,.5);color:var(--tx2);border:1px solid var(--line);
+    cursor:pointer;transition:.12s}
+  .seta:hover:not(:disabled){color:var(--amber);border-color:var(--amber)}
+  .seta:disabled{opacity:.28;cursor:default}
+  .mais{width:42px;height:42px;flex:0 0 auto;font-size:20px;line-height:1;
+    background:none;color:var(--patina);border:1px dashed var(--patina);cursor:pointer}
+
+  /* ── pintura ── */
+  .cores{display:flex;flex-wrap:wrap;gap:5px;margin-top:5px}
+  .tinta{width:30px;height:30px;border:1px solid var(--line);cursor:pointer;
+    padding:0;transition:.12s}
+  .tinta:hover{transform:scale(1.10)}
+  .tinta.on{border-color:var(--tx);box-shadow:0 0 0 2px var(--bg),0 0 0 3px var(--amber)}
+  .grp.pintura .ops{display:flex;gap:2px;margin-top:5px}
+
   /* ── quem dirige ── */
   .quem2{display:flex;gap:2px;margin-top:2px}
   .quem2 .op{flex:1;font-family:var(--f-d);font-size:14px;letter-spacing:.03em;
@@ -856,6 +876,37 @@ const PECAS = {
     {nome:"Asa grande",   desc:"gruda na curva, custa reta", custo:1100, pericia:25, tier:2, g:{wing:3}, arrasto:1.18, aderencia:1.24, piso:{asfalto:1,terra:1,chuva:1}},
   ],
 };
+/* ══════════════════════════════════════════════════════════════════════════
+   PINTURA — a lei que a torna segura: NADA VISUAL TOCA STATUS.
+
+   É corolário da Lei 3 (nunca vender poder), e dela sai o achado mais valioso
+   do projeto: o mercado cosmético é o único que não pode quebrar o jogo.
+   Vender uma pintura por dinheiro real nunca desequilibra corrida nenhuma.
+
+   O mundo é pátio de ferro-velho ao sol, então a paleta tem duas famílias:
+   as sofridas, que é o que um carro velho de verdade tem, e as vivas, que é
+   o que alguém pinta quando decide que aquele carro vai ser dele. */
+const CORES_CARRO=[
+  ["#E8321C","Vermelho"],   ["#1080D8","Azul"],       ["#13B04C","Verde"],
+  ["#F2A007","Âmbar"],      ["#B02BD8","Violeta"],    ["#00B9B0","Turquesa"],
+  ["#D81448","Carmim"],     ["#E9E4DA","Osso"],
+  ["#8A5A3A","Ferrugem"],   ["#6B6259","Chumbo"],     ["#3E6B58","Musgo"],
+  ["#7A6E5E","Areia"],      ["#2A323A","Grafite"],    ["#8A9099","Zinco"],
+];
+const CORES_DETALHE=[
+  ["#F2EDE2","Creme"],  ["#141A20","Preto"],   ["#E9992B","Âmbar"],
+  ["#B7C2CB","Prata"],  ["#D2604A","Telha"],   ["#5AA894","Verde-água"],
+];
+/* O padrão é GEOMETRIA, não textura: uma faixa é um par de triângulos com a
+   cor de detalhe, desenhado por cima da chapa. Textura pediria mapa de UV, e
+   mapa de UV pediria arquivo — que é justamente o que a trava de arte evita. */
+const PADROES=[
+  {nome:"Liso",      f:null},
+  {nome:"Faixa",     f:"centro"},
+  {nome:"Duas cores",f:"cintura"},
+  {nome:"Capô",      f:"capo"},
+];
+
 const G_BASE={length:4.25,width:1.88,ride:.22,hoodH:.78,roofH:1.28,deckH:.92,tHood:.28,tWs:.44,
   tRoof:.62,tDeck:.80,noseDrop:.08,ducktail:.03,noseTaper:.13,tailTaper:.10,tumble:.30,chamfer:.10,
   flare:.10,wheelR:.34,rearRatio:1,wheelW:.24,spokes:5,axF:.21,axR:.80,wing:1,engine:0,exhaust:0,
@@ -896,16 +947,48 @@ const estado={
      não estado de corrida. */
   auto:false,
   plano:{ agressao:1, nitro:1, item:1 },   // 0 = contido, 1 = meio, 2 = solto
-  build:{chassi:0,motor:0,rodas:0,aero:1},
-  cor:"#E8321C", acc:"#F2EDE2",
+
+  /* Vários carros, UM farmando de cada vez. Medido no simulador: dois carros
+     farmando passam nos sete portões e ainda assim derrubam o preço da sucata
+     em 85%. E com bateria de 8 h, dois carros enchem em 4 — carro extra
+     premiaria ATENÇÃO, que é o oposto do que um modo idle promete.
+     Então o segundo carro é especialização e reserva: um de terra, um de
+     asfalto, e um sobressalente para quando a peça quebrar. */
+  carros:[ {build:{chassi:0,motor:0,rodas:0,aero:1}, cor:"#E8321C", acc:"#F2EDE2",
+            dur:{chassi:100,motor:100,rodas:100,aero:100}} ],
+  ativo:0,
   energia:480, pericia:0, sucata:0,
   melhorVolta:-1, corridas:0,
   piso:"asfalto", sementePista:3, vitorias:0,
-  // o que já foi comprado, e o quanto cada peça equipada aguenta ainda
+  // o que já foi comprado é da CONTA, não do carro: peça destravada serve
+  // para qualquer um deles
   destravado:{chassi:[0],motor:[0],rodas:[0],aero:[0]},
-  dur:{chassi:100,motor:100,rodas:100,aero:100},
   idleUltimo:Date.now(), idleSemente:7,
 };
+
+/* `build`, `cor`, `acc` e `dur` continuam sendo lidos como `estado.build` no
+   resto do arquivo inteiro — são centenas de usos. Em vez de trocar todos, eles
+   viram JANELAS para o carro ativo. Trocar de carro passa a ser mudar um
+   índice, e nada mais no jogo precisa saber que existe mais de um. */
+const CAMPOS_DO_CARRO=["build","cor","acc","dur"];
+for(const k of CAMPOS_DO_CARRO)
+  Object.defineProperty(estado, k, {
+    get(){ return estado.carros[estado.ativo][k]; },
+    set(v){ estado.carros[estado.ativo][k]=v; },
+    enumerable:true, configurable:true,
+  });
+
+const VAGAS_GARAGEM=2;      // 2 de graça; o passe abre mais, e guardar não é farmar
+function novoCarro(){
+  return { build:{chassi:0,motor:0,rodas:0,aero:1},
+           cor:CORES_CARRO[Math.floor(Math.random()*CORES_CARRO.length)][0],
+           acc:"#F2EDE2",
+           dur:{chassi:100,motor:100,rodas:100,aero:100} };
+}
+function trocarCarro(i){
+  estado.ativo=cl(i,0,estado.carros.length-1);
+  salvar(); reconstruirCarro(); montarGaragem();
+}
 
 /* ── PERSISTÊNCIA ─────────────────────────────────────────────────────────
    O portão da Fase 2 é retenção: alguém voltar no dia seguinte. Sem salvar,
@@ -914,30 +997,49 @@ const CHAVE="circuito-aberto-v1";
 function salvar(){
   try{ localStorage.setItem(CHAVE, JSON.stringify({
     nome:estado.nome, auto:estado.auto, plano:estado.plano,
-    build:estado.build, cor:estado.cor, acc:estado.acc,
+    carros:estado.carros, ativo:estado.ativo,
     energia:estado.energia, pericia:estado.pericia, sucata:estado.sucata,
     melhorVolta:estado.melhorVolta, corridas:estado.corridas, vitorias:estado.vitorias,
     idleUltimo:estado.idleUltimo, piso:estado.piso, sementePista:estado.sementePista,
-    destravado:estado.destravado, dur:estado.dur,
+    destravado:estado.destravado,
   })); }catch(e){}
 }
 function carregar(){
   try{
     const d=JSON.parse(localStorage.getItem(CHAVE)||"null");
     if(!d) return false;
+
+    /* Save de antes da garagem: `build`, `cor`, `acc` e `dur` moravam soltos no
+       topo. Recolhe-os para dentro do primeiro carro antes de qualquer outra
+       coisa — quem já jogava não pode perder o carro que montou. */
+    if(!d.carros){
+      d.carros=[{ build:d.build||{chassi:0,motor:0,rodas:0,aero:1},
+                  cor:d.cor||"#E8321C", acc:d.acc||"#F2EDE2",
+                  dur:d.dur||{chassi:100,motor:100,rodas:100,aero:100} }];
+      d.ativo=0;
+    }
+    delete d.build; delete d.cor; delete d.acc; delete d.dur;   // são janelas agora
+
     Object.assign(estado,d);
+    if(!Array.isArray(estado.carros)||!estado.carros.length) estado.carros=[novoCarro()];
+    estado.ativo=cl(estado.ativo|0,0,estado.carros.length-1);
+
     // o que ficou salvo pode ser de uma versão anterior: completa o que faltar
-    for(const k of ["chassi","motor","rodas","aero"]){
-      if(!estado.destravado[k]) estado.destravado[k]=[0];
-      if(estado.dur[k]===undefined) estado.dur[k]=100;
-      if(!estado.destravado[k].includes(estado.build[k])) estado.build[k]=0;
+    for(const carro of estado.carros){
+      for(const k of ["chassi","motor","rodas","aero"]){
+        if(!estado.destravado[k]) estado.destravado[k]=[0];
+        if(!carro.dur) carro.dur={};
+        if(carro.dur[k]===undefined) carro.dur[k]=100;
+        if(!estado.destravado[k].includes(carro.build[k])) carro.build[k]=0;
+      }
     }
     return true;
   }catch(e){ return false; }
 }
 
 function montar(){
-  const g={...G_BASE, colBody:estado.cor, colAcc:estado.acc};
+  const g={...G_BASE, colBody:estado.cor, colAcc:estado.acc,
+           pattern:(estado.carros[estado.ativo].padrao|0)};
   for(const k of ["chassi","motor","rodas","aero"]) Object.assign(g, PECAS[k][estado.build[k]].g);
   return g;
 }
@@ -1318,6 +1420,38 @@ function construirCarro(P){
     }
   };
   tampa(sec[0],false); tampa(sec[N-1],true);
+
+  /* ── padrão ──
+     Desenhado 8 mm acima da chapa para não brigar no z-buffer, e seguindo a
+     mesma seção do corpo — assim ele acompanha a curva do carro em vez de
+     parecer adesivo plano. */
+  const pad=PADROES[P.pattern|0];
+  if(pad && pad.f){
+    const cor=acc, ergue=0.008;
+    for(let i=0;i<N-1;i++){
+      const a=sec[i], b=sec[i+1];
+      const alto=(s2)=>Math.max(s2.yt, s2.yBelt);
+      if(pad.f==="centro" || (pad.f==="capo" && (a.t<0.30||a.t>0.86))){
+        // faixa dupla sobre o teto e o capô, no eixo do carro
+        for(const off of (pad.f==="centro"?[-0.16,0.16]:[-0.20,0.20])){
+          const la=Math.min(a.ghw,a.hw)*0.55, lb=Math.min(b.ghw,b.hw)*0.55;
+          B.quad([a.x, alto(a)+ergue, off*la*2-la*0.34],
+                 [b.x, alto(b)+ergue, off*lb*2-lb*0.34],
+                 [b.x, alto(b)+ergue, off*lb*2+lb*0.34],
+                 [a.x, alto(a)+ergue, off*la*2+la*0.34], cor);
+        }
+      }
+      if(pad.f==="cintura"){
+        // tudo abaixo da linha de cintura na cor de detalhe: dois tons
+        for(const sg of [-1,1]){
+          B.quad([a.x, a.yBelt, sg*(a.hw+ergue)],
+                 [b.x, b.yBelt, sg*(b.hw+ergue)],
+                 [b.x, b.yb+b.ch, sg*(b.hw*0.90+ergue)],
+                 [a.x, a.yb+a.ch, sg*(a.hw*0.90+ergue)], cor);
+        }
+      }
+    }
+  }
 
   /* Luzes e para-choque ficam um dedo FORA da tampa: coplanar com ela brigaria
      no z-buffer e piscaria conforme o ângulo. */
@@ -3467,6 +3601,29 @@ function montarGaragem(){
   /* ── quem é você, e em que classe o seu carro corre ──
      A classe fica aqui e não no topo porque ela é do CARRO: muda quando você
      troca peça, e é aqui que se troca peça. */
+  /* ── qual carro ──
+     Setas, e não uma lista: no celular a lista roubaria a altura que o carro
+     precisa para aparecer inteiro. E a garagem é pequena de propósito — duas
+     vagas de graça, porque guardar carro não é farmar com ele. */
+  if(estado.carros.length>1 || estado.carros.length<VAGAS_GARAGEM){
+    const nav=document.createElement("div"); nav.className="grp carros";
+    const n=estado.carros.length;
+    nav.innerHTML=`
+      <button class="seta" id="carAnt" ${estado.ativo<=0?"disabled":""} aria-label="carro anterior">‹</button>
+      <div class="meio">
+        <div class="cnt">Carro ${estado.ativo+1} de ${n}</div>
+        <div class="rot">só este coleta no pátio</div>
+      </div>
+      <button class="seta" id="carProx" ${estado.ativo>=n-1?"disabled":""} aria-label="próximo carro">›</button>
+      ${n<VAGAS_GARAGEM?`<button class="mais" id="carNovo" title="nova lata-velha">+</button>`:""}`;
+    g.append(nav);
+    $("carAnt").onclick=()=>{ sfx("ui"); trocarCarro(estado.ativo-1); };
+    $("carProx").onclick=()=>{ sfx("ui"); trocarCarro(estado.ativo+1); };
+    if($("carNovo")) $("carNovo").onclick=()=>{
+      estado.carros.push(novoCarro()); sfx("pegou"); trocarCarro(estado.carros.length-1);
+    };
+  }
+
   const cl_=classeDe();
   const perfil=document.createElement("div"); perfil.className="grp perfil";
   perfil.innerHTML=`<div class="quem">
@@ -3488,6 +3645,31 @@ function montarGaragem(){
   prox.innerHTML=`<h3>Próxima corrida</h3>
     <div class="pisoNome">${PI.nome}</div><div class="pisoDica">${dica}</div>`;
   g.append(prox);
+
+  /* ── pintura ──
+     Fica no fim porque é o que se mexe depois de decidir a mecânica, e porque
+     é aqui que o jogador passa tempo de propósito. Nada disto toca status. */
+  const carro=estado.carros[estado.ativo];
+  const pint=document.createElement("div"); pint.className="grp pintura";
+  pint.innerHTML=`<h3>${icone("chassi",20)}Pintura</h3>
+    <div class="rot">cor do carro</div>
+    <div class="cores">`+CORES_CARRO.map(([c,nm])=>
+      `<button class="tinta ${estado.cor===c?"on":""}" data-cor="${c}" title="${nm}"
+               style="background:${c}"></button>`).join("")+`</div>
+    <div class="rot" style="margin-top:11px">cor do detalhe</div>
+    <div class="cores">`+CORES_DETALHE.map(([c,nm])=>
+      `<button class="tinta ${estado.acc===c?"on":""}" data-acc="${c}" title="${nm}"
+               style="background:${c}"></button>`).join("")+`</div>
+    <div class="rot" style="margin-top:11px">desenho</div>
+    <div class="ops">`+PADROES.map((pd,i)=>
+      `<button class="mini ${(carro.padrao|0)===i?"on":""}" data-pad="${i}">${pd.nome}</button>`).join("")+`</div>`;
+  g.append(pint);
+  pint.querySelectorAll("[data-cor]").forEach(b=>b.onclick=()=>{
+    estado.cor=b.dataset.cor; salvar(); sfx("ui"); reconstruirCarro(); montarGaragem(); });
+  pint.querySelectorAll("[data-acc]").forEach(b=>b.onclick=()=>{
+    estado.acc=b.dataset.acc; salvar(); sfx("ui"); reconstruirCarro(); montarGaragem(); });
+  pint.querySelectorAll("[data-pad]").forEach(b=>b.onclick=()=>{
+    carro.padrao=+b.dataset.pad; salvar(); sfx("ui"); reconstruirCarro(); montarGaragem(); });
 
   const cnome=$("nomeJog");
   cnome.addEventListener("input",()=>{
