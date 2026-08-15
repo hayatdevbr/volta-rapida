@@ -398,6 +398,17 @@
     letter-spacing:.06em;text-transform:uppercase;color:var(--tx3);
     border-left:1px solid var(--line);padding-left:9px;white-space:nowrap}
 
+  /* ── banca de teste: berrante de propósito ── */
+  #avisoTeste{position:fixed;left:50%;bottom:10px;transform:translateX(-50%);z-index:60;
+    display:flex;align-items:center;gap:10px;background:var(--oxide);color:#140A08;
+    padding:6px 8px 6px 13px;font-family:var(--f-m);font-size:10px;
+    letter-spacing:.1em;text-transform:uppercase;box-shadow:0 3px 14px rgba(0,0,0,.4)}
+  #avisoTeste b{font-family:var(--f-d);font-size:12px;letter-spacing:.05em}
+  #avisoTeste span{opacity:.78}
+  #avisoTeste button{font-family:var(--f-m);font-size:9.5px;letter-spacing:.09em;
+    text-transform:uppercase;background:#140A08;color:#F2EDE2;border:0;
+    padding:6px 10px;cursor:pointer}
+
   /* ── trocar de carro ── */
   .grp.carros{display:flex;align-items:center;gap:10px}
   .grp.carros .meio{flex:1;text-align:center;min-width:0}
@@ -1352,6 +1363,30 @@ function idleDoCarro(build){
     giro:  1.70 * r.aderencia * c.aderencia * (0.80+0.20*fatorDur("rodas")),
     faro:  b.aero,                       // 0, 1 ou 2
   };
+}
+
+/* Quanto o carro rende por segundo de tempo REAL, longe da tela. É a mesma
+   conta de `simularIdle`, isolada para poder ser cobrada por quadro. */
+function rendaPorSegundo(){
+  const d=idleDoCarro();
+  const porHora=55*(1+d.faro*0.06);
+  const forca=(d.vel/21 + d.giro/2.0)/2;
+  const disputa=cl(0.30+0.32*forca, 0.15, 0.95);
+  return porHora*disputa*2/3600;
+}
+
+/* O carro está no pátio o tempo todo — não só quando você abre o mapa para
+   olhar. Antes, meia hora na garagem rendia ZERO, e o jogador ficava sem
+   energia sem entender por quê: o dono relatou exatamente isso.
+
+   Isto é a linha que eu mesmo escrevi e estava quebrando: NÃO ASSISTIR É O
+   NORMAL, ASSISTIR É O BÓNUS. O mapa segue rendendo ~52x mais por minuto de
+   tela, que é o bónus de estar olhando. */
+function correrIdleDeFundo(dtReal){
+  if(tela==="mapa") return;                 // lá a coleta é ao vivo e acelerada
+  if(estado.energia>=BATERIA) return;
+  estado.energia=cl(estado.energia + rendaPorSegundo()*dtReal, 0, BATERIA);
+  estado.idleUltimo=Date.now();             // sem isto, o tempo seria contado duas vezes
 }
 
 function simularIdle(segundos){
@@ -3127,21 +3162,33 @@ function terminarCorrida(){
      que faz brigar pelo pódio valer mais do que só terminar. */
   const FATOR=[1.00,0.66,0.42,0.18,0.08];
   const premio=FATOR[pos-1]||0;
-  /* Lei 4 — o topo do mercado exige mão humana: perícia SÓ de corrida
-     pilotada. É o mesmo mecanismo que trava a fazenda de contas, e é o que
-     impede o Automático de virar um caixa eletrônico.
-     Lei 6 — automático nunca é lucrativo acima do nível 1: a sucata também
-     cai, o bastante para pagar a manutenção e não muito mais. */
+  /* Lei 4 — perícia SÓ de corrida pilotada. É o mecanismo que trava a fazenda
+     de contas e o que impede o Automático de virar caixa eletrônico.
+
+     Lei 6 — automático nunca lucrativo ACIMA DO NÍVEL 1. Eu tinha implementado
+     isso como um corte fixo de 58% na sucata, e o dono reclamou com razão: quem
+     só quer gerenciar ficava com lucro zero depois do conserto e não avançava
+     nunca. Fui conferir e o simulador da Fase 1 — o que passou nos sete portões
+     — nunca disse isso. Ele diz `dropS: 9` no automático contra `11` no manual
+     (82%) e `desgaste: 1.30` contra `1.00`.
+
+     A diferença de desenho é grande: o corte fixo pune sempre, e o DESGASTE
+     pune conforme a peça encarece. No nível 1 o gerente lucra; subindo, a
+     manutenção come o ganho sozinha. A lei sai da física da economia em vez de
+     um número meu, e foi assim que ela nasceu na Fase 1. */
   const per=c.auto ? 0 : Math.round(c.periciaGanha*(0.45+premio*0.55));
-  const base=c.auto ? Math.round(c.periciaGanha*(0.45+premio*0.55)) : per;
-  const suc=Math.round((90+base*0.9)*premio*(c.auto?0.42:1));
+  const base=Math.round(c.periciaGanha*(0.45+premio*0.55));
+  const suc=Math.round((90+base*0.9)*premio*(c.auto?0.82:1));
   estado.pericia+=per; estado.sucata+=suc; estado.corridas++;
   if(pos===1) estado.vitorias=(estado.vitorias||0)+1;
   /* Andar no limite CUSTA. Sem isto "arriscado" domina — 3,9 de posição média
      contra 6,4 do seguro — e um menu em que uma opção é sempre certa não é
      decisão, é enfeite. O preço é desgaste, que é o ralo-mestre da economia:
      você corre mais rápido hoje e troca peça mais cedo. */
-  const zeloso=[0.78,1.00,1.34][c.auto?estado.plano.agressao:1] ?? 1;
+  /* Automático desgasta 30% mais, como no simulador: a IA não sente o carro,
+     então castiga a peça. É ISTO que faz o modo parar de compensar conforme a
+     peça encarece — e é o mesmo mecanismo que quebra a fazenda de contas. */
+  const zeloso=(c.auto?1.30:1.00)*([0.78,1.00,1.34][c.auto?estado.plano.agressao:1] ?? 1);
   for(const k of ["chassi","motor","rodas","aero"])
     estado.dur[k]=cl((estado.dur[k]||100) - (7+Math.random()*5)*zeloso, 0, 100);
   sortearProxima();
@@ -3208,6 +3255,7 @@ function iniciarMapa(){
 
 function passoMapa(dt){
   if(!mapa)return; const m=mapa; m.t+=dt;
+  estado.idleUltimo=Date.now();   // o tempo de tela já foi pago aqui, ao vivo
 
   m.proxima-=dt;
   if(m.proxima<=0){ if(m.cargas.length<ZONA.maxCargas) surgirCarga(m); m.proxima=ZONA.intervalo; }
@@ -3301,6 +3349,8 @@ function quadro(agora){
   gl.uniform3f(gl.getUniformLocation(pFundo,"uCeu"),tomCeu[0],tomCeu[1],tomCeu[2]);
   gl.bindVertexArray(vazio); gl.drawArrays(gl.TRIANGLES,0,3);
   gl.enable(gl.DEPTH_TEST); gl.depthMask(true);
+
+  correrIdleDeFundo(dt);
 
   const asp=cv.width/cv.height;
   let proj, vista, olho, neb=140;
@@ -3627,7 +3677,38 @@ const DESCRICAO={
   escudo: "segura o próximo golpe que vier",
 };
 function mostrarDica(txt,ms=5200){ $("dica").textContent=txt; clearTimeout(dicaT);
-  dicaT=setTimeout(()=>{$("dica").textContent=dicaPadrao();},ms); }
+  dicaT=setTimeout(()=>{/* ══════════════════════════════════════════════════════════════════════════
+   BANCA DE TESTE — para o dono não esperar duas horas por uma corrida
+
+   Ligado por `#teste` no endereço, e NUNCA por padrão. Fica visível na tela
+   enquanto estiver ligado, porque o pior jeito de um atalho de teste vazar
+   para produção é ele ser silencioso.
+
+   O que ele NÃO faz: mexer em drop, prémio ou desgaste. Só adianta a espera —
+   dá energia e sucata. Se ele afinasse o balanceamento, o que fosse testado
+   com ele ligado não valeria nada.
+   ══════════════════════════════════════════════════════════════════════════ */
+const TESTE = location.hash.includes("teste");
+if(TESTE){
+  estado.energia=BATERIA;
+  estado.sucata=Math.max(estado.sucata, 6000);
+  estado.pericia=Math.max(estado.pericia, 120);
+  for(const k of ["chassi","motor","rodas","aero"])
+    estado.destravado[k]=PECAS[k].map((_,i)=>i);
+  salvar(); montarGaragem();
+
+  const av=document.createElement("div"); av.id="avisoTeste";
+  av.innerHTML=`<b>Banca de teste</b><span>energia cheia · tudo destravado</span>
+    <button id="testeEnche">encher de novo</button>`;
+  document.body.appendChild(av);
+  $("testeEnche").onclick=()=>{
+    estado.energia=BATERIA; estado.sucata+=3000;
+    for(const k of ["chassi","motor","rodas","aero"]) estado.dur[k]=100;
+    salvar(); montarGaragem(); sfx("pegou"); mostrarDica("BANCA DE TESTE · TANQUE CHEIO",2500);
+  };
+}
+
+$("dica").textContent=dicaPadrao();},ms); }
 function dicaPadrao(){
   return tela==="corrida" ? "SETAS OU WASD  ·  ESPAÇO FREIA  ·  R REINICIA  ·  ESC SAI"
     : tela==="mapa" ? (mapa&&mapa.total>0
