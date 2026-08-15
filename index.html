@@ -24,17 +24,28 @@
   /* ── barra de topo ── */
   #topo{top:0;left:0;right:0;display:flex;align-items:center;gap:20px;
         padding:12px 18px;background:linear-gradient(180deg,rgba(8,11,14,.92),rgba(8,11,14,0))}
-  #topo .marca{font-family:var(--f-d);font-size:19px;letter-spacing:.05em;text-transform:uppercase}
+  #topo .marca{font-family:var(--f-d);font-size:19px;letter-spacing:.05em;text-transform:uppercase;
+               /* item centrado: a margem desloca metade, então vai o dobro */
+               margin-top:calc(var(--sob-rotulo)*2)}
   #topo .marca b{color:var(--amber);font-weight:600}
-  .pilha{display:flex;flex-direction:column;gap:2px}
-  .rot{font-family:var(--f-m);font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--tx3)}
+  /* O rótulo empurrava o número para baixo: a barra centra o bloco inteiro,
+     então quanto mais alto o rótulo, mais fundo o valor. Linha justa. */
+  /* Metade do rótulo + gap: é exatamente o quanto o valor cai abaixo do centro
+     do bloco. Quem não tem rótulo em cima desce isto para pousar na mesma
+     linha dos números — que é o que o olho compara. */
+  :root{ --sob-rotulo:5.25px }
+  .pilha{display:flex;flex-direction:column;gap:1px}
+  .rot{font-family:var(--f-m);font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;
+       color:var(--tx3);line-height:1}
   .val{font-family:var(--f-d);font-size:17px;font-variant-numeric:tabular-nums}
   #barraE{width:150px;height:5px;background:var(--line);position:relative;overflow:hidden}
   #barraE i{position:absolute;inset:0 auto 0 0;background:var(--amber);transition:width .25s}
   .cresce{flex:1}
 
   /* ── navegação ── */
-  #nav{top:12px;right:18px;display:flex;gap:5px}
+  /* o menu vive fora da barra: sem este acerto ele fica preso no topo
+     enquanto energia, perícia e sucata se centram — e o desnível é visível */
+  #nav{top:calc(20px + var(--sob-rotulo));right:18px;display:flex;gap:5px}
   #nav button,.btn{font-family:var(--f-d);font-size:13px;letter-spacing:.05em;text-transform:uppercase;
      background:rgba(21,27,33,.9);color:var(--tx2);border:1px solid var(--line);
      padding:8px 15px;cursor:pointer;transition:.12s}
@@ -151,10 +162,10 @@
      transition:opacity .12s linear}
   #perigo.on{animation:pulsaPerigo .62s infinite}
   @keyframes pulsaPerigo{0%,100%{opacity:.35}50%{opacity:.95}}
-  #aviso{position:absolute;left:50%;top:38%;transform:translateX(-50%);text-align:center;
+  #aviso{position:absolute;left:50%;top:15%;transform:translateX(-50%);text-align:center;
          font-family:var(--f-d);font-size:78px;letter-spacing:.02em;text-shadow:0 4px 30px rgba(0,0,0,.9)}
   #aviso small{display:block;font-size:15px;letter-spacing:.2em;color:var(--tx2);margin-top:4px}
-  #pericia{position:absolute;left:50%;top:54%;transform:translateX(-50%);
+  #pericia{position:absolute;left:50%;top:25%;transform:translateX(-50%);
      font-family:var(--f-d);font-size:26px;color:var(--amber);opacity:0;text-shadow:0 2px 14px rgba(0,0,0,.9)}
 
   /* ── painel de fim / mapa ── */
@@ -258,7 +269,7 @@
     #topo .marca{font-size:15px}
     #topo .pilha .val{font-size:14px}
     #barraE{width:88px}
-    #nav{top:8px;right:10px;gap:3px}
+    #nav{top:calc(14px + var(--sob-rotulo));right:10px;gap:3px}
     #nav button{font-size:11px;padding:6px 9px}
     /* deitado, divide a tela para o carro continuar visível enquanto você
        troca peça; em pé, ocupa tudo porque não cabe de outro jeito */
@@ -291,8 +302,8 @@
     #tempos{right:150px;top:12px}
     #volta{top:12px;left:14px}
     /* o texto laranja colava no carro e parecia amador: sobe para o alto */
-    #pericia{top:16%;font-size:18px}
-    #aviso{font-size:52px;top:26%}
+    #pericia{top:25%;font-size:18px}
+    #aviso{font-size:52px;top:14%}
     .cartao{min-width:0;width:92vw;padding:22px 20px}
     .cartao h2{font-size:26px}
   }
@@ -339,6 +350,10 @@
     #item .slots{flex-direction:row;gap:10px}
     #item .slot{width:74px;height:74px}
     #item .oq{display:none}
+    /* A barra de nitro é do TURBO: fica em cima dele, na mesma largura, em vez
+       de morar do outro lado da tela longe do botão que ela descreve. */
+    #nitro{left:auto;right:18px;bottom:122px;top:auto;width:88px}
+    #nitro .rot{font-size:8px;letter-spacing:.08em;text-align:center}
     /* O ✕ ficava por cima do minimapa. Embaixo à esquerda é o manche, então
        vai para a faixa morta entre a barra de nitro e o topo do manche. */
     #toque #sairCorrida{top:150px;bottom:auto;right:auto;left:16px;
@@ -969,6 +984,9 @@ function maisProximo(pista, x, z, ult){
    Determinística de propósito: na Fase 3 o servidor re-simula o log de
    entradas e compara, que é como o Trackmania valida tempo. */
 const DT=1/120;
+/* GRID mora aqui, e não junto do desenho, porque o sorteio de item depende
+   dele: o NÚCLEO tem de rodar sozinho no servidor, sem nada da tela. */
+const GRID=8;   // com quatro dava para passar todo mundo em uma volta
 const ORCAMENTO_DESLIZE = 4.2;   // m/s de lateral que o pneu aguenta de graça
 
 /* Temperatura de motor e desgaste de pneu FORAM REMOVIDOS.
@@ -1001,10 +1019,16 @@ const ITENS = {
   estouro:{ nome:"Estouro", cor:"#E9552B", peso:[0,0,2,5], ic:"estouro" },
   // Escudo é ITEM, não um improviso: quem se prepara para o estouro tomou
   // uma decisão, em vez de simplesmente ter sobrado algo no bolso.
-  escudo: { nome:"Escudo",  cor:"#5AC8E9", peso:[7,6,4,3], ic:"escudo" },
+  /* Com peso 7 na frente, o líder tirava escudo em um terço das caixas e o
+     míssil virava enfeite. Escudo forte no miolo, raro na ponta: quem lidera
+     ter defesa passa a ser sorte, não regra. */
+  escudo: { nome:"Escudo",  cor:"#5AC8E9", peso:[2,5,5,4], ic:"escudo" },
 };
 function sortearItem(posicao){
-  const ch=Object.keys(ITENS), i=cl(posicao-1,0,3);
+  /* A tabela tem quatro faixas e o grid tem oito carros: sem esticar, do 5º ao
+     8º todos caíam na mesma faixa e o fundo do pelotão perdia a mão boa. */
+  const ch=Object.keys(ITENS);
+  const i=cl(Math.floor((posicao-1)/Math.max(1,GRID-1)*4),0,3);
   let soma=0; for(const k of ch) soma+=ITENS[k].peso[i];
   let r=Math.random()*soma;
   for(const k of ch){ r-=ITENS[k].peso[i]; if(r<=0) return k; }
@@ -1853,7 +1877,6 @@ function construirPoco(){
    CORRIDA
    ══════════════════════════════════════════════════════════════════════════ */
 const VOLTAS=2;
-const GRID=8;   // com quatro dava para passar todo mundo em uma volta
 function novoPiloto(i){
   // largada em duas colunas, como grid de verdade
   // largada SEMPRE à frente da linha. Atrás dela, o carro cruzava o índice 0
@@ -1894,7 +1917,7 @@ function iniciarCorrida(){
   corrida={
     pilotos:Array.from({length:GRID},(_,i)=>novoPiloto(i)),
     at, t:-3.2, tVolta:0, melhor:-1, acabou:false, perLog:[], marcas:[],
-    periciaGanha:0, pico:0, caixas:montarCaixas(), perigos:[], efeitos:[], brasas:[], missil:null, aviso:"", avisoAte:0,
+    periciaGanha:0, pico:0, caixas:montarCaixas(), perigos:[], efeitos:[], brasas:[], misseis:[], aviso:"", avisoAte:0,
   };
   corrida.pilotos[0].ia=false;
   document.getElementById("hud").classList.add("on");
@@ -2107,9 +2130,9 @@ function passoCorrida(){
 
   for(const m of c.marcas) m.v-=DT*0.09;
 
-  /* ── o míssil viaja, e só então acerta ── */
-  if(c.missil){
-    const m=c.missil, a=m.alvo;
+  /* ── os mísseis viajam, e só então acertam ── */
+  for(let mi=c.misseis.length-1; mi>=0; mi--){
+    const m=c.misseis[mi], a=m.alvo;
     m.t+=DT;
     const dx=a.x-m.x, dz=a.z-m.z, d=Math.hypot(dx,dz);
     // persegue o alvo, acelerando no fim para sempre alcançar
@@ -2120,17 +2143,21 @@ function passoCorrida(){
     if(m.rastro.length>26) m.rastro.shift();
     for(const g of m.rastro) g.t+=DT;
 
-    if(a.escudo>0){                       // escudo derruba o míssil no ar
-      a.escudo=0; efeito(c,a,"escudo"); c.missil=null;
-      c.aviso = a.ia ? "O LÍDER SEGUROU COM ESCUDO" : "SEU ESCUDO DERRUBOU O MÍSSIL";
-      c.avisoAte=c.t+2.2;
-    } else if(d<3.2 || m.t>m.dur+2){
-      if(a.terminou<0){
+    /* O escudo NÃO derruba mais o míssil no ar. Antes a IA levantava o escudo
+       no mesmo passo em que o míssil nascia, ele morria antes de andar, e quem
+       atirou não via nada acontecer. Agora o míssil sempre cumpre o voo e o
+       escudo o apara no impacto — que é onde a defesa fica bonita de ver. */
+    if(d<3.2 || m.t>m.dur+2){
+      if(a.escudo>0){
+        a.escudo=0; efeito(c,a,"escudo");
+        c.aviso = a.ia ? "O LÍDER APAROU COM ESCUDO" : "SEU ESCUDO APAROU O MÍSSIL";
+        c.avisoAte=c.t+2.2;
+      } else if(a.terminou<0){
         a.travado=1.8; a.vx*=0.38; a.vz*=0.38; a.oleado=1.4; efeito(c,a,"estouro");
         c.aviso = a.ia ? "MÍSSIL ACERTOU O LÍDER" : "VOCÊ FOI ATINGIDO";
         c.avisoAte=c.t+2.0;
       }
-      c.missil=null;
+      c.misseis.splice(mi,1);
     }
   }
   for(const p of c.pilotos) if(p.escudo>0) p.escudo-=DT;
@@ -2157,7 +2184,7 @@ function passoCorrida(){
                             ((o.x-p.x)*Math.cos(p.h)+(o.z-p.z)*Math.sin(p.h))>0);
         if(it==="reparo") usar = (p.nitro||0)<45;
         if(it==="estouro")usar = true;
-        if(it==="escudo") usar = !!c.missil && c.missil.alvo===p;
+        if(it==="escudo") usar = c.misseis.some(m=>m.alvo===p);
         if(!usar && c.t-(p.desde[i]||0) > 18) usar = true;
       } else {
         usar = (!!teclas[String(i+1)]) || ((p.sel===i) && (!!teclas.e||!!teclas.control));
@@ -2168,12 +2195,16 @@ function passoCorrida(){
         let alvo=null, melhor=-1;
         for(const o of c.pilotos){ if(o===p||o.terminou>=0) continue;
           if(o.prog>melhor){ melhor=o.prog; alvo=o; } }
-        if(alvo && alvo.prog>p.prog && !c.missil){
+        /* Antes havia um só míssil no mundo, e o segundo lançamento sumia:
+           para a IA o item era engolido, e para o jogador o botão simplesmente
+           não fazia nada — nem míssil, nem aviso. Agora cabem três no ar. */
+        if(alvo && alvo.prog>p.prog && c.misseis.length<3){
           /* O míssil VOA. Antes era um temporizador invisível e o alvo levava
              um susto do nada; agora ele vê a coisa vindo e tem 5 s para
              resolver — dá para defender, e dá para tentar chegar numa caixa. */
-          c.missil={ alvo, de:p, t:0, dur:5.0,
-                     x:p.x, y:1.0, z:p.z, h:p.h, rastro:[] };
+          c.misseis.push({ alvo, de:p, t:0, dur:5.0,
+                     x:p.x, y:1.0, z:p.z, h:p.h, rastro:[] });
+          efeito(c,p,"estouro");   // clarão em quem atirou
           c.aviso = alvo.ia ? "MÍSSIL A CAMINHO DO LÍDER" : "MÍSSIL VINDO NA SUA DIREÇÃO";
           c.avisoAte=c.t+2.4;
         } else if(!p.ia) continue;
@@ -2422,8 +2453,21 @@ function quadro(agora){
     proj=m4p(0.72,asp,.1,300); neb=120;
     // com a gaveta ocupando a parte de baixo, o alvo desce para o carro
     // aparecer na faixa que sobrou em cima
-    const gaveta = tela==="garagem" && innerHeight>innerWidth && innerWidth<=1000;
+    const estreita = innerWidth<=1000 || (asp>1 && innerHeight<=560);
+    const gaveta = tela==="garagem" && innerHeight>innerWidth && estreita;
+    const painel = tela==="garagem" && innerWidth>innerHeight && estreita;
+    /* Deitado o painel toma 47% da direita e o carro ficava metade escondido.
+       Em vez de deslizar a câmera — que me obrigou a acertar uma distância na
+       mão, e errei —, desloco o eixo óptico na própria projeção: a área livre
+       fica centrada em x = -0.47 no espaço de recorte, e essa conta não
+       depende de distância, abertura nem proporção de tela.
+       O sinal é positivo porque o termo multiplica z do olho, que é negativo
+       olhando para -Z: x_ndc acaba somando -s. Medi antes de acreditar. */
+    if(painel) proj[8] = 0.45;
     vista=m4look(olho,[0,gaveta?-2.0:.62,0],[0,1,0]);
+    // costura de teste: é por aqui que a bancada lê o enquadramento em números
+    // em vez de julgar por foto. Custa um if por quadro e já pagou por si.
+    if(window.__sonda) window.__sonda(proj,vista,painel);
   }
 
   gl.useProgram(pObj);
@@ -2471,17 +2515,15 @@ function quadro(agora){
       gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
       gl.uniform1f(gl.getUniformLocation(pObj,"uAlfa"),1);
     }
-    if(corrida.missil){
-      const m=corrida.missil;
+    for(const m of corrida.misseis)
       desenhar(malhaMissil,m4pose(m.x,m.y,m.z,-m.h,1.5));
-    }
     passoBrasas(corrida,dt);
     desenharBrasas(corrida,vista);
-    if(corrida.missil){
+    if(corrida.misseis.length){
       // rastro do míssil, também como luz
       gl.blendFunc(gl.SRC_ALPHA, gl.ONE); gl.depthMask(false);
       const uT=gl.getUniformLocation(pObj,"uTinta"), uA=gl.getUniformLocation(pObj,"uAlfa");
-      for(const g of corrida.missil.rastro){
+      for(const m of corrida.misseis) for(const g of m.rastro){
         const k=cl(1-g.t/0.7,0,1);
         gl.uniform3f(uT, 2.6*k+.3, .9*k*k+.15, .25*k*k);
         gl.uniform1f(uA, .07+k*.22);
@@ -2575,12 +2617,11 @@ function desenharMini(){
       c.strokeStyle="#E9992B"; c.lineWidth=2.5; c.stroke();
     }
     c.beginPath(); c.arc(x,y,eu?5.5:4.2,0,6.2832);
-    c.fillStyle = eu ? "#E8321C" : (corrida.missil&&corrida.missil.alvo===p ? "#FF4A2E" : "#7C8A94");
+    c.fillStyle = eu ? "#E8321C" : (corrida.misseis.some(m=>m.alvo===p) ? "#FF4A2E" : "#7C8A94");
     c.fill();
   }
   // míssil no mapa
-  if(corrida.missil){
-    const m=corrida.missil;
+  for(const m of corrida.misseis){
     c.beginPath(); c.arc(px(m.x),pz(m.z),3.4,0,6.2832);
     c.fillStyle="#FFD36B"; c.fill();
   }
@@ -2605,7 +2646,7 @@ function atualizarHUD(){
     $("vAtual").textContent=Math.min(VOLTAS,p.volta+1);
     $("pisoHud").textContent=PISOS[estado.piso].nome;
     desenharMini();
-    const naMira = !!corrida.missil && corrida.missil.alvo===p;
+    const naMira = corrida.misseis.some(m=>m.alvo===p);
     $("perigo").classList.toggle("on",naMira);
     if(!naMira) $("perigo").style.opacity=0; else $("perigo").style.opacity="";
     $("tAtual").textContent=tempo(Math.max(0,corrida.tVolta));
