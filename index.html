@@ -383,6 +383,24 @@
   .grp.perfil .classe i{font-family:var(--f-m);font-size:9px;font-style:normal;
     color:var(--tx3);margin-top:1px}
 
+  /* ── quem dirige ── */
+  .quem2{display:flex;gap:2px;margin-top:2px}
+  .quem2 .op{flex:1;font-family:var(--f-d);font-size:14px;letter-spacing:.03em;
+    background:rgba(12,16,20,.5);color:var(--tx3);border:1px solid var(--line);
+    padding:10px 8px;cursor:pointer;transition:.12s}
+  .quem2 .op:hover{color:var(--tx2)}
+  .quem2 .op.on{background:var(--amber);color:#141414;border-color:var(--amber);font-weight:600}
+  .grp .oq2{font-size:12.5px;color:var(--tx3);margin-top:8px;line-height:1.45}
+  .grp .oq2 b{color:var(--tx2)}
+  .plano{margin-top:12px;display:grid;gap:8px}
+  .pl .rot{margin-bottom:3px}
+  .pl .ops{display:flex;gap:2px}
+  .mini{flex:1;font-family:var(--f-m);font-size:9.5px;letter-spacing:.06em;
+    text-transform:uppercase;background:rgba(12,16,20,.5);color:var(--tx3);
+    border:1px solid var(--line2);padding:7px 4px;cursor:pointer;transition:.12s}
+  .mini:hover{color:var(--tx2);border-color:var(--line)}
+  .mini.on{color:var(--amber);border-color:var(--amber);background:rgba(233,153,43,.10)}
+
   /* pixel art precisa de vizinho-mais-próximo, senão borra e vira mingau */
   .ic{image-rendering:pixelated;image-rendering:crisp-edges;vertical-align:middle;
       display:inline-block;flex:0 0 auto}
@@ -872,6 +890,12 @@ function classeDe(build){
 
 const estado={
   nome:"Piloto",
+  /* Automático não é preguiça: é outro jogo. Você não pilota, você PREPARA —
+     e a mesma estratégia vai dirigir o seu fantasma nas corridas dos outros
+     quando o multijogador existir. Guardado aqui porque é decisão do jogador,
+     não estado de corrida. */
+  auto:false,
+  plano:{ agressao:1, nitro:1, item:1 },   // 0 = contido, 1 = meio, 2 = solto
   build:{chassi:0,motor:0,rodas:0,aero:1},
   cor:"#E8321C", acc:"#F2EDE2",
   energia:480, pericia:0, sucata:0,
@@ -889,7 +913,8 @@ const estado={
 const CHAVE="circuito-aberto-v1";
 function salvar(){
   try{ localStorage.setItem(CHAVE, JSON.stringify({
-    nome:estado.nome, build:estado.build, cor:estado.cor, acc:estado.acc,
+    nome:estado.nome, auto:estado.auto, plano:estado.plano,
+    build:estado.build, cor:estado.cor, acc:estado.acc,
     energia:estado.energia, pericia:estado.pericia, sucata:estado.sucata,
     melhorVolta:estado.melhorVolta, corridas:estado.corridas, vitorias:estado.vitorias,
     idleUltimo:estado.idleUltimo, piso:estado.piso, sementePista:estado.sementePista,
@@ -2234,6 +2259,49 @@ function desenharBrasas(c,vista){
 }
 
 /* ── anéis de efeito: é o que torna item visível ── */
+/* O plano do jogador só vale para o carro DELE, e só no Automático. Mexe em
+   três coisas, que é o que dá para explicar numa tela sem virar planilha:
+   quanto arrisca na curva, quando gasta o nitro, e se guarda item para o fim. */
+function temperar(ent, p, c){
+  if(!c.auto || p!==c.pilotos[0]) return ent;
+  const g=estado.plano;
+  // agressão: entra mais forte na curva, e freia mais tarde
+  /* "Seguro" tem de trocar velocidade por NÃO ERRAR, não ser simplesmente
+     lento: com 0,86 no acelerador e freio a cada esterço médio, o carro
+     terminava em último e o plano virava castigo. */
+  const k=[0.97,1.00,1.08][g.agressao] ?? 1;
+  ent.acel=cl(ent.acel*k,0,1);
+  if(g.agressao===0){
+    /* TIRA O PÉ, não freia. Freio no meio da curva desestabiliza, e o plano
+       "seguro" saía MAIS da pista que o arriscado — 8,2% contra 3,1%, medido.
+       Aliviar o acelerador é suave e faz o que o rótulo promete.
+       (Mexer no ganho da direção também foi tentado e é pior: mais ganho
+       oscila — a mesma lição do controlador da IA, aprendida duas vezes.) */
+    if(Math.abs(ent.dir)>0.45) ent.acel=cl(ent.acel*0.55,0,1);
+  }
+  if(g.agressao===2){
+    if(ent.freio && Math.abs(ent.dir)<0.45) ent.freio=false;   // segura o freio
+  }
+  /* `mao` é FREIO DE MÃO — corta a aderência para 30%. Eu estava puxando o
+     freio de mão achando que era o nitro, e o carro do jogador terminava em
+     último nos três planos. O nitro é `turbo`. */
+  const faseFinal = p.volta>=VOLTAS-1;
+  const largada   = c.t<9;
+  /* O MEIO tem de ser neutro — exatamente a IA dos rivais, sem tempero. Antes
+     ele ainda restringia o nitro (>35 contra >28 da IA base) e o carro do
+     jogador ficava de saída um pouco pior que todo mundo. Plano do meio que
+     penaliza é armadilha: o jogador escolhe "normal" e perde por isso. */
+  if(g.nitro!==1){
+    const podeGastar = g.nitro===0 ? (faseFinal && p.nitro>40)
+                                   : (largada || p.nitro>55);
+    // o plano decide QUANDO gastar; onde gastar continua com a IA, que sabe
+    // que nitro em curva fechada é nitro jogado fora
+    ent.turbo = ent.turbo && podeGastar;
+    if(g.nitro===2 && largada && (p.nitro||0)>20) ent.turbo=true;
+  }
+  return ent;
+}
+
 function efeito(c,p,tipo){
   const cores={turbo:[3.0,1.6,.4], oleo:[.9,.8,.5], tranco:[3.0,1.0,.6],
                estouro:[3.4,.8,.3], reparo:[.7,2.4,1.9], escudo:[.5,2.2,3.2],
@@ -2421,6 +2489,21 @@ function construirPoco(){
    CORRIDA
    ══════════════════════════════════════════════════════════════════════════ */
 const VOLTAS=2;
+/* O grid é SORTEADO. Antes o carro do jogador largava sempre na primeira
+   fila, e como o míssil mira o líder, quem larga na frente vira alvo. Medido
+   em 40 corridas no automático: posição média 5,95 num campo de 8, a 5,4
+   erros-padrão do 4,50 esperado, e nenhuma vitória. Não era azar.
+
+   Largar no meio também é melhor de jogar: dá alguém para caçar. */
+function montarGrid(){
+  const vagas=Array.from({length:GRID},(_,i)=>i);
+  for(let i=vagas.length-1;i>0;i--){
+    const j=Math.floor(Math.random()*(i+1));
+    [vagas[i],vagas[j]]=[vagas[j],vagas[i]];
+  }
+  return vagas.map(v=>novoPiloto(v));
+}
+
 function novoPiloto(i){
   // largada em duas colunas, como grid de verdade
   // largada SEMPRE à frente da linha. Atrás dela, o carro cruzava o índice 0
@@ -2459,11 +2542,14 @@ function montarCaixas(){
 function iniciarCorrida(){
   const at=atributos();
   corrida={
-    pilotos:Array.from({length:GRID},(_,i)=>novoPiloto(i)),
+    pilotos:montarGrid(),
     at, t:-3.2, tVolta:0, melhor:-1, acabou:false, perLog:[], marcas:[],
     periciaGanha:0, pico:0, caixas:montarCaixas(), perigos:[], efeitos:[], brasas:[], misseis:[], sons:[], aviso:"", avisoAte:0,
   };
-  corrida.pilotos[0].ia=false;
+  /* No Automático a sua IA assume o volante. É a MESMA `iaEntrada` dos
+     rivais, temperada pelo seu plano — não uma segunda inteligência. */
+  corrida.pilotos[0].ia=estado.auto;
+  corrida.auto=estado.auto;
   document.getElementById("hud").classList.add("on");
   document.getElementById("modal").classList.remove("on");
 }
@@ -2544,8 +2630,18 @@ function iaEntrada(p, at, t, rivais){
           mao: curvaAgora>0.85&&spd>vAlvo*1.3,
           turbo: (p.nitro||0)>28 && spd>vAlvo*0.80 && curvaAgora<0.45};
 }
+/* Uma corrida presa é um servidor preso. Se o carro do jogador rodar e ficar
+   de frente para o muro, ele nunca cruza a linha e o laço nunca sai. O teto é
+   generoso — quatro minutos é o dobro de uma corrida ruim — e existe para o
+   caso patológico, não para apertar ninguém. */
+const TETO_CORRIDA=240;
+
 function passoCorrida(){
   const c=corrida; if(!c)return;
+  if(!c.acabou && c.t>TETO_CORRIDA){
+    for(const p of c.pilotos) if(p.terminou<0) p.terminou=c.t;
+    terminarCorrida(); return;
+  }
   c.t+=DT;
   for(let i=0;i<c.pilotos.length;i++){
     const p=c.pilotos[i];
@@ -2557,10 +2653,21 @@ function passoCorrida(){
     const meioPista = np.i > pista.n*0.42 && np.i < pista.n*0.62;
     if(meioPista) p.meio=true;
     if(p.meio && p.seg>pista.n-12 && np.i<12){ p.volta++; p.meio=false;
-      if(!p.ia){ const v=c.tVolta; c.tVolta=0;
-        if(v>1 && (c.melhor<0||v<c.melhor)){ c.melhor=v; if(estado.melhorVolta<0||v<estado.melhorVolta) estado.melhorVolta=v; }
-        if(p.volta>=VOLTAS){ p.terminou=c.t; terminarCorrida(); } }
-      else if(p.volta>=VOLTAS) p.terminou=c.t;
+      /* O que decide é ser o SEU carro, não quem está no volante. Antes isto
+         dependia de `!p.ia`, e no Automático o seu carro é IA — a corrida
+         nunca terminava e você assistiria para sempre. */
+      if(p===c.pilotos[0]){
+        const v=c.tVolta; c.tVolta=0;
+        // volta feita pela sua IA não entra no recorde pessoal: Lei 4 em miniatura
+        if(!c.auto && v>1 && (c.melhor<0||v<c.melhor)){
+          c.melhor=v;
+          if(estado.melhorVolta<0||v<estado.melhorVolta) estado.melhorVolta=v;
+        }
+      }
+      if(p.volta>=VOLTAS && p.terminou<0){
+        p.terminou=c.t;
+        if(p===c.pilotos[0]) terminarCorrida();
+      }
     }
     p.seg=np.i;
     const naPista=np.dist < pista.pontos[np.i].larg/2 + 0.6;
@@ -2568,7 +2675,7 @@ function passoCorrida(){
     // A largada vale pra todo mundo. Antes o gate de contagem regressiva só
     // existia no ramo do jogador e as IAs saíam 3,2 s na frente.
     const ent = c.t<0 ? {dir:0,acel:0,freio:false,mao:false}
-      : p.ia ? iaEntrada(p,c.at,c.t,c.pilotos)
+      : p.ia ? temperar(iaEntrada(p,c.at,c.t,c.pilotos), p, c)
       : (ehToque
          ? { dir:manche.dir,
              acel:manche.freio?0:1,          // acelerador automático
@@ -2730,6 +2837,12 @@ function passoCorrida(){
                             ((o.x-p.x)*Math.cos(p.h)+(o.z-p.z)*Math.sin(p.h))>0);
         if(it==="reparo") usar = (p.nitro||0)<45;
         if(it==="estouro")usar = true;
+        /* Plano de item do jogador: 0 guarda para a última volta, 2 usa assim
+           que aparece o alvo. O meio é o que a IA já fazia. */
+        if(c.auto && p===c.pilotos[0]){
+          if(estado.plano.item===0 && p.volta<VOLTAS-1) usar=false;
+          if(estado.plano.item===2) usar=true;
+        }
         if(it==="escudo") usar = c.misseis.some(m=>m.alvo===p);
         if(!usar && c.t-(p.desde[i]||0) > 18) usar = true;
       } else {
@@ -2796,12 +2909,23 @@ function terminarCorrida(){
      que faz brigar pelo pódio valer mais do que só terminar. */
   const FATOR=[1.00,0.66,0.42,0.18,0.08];
   const premio=FATOR[pos-1]||0;
-  const per=Math.round(c.periciaGanha*(0.45+premio*0.55));
-  const suc=Math.round((90+per*0.9)*premio);
+  /* Lei 4 — o topo do mercado exige mão humana: perícia SÓ de corrida
+     pilotada. É o mesmo mecanismo que trava a fazenda de contas, e é o que
+     impede o Automático de virar um caixa eletrônico.
+     Lei 6 — automático nunca é lucrativo acima do nível 1: a sucata também
+     cai, o bastante para pagar a manutenção e não muito mais. */
+  const per=c.auto ? 0 : Math.round(c.periciaGanha*(0.45+premio*0.55));
+  const base=c.auto ? Math.round(c.periciaGanha*(0.45+premio*0.55)) : per;
+  const suc=Math.round((90+base*0.9)*premio*(c.auto?0.42:1));
   estado.pericia+=per; estado.sucata+=suc; estado.corridas++;
   if(pos===1) estado.vitorias=(estado.vitorias||0)+1;
+  /* Andar no limite CUSTA. Sem isto "arriscado" domina — 3,9 de posição média
+     contra 6,4 do seguro — e um menu em que uma opção é sempre certa não é
+     decisão, é enfeite. O preço é desgaste, que é o ralo-mestre da economia:
+     você corre mais rápido hoje e troca peça mais cedo. */
+  const zeloso=[0.78,1.00,1.34][c.auto?estado.plano.agressao:1] ?? 1;
   for(const k of ["chassi","motor","rodas","aero"])
-    estado.dur[k]=cl((estado.dur[k]||100) - (7+Math.random()*5), 0, 100);
+    estado.dur[k]=cl((estado.dur[k]||100) - (7+Math.random()*5)*zeloso, 0, 100);
   sortearProxima();
   salvar();
   document.getElementById("hud").classList.remove("on");
@@ -2967,10 +3091,17 @@ function quadro(agora){
     acum+=dt;
     let it=0; while(acum>=DT && it++<260){ passoCorrida(); acum-=DT; }
     const p=corrida.pilotos[0], spd=Math.hypot(p.vx,p.vz);
-    const dist=9.4+spd*0.085, alt=3.4+spd*0.016;
+    /* Câmera atrás do carro PROMETE controle. No Automático você não controla
+       nada, e a câmera mentia — o que talvez fosse a causa real de o modo
+       parecer fraco. Assistindo, ela sobe e afasta: mostra os oito carros e as
+       diferenças, que é o conteúdo de um modo sem intervenção. */
+    const vendo=corrida.auto;
+    const dist=(vendo? 15.0 : 9.4)+spd*(vendo?0.05:0.085);
+    const alt =(vendo? 11.5 : 3.4)+spd*(vendo?0.030:0.016);
     const alvo=[p.x-Math.cos(p.h)*dist, alt, p.z-Math.sin(p.h)*dist];
     if(!corrida.cam) corrida.cam=alvo.slice();
-    for(let i=0;i<3;i++) corrida.cam[i]=lerp(corrida.cam[i],alvo[i],1-Math.pow(0.0016,dt));
+    const cola = vendo ? 0.06 : 0.0016;   // de cima, seguir grudado embrulha
+    for(let i=0;i<3;i++) corrida.cam[i]=lerp(corrida.cam[i],alvo[i],1-Math.pow(cola,dt));
     olho=corrida.cam;
     // o turbo abre o ângulo e treme a câmera: sem isso o turbo é só uma
     // barra descendo, e ele precisa ser SENTIDO
@@ -2982,7 +3113,8 @@ function quadro(agora){
       olho[0]+=(Math.random()-.5)*a; olho[1]+=(Math.random()-.5)*a; olho[2]+=(Math.random()-.5)*a;
     }
     // mira um pouco à frente do carro: é o que dá sensação de estar indo pra algum lugar
-    vista=m4look(olho,[p.x+Math.cos(p.h)*4.5, 0.95, p.z+Math.sin(p.h)*4.5],[0,1,0]);
+    vista=m4look(olho,[p.x+Math.cos(p.h)*(vendo?7.0:4.5), 0.95,
+                       p.z+Math.sin(p.h)*(vendo?7.0:4.5)],[0,1,0]);
     /* Esvazia a fila que a simulação encheu. `while` e não `for`, para a fila
        ficar vazia mesmo se o quadro atrasar e vierem vários de uma vez. */
     while(corrida.sons.length){
@@ -3362,6 +3494,36 @@ function montarGaragem(){
     estado.nome=cnome.value.trim().slice(0,14)||"Piloto"; salvar();
   });
   cnome.addEventListener("blur",()=>{ cnome.value=estado.nome; });
+
+  /* ── quem dirige, e com que plano ──
+     O bloco muda de tamanho conforme a escolha: pilotando, é uma linha; no
+     automático, abrem-se as três decisões. Mostrar a planilha para quem vai
+     pilotar seria pedir atenção por nada. */
+  const modo=document.createElement("div"); modo.className="grp modo";
+  const PL=[
+    ["agressao","Na curva",   ["Seguro","Meio","Arriscado"]],
+    ["nitro",   "O nitro",    ["Guardar","Quando der","Na largada"]],
+    ["item",    "Os itens",   ["Só no fim","Quando der","Assim que pegar"]],
+  ];
+  modo.innerHTML=`<h3>${icone("mCorrer",20)}Quem dirige</h3>
+    <div class="quem2">
+      <button class="op ${estado.auto?"":"on"}" data-auto="0">Você pilota</button>
+      <button class="op ${estado.auto?"on":""}" data-auto="1">Sua IA pilota</button>
+    </div>
+    <div class="oq2">${estado.auto
+      ? "Você prepara e assiste de cima. Rende sucata, mas <b>nenhuma perícia</b> — o topo exige mão humana."
+      : "Você no volante. Rende mais, e é o único jeito de ganhar perícia."}</div>
+    ${estado.auto ? `<div class="plano">`+PL.map(([k,rot,ops])=>
+      `<div class="pl"><div class="rot">${rot}</div><div class="ops">`+
+      ops.map((o,i)=>`<button class="mini ${estado.plano[k]===i?"on":""}" data-pl="${k}" data-v="${i}">${o}</button>`).join("")+
+      `</div></div>`).join("")+`</div>` : ""}`;
+  g.append(modo);
+  modo.querySelectorAll("[data-auto]").forEach(b=>b.onclick=()=>{
+    estado.auto=b.dataset.auto==="1"; salvar(); sfx("ui"); montarGaragem();
+  });
+  modo.querySelectorAll("[data-pl]").forEach(b=>b.onclick=()=>{
+    estado.plano[b.dataset.pl]=+b.dataset.v; salvar(); sfx("ui"); montarGaragem();
+  });
 
   const rotulos={chassi:"Chassi",motor:"Motor",rodas:"Rodas e pneus",aero:"Aerodinâmica"};
   const icoSlot={chassi:"chassi",motor:"motor",rodas:"roda",aero:"aerofolio"};
