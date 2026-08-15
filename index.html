@@ -1701,13 +1701,21 @@ function ligarSom(){
     o.type=tipo; gg.gain.value=vol; o.connect(gg); gg.connect(g); o.start();
     som.osc.push({o,det});
   }
-  /* Pneu: passa-banda estreito em ruído. O filtro abre com o deslize que a
-     física JÁ calcula — o canto do pneu não é enfeite, é leitura de estado. */
+  /* Pneu: passa-banda estreito. Só canta ACIMA de um limiar de deslize —
+     sem limiar ele cantava o tempo todo, e canto constante é chiado. */
   const pn=ruidoContinuo(ctx,mestre,"bandpass",1150,7.0);
   som.pneu=pn.src; som.pneuF=pn.f; som.pneuG=pn.g;
-  /* Vento: passa-alta em ruído, volume pela velocidade. */
-  const vt=ruidoContinuo(ctx,mestre,"highpass",620,0.7);
-  som.vento=vt.src; som.ventoF=vt.f; som.ventoG=vt.g;
+  /* O que se ouve num carro andando não é vento agudo: é a ROLAGEM, um ronco
+     grave do pneu no chão. A primeira versão punha ruído passa-alta em volume
+     de motor e virou chiado — o dono ouviu na hora. Passa-baixa, e baixo. */
+  const rl=ruidoContinuo(ctx,mestre,"lowpass",240,0.9);
+  som.rolagem=rl.src; som.rolF=rl.f; som.rolG=rl.g;
+  /* Um oscilador lento move o corte da rolagem. Ruído filtrado parado é
+     estático; um pouco de movimento já lê como superfície passando. */
+  const lfo=ctx.createOscillator(), lfoG=ctx.createGain();
+  lfo.type="sine"; lfo.frequency.value=0.27; lfoG.gain.value=34;
+  lfo.connect(lfoG); lfoG.connect(rl.f.frequency); lfo.start();
+  som.lfo=lfo;
 }
 
 function motorSom(rpm,carga){
@@ -1719,16 +1727,33 @@ function motorSom(rpm,carga){
 
 /* Estado contínuo da corrida: deslize e velocidade viram som sem disparar
    evento nenhum. */
-function ambienteSom(desliza, velNorm, foraDaPista){
+/* Piso muda o chão que se ouve: asfalto é ronco seco e baixo, terra é mais
+   solto e grave, chuva é o único caso em que chiado está CERTO — é a água
+   saindo debaixo do pneu. */
+const CHAO={ asfalto:{corte:240, vol:0.030, q:0.9},
+             terra:  {corte:170, vol:0.055, q:0.7},
+             chuva:  {corte:900, vol:0.048, q:0.5} };
+
+function ambienteSom(desliza, velNorm, foraDaPista, piso){
   if(!som.on||!som.ctx)return;
-  const t=som.ctx.currentTime;
-  const canto=cl(desliza,0,1);
-  som.pneuG.gain.setTargetAtTime(canto*0.16, t, .05);
-  som.pneuF.frequency.setTargetAtTime(900+canto*1500, t, .06);
-  som.ventoG.gain.setTargetAtTime(cl(velNorm,0,1)*0.055, t, .12);
-  som.ventoF.frequency.setTargetAtTime(520+velNorm*900, t, .12);
-  // fora da pista o pneu troca de timbre: cascalho em vez de borracha
-  som.pneuF.Q.setTargetAtTime(foraDaPista?1.6:7.0, t, .08);
+  const t=som.ctx.currentTime, v=cl(velNorm,0,1);
+  const ch=CHAO[piso]||CHAO.asfalto;
+
+  /* O pneu só canta a partir de 0,32 de deslize. Abaixo disso o carro está
+     apenas andando, e som de derrapagem em linha reta é o que fazia tudo
+     virar chiado. Acima do limiar ele entra rápido, que é como derrapagem
+     soa de verdade: não tem meio-termo longo. */
+  const canto=cl((desliza-0.32)/0.55, 0, 1);
+  som.pneuG.gain.setTargetAtTime(canto*canto*0.15, t, .04);
+  som.pneuF.frequency.setTargetAtTime(820+canto*1500, t, .05);
+  som.pneuF.Q.setTargetAtTime(foraDaPista?2.2:7.5, t, .08);
+
+  /* Rolagem: só existe andando, cresce com a velocidade e some parado.
+     O corte sobe pouco, senão volta a ser chiado. */
+  const rol = v*v*(0.35+0.65*v);
+  som.rolG.gain.setTargetAtTime(rol*ch.vol*(foraDaPista?1.7:1.0), t, .10);
+  som.rolF.frequency.setTargetAtTime(ch.corte*(0.75+0.5*v), t, .12);
+  som.rolF.Q.setTargetAtTime(ch.q, t, .2);
 }
 
 /* ── eventos ──────────────────────────────────────────────────────────
@@ -2762,7 +2787,7 @@ function quadro(agora){
     const dir=Math.atan2(p.vz,p.vx);
     let dif=dir-p.h; while(dif>Math.PI)dif-=6.2832; while(dif<-Math.PI)dif+=6.2832;
     const desliza=cl(Math.abs(dif)*(spd>6?1:0)*1.7,0,1);
-    ambienteSom(desliza, cl(spd/corrida.at.vmax,0,1), p.naPista===false);
+    ambienteSom(desliza, cl(spd/corrida.at.vmax,0,1), p.naPista===false, estado.piso);
   } else if(tela==="mapa"){
     passoMapa(dt);
     const eu=mapa.carros[0];
@@ -3063,7 +3088,7 @@ function irPara(t){
   document.body.classList.toggle("correndo", t==="corrida");
   // sair da corrida com o pneu ainda cantando é o tipo de coisa que só se
   // percebe depois de publicado
-  if(t!=="corrida") ambienteSom(0,0,false);
+  if(t!=="corrida") ambienteSom(0,0,false,estado.piso);
   for(const[id,alvo] of [["nGar","garagem"],["nMapa","mapa"],["nCor","corrida"]])
     $(id).setAttribute("aria-pressed", String(t===alvo));
   if(t==="mapa") iniciarMapa();
