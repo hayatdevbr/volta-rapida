@@ -391,15 +391,19 @@
     color:var(--tx3);margin-top:1px}
 
   /* ── peça de corrida montada ── */
-  #pecaHud{position:absolute;left:34px;bottom:78px;display:flex;align-items:center;
-    gap:9px;background:rgba(12,16,20,.80);border:1px solid var(--line);
-    border-left-width:3px;padding:7px 12px 7px 10px;max-width:270px}
+  /* Uma tarja fina da cor da peça, e o nome só no instante da troca. */
+  #pecaHud{position:absolute;left:34px;bottom:76px;font-family:var(--f-m);
+    font-size:9.5px;letter-spacing:.11em;text-transform:uppercase;
+    color:var(--tx3);border-left:3px solid var(--cor,var(--line));
+    padding-left:8px;line-height:1.2;pointer-events:none;
+    max-width:170px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   #pecaHud[hidden]{display:none}
-  #pecaHud .ic{width:11px;height:11px;flex:0 0 auto;border-radius:50%}
-  #pecaHud b{font-family:var(--f-d);font-size:15px;font-weight:400;white-space:nowrap}
-  #pecaHud i{font-family:var(--f-m);font-size:9.5px;font-style:normal;
-    letter-spacing:.06em;text-transform:uppercase;color:var(--tx3);
-    border-left:1px solid var(--line);padding-left:9px;white-space:nowrap}
+  #pecaHud.novo{animation:pecaEntra 2.4s forwards}
+  @keyframes pecaEntra{
+    0%{color:var(--cor);font-size:13px}
+    22%{color:var(--cor);font-size:13px}
+    100%{color:var(--tx3);font-size:9.5px}
+  }
 
   /* ── banca de teste: berrante de propósito ── */
   #avisoTeste{position:fixed;left:50%;bottom:10px;transform:translateX(-50%);z-index:60;
@@ -411,6 +415,17 @@
   #avisoTeste button{font-family:var(--f-m);font-size:9.5px;letter-spacing:.09em;
     text-transform:uppercase;background:#140A08;color:#F2EDE2;border:0;
     padding:6px 10px;cursor:pointer}
+
+  /* ── o apanhado da corrida, no cartão do fim ── */
+  .apanhado{border-top:1px solid var(--line2);border-bottom:1px solid var(--line2);
+    padding:11px 0;margin:4px 0}
+  .apanhado .rot{margin-bottom:7px}
+  .apanhado .pc{display:inline-block;font-family:var(--f-m);font-size:10px;
+    letter-spacing:.08em;text-transform:uppercase;color:var(--tx2);
+    border-left:3px solid var(--cor);padding:3px 9px 3px 7px;margin:0 6px 4px 0;
+    background:rgba(255,255,255,.03)}
+  .apanhado .nota{font-family:var(--f-m);font-size:9px;letter-spacing:.06em;
+    color:var(--tx3);margin-top:4px}
 
   /* ── trocar de carro ── */
   .grp.carros{display:flex;align-items:center;gap:10px}
@@ -2326,7 +2341,7 @@ addEventListener("keydown",e=>{
   }
   teclas[e.key.toLowerCase()]=true;
   if(e.key==="r"&&tela==="corrida") iniciarCorrida();
-  if(e.key==="Escape"&&tela==="corrida") irPara("garagem");
+  if(e.key==="Escape"&&tela==="corrida") desistir();
 });
 addEventListener("keyup",e=>{teclas[e.key.toLowerCase()]=false;});
 /* ── toque ──────────────────────────────────────────────────────────────
@@ -2356,7 +2371,26 @@ const manche = { dir:0, freio:false, id:null, cx:0, cy:0, r:56 };
     manche.freio=dy>lim*0.55;      // puxar pra trás freia e dá ré
   }
 })();
-document.getElementById("sairCorrida").addEventListener("click",()=>irPara("garagem"));
+/* Sair no meio já não pagava nada — `terminarCorrida` só roda ao cruzar a
+   linha. Mas o jogador não tinha como saber, e descobrir isso depois de
+   desistir é a pior hora. Agora ele é avisado antes. */
+function desistir(){
+  if(corrida && !corrida.acabou && corrida.t>2){
+    abrirModal(`
+      <h2>Desistir?</h2>
+      <div class="sub">A energia já foi gasta e você não leva nada — nem sucata,
+        nem perícia, nem as peças que montou.</div>
+      <div class="acoes">
+        <button class="btn p" id="mFicar">Continuar correndo</button>
+        <button class="btn" id="mSair">Desistir mesmo assim</button>
+      </div>`);
+    document.getElementById("mFicar").onclick=()=>{ fecharModal(); };
+    document.getElementById("mSair").onclick=()=>{ fecharModal(); irPara("garagem"); };
+    return;
+  }
+  irPara("garagem");
+}
+document.getElementById("sairCorrida").addEventListener("click",desistir);
 document.getElementById("btDeitar").addEventListener("click",travarDeitado);
 // no celular o próprio encaixe é o botão: um toque solta AQUELE item, sem modo
 for(const el of document.querySelectorAll(".slot")){
@@ -2779,7 +2813,7 @@ function novoPiloto(i){
   const r=semente(1000+i*37+Math.floor(Math.random()*9999));
   return {x:p.x+p.nx*off, z:p.z+p.nz*off, h:Math.atan2(p.tz,p.tx),
           vx:0,vz:0,vl:0,dir:0,derrapa:0,
-          nitro:0, itens:[null,null], desde:[0,0], sel:0, escudo:0, peca:null,
+          nitro:0, itens:[null,null], desde:[0,0], sel:0, escudo:0, peca:null, pecaDesde:-99,
           oleado:0, travado:0, turbando:0,
           seg:(3+Math.floor(i/2)*3)%pista.n, meio:false,
           volta:0, prog:0, terminou:-1, ia:i>0,
@@ -2809,7 +2843,7 @@ function iniciarCorrida(){
   corrida={
     pilotos:montarGrid(),
     at, t:-3.2, tVolta:0, melhor:-1, acabou:false, perLog:[], marcas:[],
-    periciaGanha:0, pico:0, caixas:montarCaixas(), perigos:[], efeitos:[], brasas:[], misseis:[], sons:[], aviso:"", avisoAte:0,
+    periciaGanha:0, pico:0, caixas:montarCaixas(), perigos:[], efeitos:[], brasas:[], misseis:[], sons:[], pegou:{}, aviso:"", avisoAte:0,
   };
   /* No Automático a sua IA assume o volante. É a MESMA `iaEntrada` dos
      rivais, temperada pelo seu plano — não uma segunda inteligência. */
@@ -3008,10 +3042,16 @@ function passoCorrida(){
           cx.volta=18;
           /* Peça entra montada na hora, sem passar pelo bolso: ela não é algo
              que se guarda para o momento certo, é o carro mudando. */
-          if(Math.random()<CHANCE_PECA){
+          /* Carência depois de montar: por 20 s a caixa só dá item. Sem isto
+             o carro trocava de peça 17 vezes numa corrida de duas voltas —
+             medido — e o dilema "vale a pena pegar aquela caixa?" virava ruído,
+             porque a peça ia embora sozinha em cinco segundos de qualquer jeito. */
+          if(Math.random()<CHANCE_PECA && c.t-(p.pecaDesde||-99)>20){
             const nova=CHAVES_PECA[Math.floor(Math.random()*CHAVES_PECA.length)];
             const trocou = p.peca && p.peca!==nova;
-            p.peca=nova;
+            p.peca=nova; p.pecaDesde=c.t;
+            // o que passou pelo carro vira a conta do fim
+            if(p===c.pilotos[0]) c.pegou[nova]=(c.pegou[nova]||0)+1;
             if(p===c.pilotos[0]){
               c.sons.push("pegou");
               c.aviso=(trocou?"TROCOU PARA ":"")+PECAS_CORRIDA[nova].nome.toUpperCase();
@@ -3225,6 +3265,16 @@ function terminarCorrida(){
     <div class="sub">${VOLTAS} voltas · ${pos}º de ${GRID}${pos>5?" · fora da pontuação":""}</div>
     <div class="linha"><span>Melhor volta</span><b>${tempo(c.melhor)}</b></div>
     <div class="linha"><span>Velocidade de pico</span><b>${Math.round(c.pico*3.6)} km/h</b></div>
+    ${(()=>{
+      /* O apanhado da corrida, no lugar certo: aqui o jogador tem tempo de
+         ler. Na pista ele só reage. */
+      const ks=Object.keys(c.pegou||{});
+      if(!ks.length) return "";
+      return `<div class="apanhado"><div class="rot">Peças montadas na corrida</div>`
+        + ks.map(k=>`<span class="pc" style="--cor:${PECAS_CORRIDA[k].cor}">`
+            +`${PECAS_CORRIDA[k].nome}${c.pegou[k]>1?" ×"+c.pegou[k]:""}</span>`).join("")
+        + `<div class="nota">peça de corrida não vai para a garagem — ela vale a prova, e só</div></div>`;
+    })()}
     <div class="linha d"><span>Perícia ganha</span><b>+${per}</b></div>
     <div class="linha d"><span>Sucata</span><b>+${suc}</b></div>
     <div class="acoes">
@@ -3671,12 +3721,18 @@ function atualizarHUD(){
     $("pisoHud").textContent=PISOS[estado.piso].nome;
     /* Sem isto o carro muda de comportamento no meio da prova e o jogador não
        sabe por quê — o que lê como bug, não como mecânica. */
+    /* Durante a corrida isto era um bloco com nome e descrição — o dono achou
+       poluído, e ele tem razão: no meio de uma volta o jogador não lê, ele
+       reage. Fica só uma marca da cor da peça. O nome aparece por dois
+       segundos na TROCA, que é o instante em que a informação importa, e a
+       conta completa vai para o cartão do fim. */
     const ph=$("pecaHud"), pc=p.peca?PECAS_CORRIDA[p.peca]:null;
     ph.hidden=!pc;
     if(pc && ph.dataset.qual!==p.peca){
       ph.dataset.qual=p.peca;
-      ph.innerHTML=`<span class="ic" style="background:${pc.cor}"></span>`
-        +`<b>${pc.nome}</b><i>${pc.oq}</i>`;
+      ph.style.setProperty("--cor", pc.cor);
+      ph.textContent=pc.nome;
+      ph.classList.remove("novo"); void ph.offsetWidth; ph.classList.add("novo");
     }
     if(!pc) ph.dataset.qual="";
     desenharMini();
@@ -3725,6 +3781,10 @@ function atualizarHUD(){
   }
 }
 function abrirModal(html){ const m=$("modal"); m.innerHTML='<div class="cartao">'+html+'</div>'; m.classList.add("on"); }
+/* Existia só o `classList.remove("on")` espalhado em quatro lugares. Ganha nome
+   porque agora há um modal que se FECHA para voltar ao jogo, e não só para
+   trocar de tela. */
+function fecharModal(){ $("modal").classList.remove("on"); }
 let dicaT=null, ultimoTick=-1, ultimoItem=["__","__"];
 const DESCRICAO={
   turbo:  "enche o nitro na hora",
