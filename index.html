@@ -209,6 +209,10 @@
      o toque do usuário — que a API de tela cheia exige — vem de graça. */
   #portao{position:fixed;inset:0;z-index:99;background:var(--bg);
           display:flex;align-items:center;justify-content:center;padding:26px}
+  /* Sem isto o `display:flex` acima vence o [hidden] do navegador e o portão
+     NUNCA sai da frente — nem ao tocar no botão, nem no PC, onde ele nem
+     deveria aparecer. */
+  #portao[hidden]{display:none}
   #portao .cx{max-width:330px;text-align:center}
   #portao .marca{font-family:var(--f-d);font-size:27px;letter-spacing:.02em;
                  line-height:1.05;color:var(--tx)}
@@ -331,6 +335,11 @@
     #item{right:116px;bottom:26px;top:auto;left:auto;width:auto}
     #item .slots{flex-direction:row;gap:10px}
     #item .slot{width:74px;height:74px}
+    #item .oq{display:none}
+    /* O ✕ ficava por cima do minimapa. Embaixo à esquerda é o manche, então
+       vai para a faixa morta entre a barra de nitro e o topo do manche. */
+    #toque #sairCorrida{top:150px;bottom:auto;right:auto;left:16px;
+                        width:34px;height:34px;font-size:14px}
   }
   @media (max-width:520px), (orientation:landscape) and (max-height:440px){
     .tq{width:70px;height:70px;font-size:21px}
