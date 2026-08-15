@@ -1815,6 +1815,111 @@ const SONS={
 function sfx(nome,arg){ const f=SONS[nome]; if(f) f(arg); }
 
 /* ══════════════════════════════════════════════════════════════════════════
+   MÚSICA — arquivos de fora, tocados sob demanda
+   ══════════════════════════════════════════════════════════════════════════
+
+   Regras que o formato do manifesto já carrega:
+
+   · UMA lista por tela. Sorteia-se dentro da lista, então duas variações da
+     mesma faixa evitam a repetição imediata sem custar código.
+   · A corrida tem uma lista POR PISO, e cai para `geral` quando o piso não
+     tem faixa própria. Acrescentar música de terra é largar o arquivo na
+     pasta e escrever uma linha aqui — não se mexe em código.
+   · Nada é baixado antes da hora. Um `<audio>` com `preload="none"` só busca
+     quando toca, senão a primeira visita puxaria 58 MB de uma vez.
+   · Se o arquivo não existir, o jogo segue sem música e sem erro. O protótipo
+     tem de continuar rodando de um arquivo só.
+   · DOIS formatos, escolhidos na hora. Opus a 64 kbps soa melhor que AAC a
+     96 e ocupa 31% menos — 20,7 MB contra 30,2. Mas o Safari só passou a ler
+     Ogg há pouco, e o iPhone é metade do público de celular. Então o
+     manifesto guarda o caminho SEM extensão e quem decide é o navegador.
+     Custa espaço no repositório, que é barato; poupa dados do jogador, que
+     não é. */
+const MUSICA={
+  menu:    ["menu/hino-do-motor"],
+  garagem: ["garagem/hora-dourada-a","garagem/hora-dourada-b",
+            "garagem/containers-a","garagem/containers-b",
+            "garagem/hino-do-motor-longo"],
+  mapa:    ["garagem/hora-dourada-b","garagem/containers-b"],
+  corrida: { geral:["corrida/geral/pistao-a","corrida/geral/pistao-b"],
+             asfalto:[], terra:[], chuva:[] },
+  chegada: ["chegada/ferrugem-a","chegada/ferrugem-b"],
+};
+const RAIZ_MUSICA="musica/";
+/* "probably" e não "maybe": navegador que hesita cai no AAC, que toca em todo
+   lugar. Errar para o lado seguro aqui custa 9 MB; errar para o outro custa
+   um jogador sem música nenhuma e sem saber por quê. */
+const FORMATO=(()=>{ try{
+  return new Audio().canPlayType('audio/ogg; codecs="opus"')==="probably" ? ".ogg" : ".m4a";
+}catch(e){ return ".m4a"; } })();
+
+const mus={ el:null, atual:"", vol:0.55, abaixado:1, tocando:false, ligada:true };
+
+function listaDe(chave, sub){
+  const m=MUSICA[chave];
+  if(!m) return [];
+  if(Array.isArray(m)) return m;
+  const esp=m[sub];
+  return (esp && esp.length) ? esp : (m.geral||[]);
+}
+/* Sorteia sem repetir a que acabou de tocar: numa lista de dois, sortear puro
+   repete metade das vezes e o jogador jura que só existe uma faixa. */
+function sortearFaixa(lista){
+  if(!lista.length) return "";
+  if(lista.length===1) return lista[0];
+  const outras=lista.filter(f=>f!==mus.atual);
+  return outras[Math.floor(Math.random()*outras.length)];
+}
+
+function tocarMusica(chave, sub){
+  if(!mus.ligada) return;
+  const faixa=sortearFaixa(listaDe(chave,sub));
+  if(!faixa || faixa===mus.atual) return;
+  if(!mus.el){
+    mus.el=new Audio();
+    mus.el.preload="none";
+    mus.el.loop=true;
+    // arquivo ausente não pode derrubar nada: o jogo é jogável sem música
+    mus.el.addEventListener("error",()=>{ mus.tocando=false; });
+  }
+  mus.atual=faixa;
+  mus.el.src=RAIZ_MUSICA+faixa+FORMATO;
+  mus.el.loop = chave!=="chegada";     // a chegada toca uma vez e cala
+  mus.el.volume=0;
+  const pr=mus.el.play();
+  if(pr&&pr.catch) pr.catch(()=>{ mus.tocando=false; });
+  mus.tocando=true;
+  aparecerMusica();
+}
+
+/* Entrada e saída em rampa. Corte seco em música é a coisa mais amadora que
+   um jogo pode fazer, e custa umas dez linhas evitar. */
+let fadeT=null;
+function rampaMusica(alvo, ms){
+  if(!mus.el) return;
+  clearInterval(fadeT);
+  const de=mus.el.volume, passo=40, n=Math.max(1,Math.round(ms/passo));
+  let k=0;
+  fadeT=setInterval(()=>{
+    k++;
+    const v=de+(alvo-de)*(k/n);
+    try{ mus.el.volume=cl(v,0,1); }catch(e){}
+    if(k>=n){ clearInterval(fadeT); if(alvo<=0.001 && mus.el){ mus.el.pause(); mus.tocando=false; } }
+  }, passo);
+}
+function aparecerMusica(){ rampaMusica(mus.vol*mus.abaixado, 900); }
+function calarMusica(){ rampaMusica(0, 500); }
+
+/* A música abaixa quando o jogo precisa ser ouvido. É o que uma trilha
+   gravada não faz sozinha, e o motivo de valer a pena tocá-la por código em
+   vez de deixar um <audio autoplay> no HTML. */
+function abaixarMusica(k){
+  if(mus.abaixado===k) return;
+  mus.abaixado=k;
+  rampaMusica(mus.vol*mus.abaixado, k<1?260:700);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
    ESTADO DE CENA
    ══════════════════════════════════════════════════════════════════════════ */
 let tela="garagem";
@@ -2780,7 +2885,15 @@ function quadro(agora){
     vista=m4look(olho,[p.x+Math.cos(p.h)*4.5, 0.95, p.z+Math.sin(p.h)*4.5],[0,1,0]);
     /* Esvazia a fila que a simulação encheu. `while` e não `for`, para a fila
        ficar vazia mesmo se o quadro atrasar e vierem vários de uma vez. */
-    while(corrida.sons.length) sfx(corrida.sons.shift());
+    while(corrida.sons.length){
+      const ev=corrida.sons.shift();
+      sfx(ev);
+      /* A chegada não é uma tela, é um acontecimento — `irPara` nunca é
+         chamado ali. Então a troca de faixa pendura no mesmo evento que a
+         simulação já anuncia, e a camada de desenho decide o que ele
+         significa: tocar o toque E trocar a música. */
+      if(ev==="chegada") tocarMusica("chegada");
+    }
     motorSom(cl(spd/corrida.at.vmax,0,1), (teclas.arrowup||teclas.w)?1:0.2);
     /* O canto do pneu sai do deslize que a física já calcula: a diferença
        entre para onde o carro aponta e para onde ele de fato vai. */
@@ -3000,6 +3113,7 @@ function atualizarHUD(){
     $("pisoHud").textContent=PISOS[estado.piso].nome;
     desenharMini();
     const naMira = corrida.misseis.some(m=>m.alvo===p);
+    abaixarMusica(naMira ? 0.28 : 1);
     $("perigo").classList.toggle("on",naMira);
     if(!naMira) $("perigo").style.opacity=0; else $("perigo").style.opacity="";
     $("tAtual").textContent=tempo(Math.max(0,corrida.tVolta));
@@ -3086,6 +3200,9 @@ function irPara(t){
   $("modal").classList.remove("on"); $("hud").classList.remove("on");
   $("garagem").style.display = t==="garagem"?"block":"none";
   document.body.classList.toggle("correndo", t==="corrida");
+  if(t==="corrida")      tocarMusica("corrida", estado.piso);
+  else if(t==="mapa")    tocarMusica("mapa");
+  else                   tocarMusica("garagem");
   // sair da corrida com o pneu ainda cantando é o tipo de coisa que só se
   // percebe depois de publicado
   if(t!=="corrida") ambienteSom(0,0,false,estado.piso);
@@ -3103,6 +3220,11 @@ $("nMapa").onclick=()=>irPara("mapa");
 $("nCor").onclick=()=>irPara("corrida");
 $("nSom").onclick=e=>{ ligarSom(); som.on=!som.on; if(som.ctx&&som.ctx.state==="suspended")som.ctx.resume();
   if(!som.on&&som.ganho) som.ganho.gain.setTargetAtTime(0,som.ctx.currentTime,.05);
+  /* Um botão só. Quem desliga o som quer silêncio, não quer descobrir que há
+     um segundo interruptor escondido para a música. */
+  mus.ligada=som.on;
+  if(som.on){ mus.atual=""; tocarMusica(tela==="corrida"?"corrida":tela==="mapa"?"mapa":"garagem", estado.piso); }
+  else calarMusica();
   e.currentTarget.setAttribute("aria-pressed",String(som.on)); };
 
 function montarGaragem(){

@@ -1,0 +1,3 @@
+Faixa específica deste piso entra aqui.
+Enquanto estiver vazio, o jogo cai para corrida/geral — está no manifesto
+de musica.js, não é preciso mexer em código para acrescentar faixa.
