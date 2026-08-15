@@ -38,6 +38,9 @@
   .rot{font-family:var(--f-m);font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;
        color:var(--tx3);line-height:1}
   .val{font-family:var(--f-d);font-size:17px;font-variant-numeric:tabular-nums}
+  /* a taxa fica ao lado do número, discreta: informa sem competir */
+  .taxa{font-family:var(--f-m);font-size:9px;letter-spacing:.06em;color:var(--tx3);
+        white-space:nowrap;align-self:center;margin-left:2px}
   #barraE{width:150px;height:5px;background:var(--line);position:relative;overflow:hidden}
   #barraE i{position:absolute;inset:0 auto 0 0;background:var(--amber);transition:width .25s}
   .cresce{flex:1}
@@ -465,7 +468,8 @@
   <div class="pilha"><div class="rot">Energia</div>
     <div class="linha"><span id="icE"></span>
       <div id="barraE"><i style="width:60%"></i></div>
-      <div class="val" id="eTxt">480</div></div></div>
+      <div class="val" id="eTxt">480</div>
+      <div class="taxa" id="eTaxa"></div></div></div>
   <div class="pilha"><div class="rot">Perícia</div>
     <div class="linha"><span id="icP"></span><div class="val" id="pTxt">0</div></div></div>
   <div class="pilha"><div class="rot">Sucata</div>
@@ -1388,11 +1392,17 @@ function rendaPorSegundo(){
    Isto é a linha que eu mesmo escrevi e estava quebrando: NÃO ASSISTIR É O
    NORMAL, ASSISTIR É O BÓNUS. O mapa segue rendendo ~52x mais por minuto de
    tela, que é o bónus de estar olhando. */
-function correrIdleDeFundo(dtReal){
-  if(tela==="mapa") return;                 // lá a coleta é ao vivo e acelerada
-  if(estado.energia>=BATERIA) return;
-  estado.energia=cl(estado.energia + rendaPorSegundo()*dtReal, 0, BATERIA);
-  estado.idleUltimo=Date.now();             // sem isto, o tempo seria contado duas vezes
+function correrIdleDeFundo(){
+  const agora=Date.now();
+  if(tela==="mapa"){ estado.idleUltimo=agora; return; }  // lá a coleta é ao vivo
+  /* Pelo RELÓGIO, e não pelo `dt` do quadro. O `dt` é limitado a 0,05 s, e eu
+     estava adiantando `idleUltimo` a cada quadro: aba em segundo plano parava
+     de desenhar, os quadros sumiam, e meia hora de coleta ia embora. Foi uma
+     regressão que eu mesmo criei ao consertar o idle da garagem. */
+  const seg=Math.min(8*3600,(agora-(estado.idleUltimo||agora))/1000);
+  estado.idleUltimo=agora;
+  if(seg<=0 || estado.energia>=BATERIA) return;
+  estado.energia=cl(estado.energia + rendaPorSegundo()*seg, 0, BATERIA);
 }
 
 function simularIdle(segundos){
@@ -3356,7 +3366,7 @@ function quadro(agora){
   gl.bindVertexArray(vazio); gl.drawArrays(gl.TRIANGLES,0,3);
   gl.enable(gl.DEPTH_TEST); gl.depthMask(true);
 
-  correrIdleDeFundo(dt);
+  correrIdleDeFundo();
 
   const asp=cv.width/cv.height;
   let proj, vista, olho, neb=140;
@@ -3601,6 +3611,15 @@ function desenharMini(){
   $("posT").textContent = corrida.pilotos.length;
 }
 
+/* "2h14" lê melhor que "8040 s", e "3 min" melhor que "0,05 h". */
+function emQuanto(seg){
+  if(seg<90) return Math.max(1,Math.round(seg))+" s";
+  const m=Math.round(seg/60);
+  if(m<90) return m+" min";
+  const h=Math.floor(m/60), r=m%60;
+  return h+"h"+String(r).padStart(2,"0");
+}
+
 function atualizarHUD(){
   if(tela==="mapa"&&mapa&&mapa.total>0&&(mapa.t|0)!==ultimoTick){
     ultimoTick=mapa.t|0;
@@ -3610,6 +3629,22 @@ function atualizarHUD(){
   }
   $("barraE").firstElementChild.style.width=(estado.energia/BATERIA*100)+"%";
   $("eTxt").textContent=Math.round(estado.energia);
+  /* A coleta rende ~1 de energia por MINUTO, então o número arredondado fica
+     parado e o jogador jura que está quebrado — o dono relatou exatamente
+     isso. O mostrador passa a dizer a taxa e quanto falta, que é a informação
+     que ele estava procurando e não existia em lugar nenhum. */
+  const et=$("eTaxa");
+  if(tela==="mapa"){
+    et.textContent="coletando";
+  } else if(estado.energia>=BATERIA){
+    et.textContent="cheia";
+  } else {
+    const porH=Math.round(rendaPorSegundo()*3600);
+    const falta=CUSTO_CORRIDA-estado.energia;
+    et.textContent = falta<=0
+      ? "+"+porH+"/h · "+Math.floor(estado.energia/CUSTO_CORRIDA)+" corridas"
+      : "+"+porH+"/h · corrida em "+emQuanto(falta/rendaPorSegundo());
+  }
   $("pTxt").textContent=Math.round(estado.pericia);
   $("sTxt").textContent=Math.round(estado.sucata);
   if(tela==="corrida"&&corrida){
