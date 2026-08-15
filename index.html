@@ -295,6 +295,10 @@
     #vel .n{font-size:34px;text-shadow:0 2px 12px rgba(0,0,0,.95)}
     #vel .u{font-size:9px}
     #dica{display:none}
+    /* embaixo à esquerda é o manche: a peça sobe para junto do nitro */
+    #pecaHud{left:16px;bottom:auto;top:52px;max-width:200px;padding:5px 9px}
+    #pecaHud b{font-size:13px}
+    #pecaHud i{display:none}
     #mini{width:126px;right:12px;top:10px}
     #mini canvas{width:126px;height:126px}
     #mini .pos b{font-size:26px}
@@ -383,6 +387,17 @@
   .grp.perfil .classe i{font-family:var(--f-m);font-size:9px;font-style:normal;
     color:var(--tx3);margin-top:1px}
 
+  /* ── peça de corrida montada ── */
+  #pecaHud{position:absolute;left:34px;bottom:78px;display:flex;align-items:center;
+    gap:9px;background:rgba(12,16,20,.80);border:1px solid var(--line);
+    border-left-width:3px;padding:7px 12px 7px 10px;max-width:270px}
+  #pecaHud[hidden]{display:none}
+  #pecaHud .ic{width:11px;height:11px;flex:0 0 auto;border-radius:50%}
+  #pecaHud b{font-family:var(--f-d);font-size:15px;font-weight:400;white-space:nowrap}
+  #pecaHud i{font-family:var(--f-m);font-size:9.5px;font-style:normal;
+    letter-spacing:.06em;text-transform:uppercase;color:var(--tx3);
+    border-left:1px solid var(--line);padding-left:9px;white-space:nowrap}
+
   /* ── trocar de carro ── */
   .grp.carros{display:flex;align-items:center;gap:10px}
   .grp.carros .meio{flex:1;text-align:center;min-width:0}
@@ -463,6 +478,7 @@
     <div class="l" style="margin-top:8px">Melhor</div><div class="t d" id="tMelhor">—</div></div>
   <div id="vel"><div class="n" id="velN">0</div><div class="u">km/h</div></div>
   <div id="nitro"><div class="rot">Nitro · segure SHIFT</div><div class="nb"><i id="bNitro"></i></div></div>
+  <div id="pecaHud" hidden></div>
   <div id="item">
     <div class="slots">
       <button class="slot" id="slot0" data-i="0"><span class="ico"></span><b class="nm">—</b><i class="tec">E</i></button>
@@ -1198,6 +1214,60 @@ const ITENS = {
      ter defesa passa a ser sorte, não regra. */
   escudo: { nome:"Escudo",  cor:"#5AC8E9", peso:[2,5,5,4], ic:"escudo" },
 };
+/* ══════════════════════════════════════════════════════════════════════════
+   PEÇA DE CORRIDA — a caixa dá uma peça que você monta na hora e perde na
+   bandeirada.
+
+   Por que com prazo, e nunca permanente: a caixa aparece várias vezes por
+   volta. Peça permanente ali seria uma torneira enorme sem sorvedouro nenhum
+   — Lei 2 violada de frente, e em uma semana peça não valeria nada. Com
+   prazo não é torneira: evapora na chegada.
+
+   E de jogo é melhor que consumível. Consumível é um botão que dá um susto;
+   peça MUDA COMO O CARRO DIRIGE pelo resto da prova. Cada uma dá com uma mão
+   e tira com a outra, senão pegar a caixa deixaria de ser decisão.
+
+   A troca acontece na hora de pegar: a caixa que você vê à frente pode
+   trocar a peça que você está gostando. Esse é o dilema. */
+const PECAS_CORRIDA={
+  mole:   { nome:"Composto mole", cor:"#D2604A", ic:"roda",
+            oq:"agarra mais, estica menos",
+            mod:{aderencia:1.20, arrasto:1.09} },
+  /* Chamava-se "relação longa" e mentia sobre a física: neste modelo quem
+     levanta a velocidade final é o ARRASTO, não a relação de marcha. Pior, na
+     primeira versão baixei potência e arrasto quase igual e a peça ficou mais
+     lenta na reta — pior em tudo, ou seja, lixo. Batizada pelo que ela de
+     fato faz, e o arrasto cai bem mais que a potência. */
+  carena: { nome:"Carenagem", cor:"#5AA894", ic:"aerofolio",
+            oq:"corta o ar, empurra menos",
+            mod:{potencia:0.88, arrasto:0.55} },
+  leve:   { nome:"Chapa leve",    cor:"#E9992B", ic:"chassi",
+            oq:"acelera fácil, escorrega",
+            mod:{potencia:1.12, aderencia:0.90} },
+};
+const CHAVES_PECA=Object.keys(PECAS_CORRIDA);
+
+/* Uma caixa em cada três dá peça em vez de item. Menos que isso e a mecânica
+   não aparece; mais e o carro vive trocando de personalidade. */
+const CHANCE_PECA=0.34;
+
+function aplicarPeca(at, chave){
+  const pc=PECAS_CORRIDA[chave];
+  if(!pc) return at;
+  const m=pc.mod, r={...at};
+  if(m.potencia)  r.potencia  = at.potencia*m.potencia;
+  if(m.aderencia) r.aderencia = at.aderencia*m.aderencia;
+  if(m.arrasto){
+    r.arrasto = at.arrasto*m.arrasto;
+    // a velocidade final tem de sair da MESMA equação de movimento, senão o
+    // número mostrado ao jogador e o que o carro faz na pista divergem
+    r.vmax = (-0.18 + Math.sqrt(0.0324 + 4*r.arrasto*r.potencia)) / (2*r.arrasto);
+  } else if(m.potencia){
+    r.vmax = (-0.18 + Math.sqrt(0.0324 + 4*r.arrasto*r.potencia)) / (2*r.arrasto);
+  }
+  return r;
+}
+
 function sortearItem(posicao){
   /* A tabela tem quatro faixas e o grid tem oito carros: sem esticar, do 5º ao
      8º todos caíam na mesma faixa e o fundo do pelotão perdia a mão boa. */
@@ -2648,7 +2718,7 @@ function novoPiloto(i){
   const r=semente(1000+i*37+Math.floor(Math.random()*9999));
   return {x:p.x+p.nx*off, z:p.z+p.nz*off, h:Math.atan2(p.tz,p.tx),
           vx:0,vz:0,vl:0,dir:0,derrapa:0,
-          nitro:0, itens:[null,null], desde:[0,0], sel:0, escudo:0,
+          nitro:0, itens:[null,null], desde:[0,0], sel:0, escudo:0, peca:null,
           oleado:0, travado:0, turbando:0,
           seg:(3+Math.floor(i/2)*3)%pista.n, meio:false,
           volta:0, prog:0, terminou:-1, ia:i>0,
@@ -2821,8 +2891,9 @@ function passoCorrida(){
              freio:!!(teclas.arrowdown||teclas.s),
              mao:!!teclas[" "],
              turbo:!!teclas.shift });
-    const at = p.ia ? {...c.at, potencia:c.at.potencia*p.perfil.forca,
-                       aderencia:c.at.aderencia*(0.94+p.perfil.coragem*0.06)} : c.at;
+    let at = p.ia ? {...c.at, potencia:c.at.potencia*p.perfil.forca,
+                     aderencia:c.at.aderencia*(0.94+p.perfil.coragem*0.06)} : c.at;
+    if(p.peca) at=aplicarPeca(at, p.peca);
     passo(p, ent, at, naPista, c.at.terra);
     p.prog=p.volta*pista.n+np.i;
 
@@ -2874,6 +2945,19 @@ function passoCorrida(){
         if(cx.volta>0) continue;
         if(Math.hypot(cx.x-p.x,cx.z-p.z)<5.4){
           cx.volta=18;
+          /* Peça entra montada na hora, sem passar pelo bolso: ela não é algo
+             que se guarda para o momento certo, é o carro mudando. */
+          if(Math.random()<CHANCE_PECA){
+            const nova=CHAVES_PECA[Math.floor(Math.random()*CHAVES_PECA.length)];
+            const trocou = p.peca && p.peca!==nova;
+            p.peca=nova;
+            if(p===c.pilotos[0]){
+              c.sons.push("pegou");
+              c.aviso=(trocou?"TROCOU PARA ":"")+PECAS_CORRIDA[nova].nome.toUpperCase();
+              c.avisoAte=c.t+1.8;
+            }
+            continue;
+          }
           p.itens[livre]=sortearItem(ordem.indexOf(p)+1); p.desde[livre]=c.t;
           if(p===c.pilotos[0]) c.sons.push("pegou");
           if(!p.ia){
@@ -3477,6 +3561,16 @@ function atualizarHUD(){
     $("velN").textContent=Math.round(Math.hypot(p.vx,p.vz)*3.6);
     $("vAtual").textContent=Math.min(VOLTAS,p.volta+1);
     $("pisoHud").textContent=PISOS[estado.piso].nome;
+    /* Sem isto o carro muda de comportamento no meio da prova e o jogador não
+       sabe por quê — o que lê como bug, não como mecânica. */
+    const ph=$("pecaHud"), pc=p.peca?PECAS_CORRIDA[p.peca]:null;
+    ph.hidden=!pc;
+    if(pc && ph.dataset.qual!==p.peca){
+      ph.dataset.qual=p.peca;
+      ph.innerHTML=`<span class="ic" style="background:${pc.cor}"></span>`
+        +`<b>${pc.nome}</b><i>${pc.oq}</i>`;
+    }
+    if(!pc) ph.dataset.qual="";
     desenharMini();
     const naMira = corrida.misseis.some(m=>m.alvo===p);
     abaixarMusica(naMira ? 0.28 : 1);
