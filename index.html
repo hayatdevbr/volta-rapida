@@ -1266,10 +1266,67 @@ function construirCarro(P){
       else col=corpo;
       B.quad(A[e],A[e2],Bv[e2],Bv[e],col);}
   }
-  const tampa=(s,col,fl)=>{const r=anelS(s),cy=(s.yb+s.yBelt)/2;
-    for(let e=0;e<12;e++){const e2=(e+1)%12;
-      fl?B.tri([s.x,cy,0],r[e2],r[e],col):B.tri([s.x,cy,0],r[e],r[e2],col);}};
-  tampa(sec[0],grade,false); tampa(sec[N-1],grade,true);
+  /* ── as duas pontas ──────────────────────────────────────────────────
+     Antes as duas eram um leque de triângulos numa cor quase preta: um treco
+     escuro e chapado na frente e na traseira, sem nada que dissesse "carro".
+
+     O conserto tem três partes, e a primeira é a que mais rende:
+       1. a tampa é PINTADA da cintura para cima. Capô e tampa de porta-malas
+          são chapa pintada em qualquer carro do mundo; só o para-choque e a
+          grade é que são escuros.
+       2. lanterna e farol. É o que faz uma traseira ler como traseira mesmo
+          de longe — a cor passa de 1 de propósito, para o tonemap acender.
+       3. para-choque como FAIXA, não como metade do carro. */
+  /* 1,7 e não 2,7 no vermelho: o tonemap ACES lava cor muito acima de 1 em
+     direção ao branco, e a lanterna saía rosa. Brilhante o bastante para
+     acender, baixo o bastante para continuar vermelha. */
+  const lanterna=[1.7,.16,.12], farol=[2.6,2.5,2.3], parachoque=esc(corpo,.22);
+
+  const tampa=(s,fl)=>{
+    const r=anelS(s), cy=(s.yb+s.yBelt)/2;
+    for(let e=0;e<12;e++){
+      const e2=(e+1)%12;
+      // altura média da aresta decide se ali é chapa pintada ou para-choque
+      const alt=(r[e][1]+r[e2][1])*0.5;
+      const col = alt > s.yBelt*0.86 ? corpo : (alt > s.yb+0.10 ? grade : parachoque);
+      fl ? B.tri([s.x,cy,0],r[e2],r[e],col) : B.tri([s.x,cy,0],r[e],r[e2],col);
+    }
+  };
+  tampa(sec[0],false); tampa(sec[N-1],true);
+
+  /* Luzes e para-choque ficam um dedo FORA da tampa: coplanar com ela brigaria
+     no z-buffer e piscaria conforme o ângulo. */
+  /* Lente clara dentro de um aro escuro, e quase encostada na chapa. Sem o aro
+     e sobressaindo demais, viravam dois tijolos brancos colados no carro —
+     lâmpada precisa de moldura para ler como lâmpada. */
+  const luzes=(s,sinal,cor,largF,altF)=>{
+    const hw=s.hw, y=cl(s.yBelt-0.05, s.yb+0.14, s.yt-0.10);
+    const lz=hw*largF, ly=hw*altF;
+    for(const sg of [-1,1]){
+      const z=sg*hw*0.58;
+      B.box(s.x+sinal*0.018, y, z, 0.030, ly*1.34, lz*1.20, esc(corpo,.16));  // aro
+      B.box(s.x+sinal*0.034, y, z, 0.022, ly,      lz,      cor);             // lente
+    }
+  };
+  // traseira: lanterna larga e baixa, que é o desenho que se lê no retrovisor
+  luzes(sec[N-1], -1, lanterna, 0.46, 0.20);
+  // frente: farol um pouco menor
+  luzes(sec[0],    1, farol,    0.38, 0.19);
+
+  const faixaChoque=(s,sinal)=>{
+    const x=s.x+sinal*0.02, hw=s.hw;
+    const y=cl(s.yb+0.11, s.yb+0.05, s.yBelt-0.04);
+    B.box(x, y, 0, 0.05, 0.13, hw*1.72, parachoque);
+  };
+  faixaChoque(sec[N-1],-1); faixaChoque(sec[0],1);
+
+  /* Escapamento: dois canos saindo por baixo da traseira. Detalhe pequeno, mas
+     é o que tira o ar de "caixa cortada" da parte de baixo. */
+  {
+    const s=sec[N-1], hw=s.hw;
+    for(const sg of [-1,1])
+      B.cilX(s.x-0.06, s.yb+0.055, sg*hw*0.42, 0.045, 0.16, 7, esc(metal,.72));
+  }
 
   /* A roda sai do corpo e vira malha própria, em raio 1 e centrada na origem.
      Assada dentro do corpo ela não tinha como girar — e carro com roda parada
@@ -1691,8 +1748,16 @@ function ligarSom(){
   if(som.ctx)return;
   som.ctx=new (window.AudioContext||window.webkitAudioContext)();
   const ctx=som.ctx;
-  const mestre=ctx.createGain(); mestre.gain.value=0.9; mestre.connect(ctx.destination);
-  som.mestre=mestre;
+  /* Compressor no fim de tudo. Sem ele, subir os efeitos para vencer a música
+     faria o estouro estourar de verdade — soma do motor com a rolagem e o
+     baque passa de 1.0 e satura feio. Com ele dá para ser generoso no ganho
+     e o pico se resolve sozinho. */
+  const lim=ctx.createDynamicsCompressor();
+  lim.threshold.value=-12; lim.knee.value=6; lim.ratio.value=8;
+  lim.attack.value=0.004; lim.release.value=0.16;
+  lim.connect(ctx.destination);
+  const mestre=ctx.createGain(); mestre.gain.value=1.0; mestre.connect(lim);
+  som.mestre=mestre; som.lim=lim;
 
   const g=ctx.createGain(); g.gain.value=0; g.connect(mestre);
   som.ganho=g;
@@ -1760,6 +1825,11 @@ function ambienteSom(desliza, velNorm, foraDaPista, piso){
    Um disparo = um punhado de nós que se auto-encerram. Nada fica pendurado:
    `stop()` agendado libera o nó, senão uma corrida de dois minutos deixaria
    milhares deles vivos. */
+/* Um botão só para o volume de TODOS os efeitos. Subir cada som na mão
+   destruiria o equilíbrio entre eles, que já está desenhado — o estouro tem
+   de ser mais alto que o "peguei" de propósito. */
+const GANHO_SFX=1.7;
+
 function toque(freq, dur, tipo, vol, varre){
   if(!som.on||!som.ctx)return;
   const ctx=som.ctx, t=ctx.currentTime;
@@ -1767,7 +1837,7 @@ function toque(freq, dur, tipo, vol, varre){
   o.type=tipo||"square"; o.frequency.setValueAtTime(freq,t);
   if(varre) o.frequency.exponentialRampToValueAtTime(Math.max(24,varre), t+dur);
   g.gain.setValueAtTime(0,t);
-  g.gain.linearRampToValueAtTime(vol==null?0.14:vol, t+0.008);
+  g.gain.linearRampToValueAtTime((vol==null?0.14:vol)*GANHO_SFX, t+0.008);
   g.gain.exponentialRampToValueAtTime(0.0008, t+dur);
   o.connect(g); g.connect(som.mestre);
   /* O navegador recolhe a cadeia depois que a fonte termina, mas desconectar
@@ -1786,7 +1856,7 @@ function baque(dur, corte, vol){
   f.frequency.setValueAtTime(corte||1800,t);
   f.frequency.exponentialRampToValueAtTime(180, t+dur);
   const g=ctx.createGain();
-  g.gain.setValueAtTime(vol==null?0.30:vol,t);
+  g.gain.setValueAtTime((vol==null?0.30:vol)*GANHO_SFX,t);
   g.gain.exponentialRampToValueAtTime(0.0008, t+dur);
   src.connect(f); f.connect(g); g.connect(som.mestre);
   src.onended=()=>{ try{ g.disconnect(); f.disconnect(); src.disconnect(); }catch(e){} };
@@ -1812,7 +1882,15 @@ const SONS={
                  setTimeout(()=>toque(1320,0.34,"square",0.13),260); },
   ui:      ()=>{ toque(1200,0.035,"square",0.05); },
 };
-function sfx(nome,arg){ const f=SONS[nome]; if(f) f(arg); }
+/* A rolagem e o canto do pneu NÃO abrem buraco: são estado contínuo, e ceder
+   lugar a eles seria a música piscando o tempo todo. */
+const ABREM_BURACO={pegou:1,turbo:1,escudo:1,missil:1,estouro:1,tranco:1,
+                    reparo:1,batida:1,vai:1,chegada:1};
+function sfx(nome,arg){
+  const f=SONS[nome]; if(!f) return;
+  if(ABREM_BURACO[nome]) abrirBuraco();
+  f(arg);
+}
 
 /* ══════════════════════════════════════════════════════════════════════════
    MÚSICA — arquivos de fora, tocados sob demanda
@@ -1853,7 +1931,11 @@ const FORMATO=(()=>{ try{
   return new Audio().canPlayType('audio/ogg; codecs="opus"')==="probably" ? ".ogg" : ".m4a";
 }catch(e){ return ".m4a"; } })();
 
-const mus={ el:null, atual:"", vol:0.55, abaixado:1, tocando:false, ligada:true };
+/* 0,32 e não 0,55: as faixas do Suno vêm masterizadas alto, perto do teto,
+   enquanto os efeitos vivem entre 0,1 e 0,4. A 0,55 a música engolia o jogo —
+   o dono ouviu e disse exatamente isso. */
+const mus={ el:null, atual:"", vol:0.32, tocando:false, ligada:true,
+            duckMissil:1, duckEvento:1 };
 
 function listaDe(chave, sub){
   const m=MUSICA[chave];
@@ -1892,6 +1974,12 @@ function tocarMusica(chave, sub){
   aparecerMusica();
 }
 
+/* Dois abaixamentos que se multiplicam, porque têm durações diferentes: o do
+   míssil dura enquanto ele voa, o do evento é um buraco de um quarto de
+   segundo para o "peguei" caber. Um só campo faria o segundo apagar o
+   primeiro no meio do voo. */
+function alvoMusica(){ return mus.vol*mus.duckMissil*mus.duckEvento; }
+
 /* Entrada e saída em rampa. Corte seco em música é a coisa mais amadora que
    um jogo pode fazer, e custa umas dez linhas evitar. */
 let fadeT=null;
@@ -1907,16 +1995,28 @@ function rampaMusica(alvo, ms){
     if(k>=n){ clearInterval(fadeT); if(alvo<=0.001 && mus.el){ mus.el.pause(); mus.tocando=false; } }
   }, passo);
 }
-function aparecerMusica(){ rampaMusica(mus.vol*mus.abaixado, 900); }
+function aparecerMusica(){ rampaMusica(alvoMusica(), 900); }
 function calarMusica(){ rampaMusica(0, 500); }
 
 /* A música abaixa quando o jogo precisa ser ouvido. É o que uma trilha
    gravada não faz sozinha, e o motivo de valer a pena tocá-la por código em
    vez de deixar um <audio autoplay> no HTML. */
 function abaixarMusica(k){
-  if(mus.abaixado===k) return;
-  mus.abaixado=k;
-  rampaMusica(mus.vol*mus.abaixado, k<1?260:700);
+  if(mus.duckMissil===k) return;
+  mus.duckMissil=k;
+  rampaMusica(alvoMusica(), k<1?260:700);
+}
+
+/* O buraco: a música cede metade por um instante para o efeito passar por
+   cima. É o que faz um blip de 0,1 s ser ouvido sem precisar gritar — e era o
+   que faltava, porque só subir o efeito acabaria numa guerra de volume. */
+let buracoT=null;
+function abrirBuraco(){
+  if(!mus.el||!mus.tocando) return;
+  mus.duckEvento=0.45;
+  try{ mus.el.volume=cl(alvoMusica(),0,1); }catch(e){}
+  clearTimeout(buracoT);
+  buracoT=setTimeout(()=>{ mus.duckEvento=1; rampaMusica(alvoMusica(), 380); }, 190);
 }
 
 /* ══════════════════════════════════════════════════════════════════════════
