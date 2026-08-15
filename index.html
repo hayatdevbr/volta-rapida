@@ -863,6 +863,12 @@ const tempo=s=>s<0?"—":(Math.floor(s/60)?Math.floor(s/60)+":":"")+ (s%60).toFi
    ══════════════════════════════════════════════════════════════════════════ */
 
 const CUSTO_CORRIDA = 120;
+/* Os dois números do Automático, tirados do simulador da Fase 1 e não de
+   chute meu: lá são `dropS` 9 contra 11 e `desgaste` 1,30 contra 1,00. Ficam
+   com nome para a bancada poder LER a regra em vez de copiá-la — teste que
+   duplica a fórmula mente no dia em que a fórmula muda, e o meu mentiu. */
+const AUTO_SUCATA = 0.82;
+const AUTO_DESGASTE = 1.30;
 const BATERIA = 800;
 
 /* ── PISOS ────────────────────────────────────────────────────────────────
@@ -3178,7 +3184,7 @@ function terminarCorrida(){
      um número meu, e foi assim que ela nasceu na Fase 1. */
   const per=c.auto ? 0 : Math.round(c.periciaGanha*(0.45+premio*0.55));
   const base=Math.round(c.periciaGanha*(0.45+premio*0.55));
-  const suc=Math.round((90+base*0.9)*premio*(c.auto?0.82:1));
+  const suc=Math.round((90+base*0.9)*premio*(c.auto?AUTO_SUCATA:1));
   estado.pericia+=per; estado.sucata+=suc; estado.corridas++;
   if(pos===1) estado.vitorias=(estado.vitorias||0)+1;
   /* Andar no limite CUSTA. Sem isto "arriscado" domina — 3,9 de posição média
@@ -3188,7 +3194,7 @@ function terminarCorrida(){
   /* Automático desgasta 30% mais, como no simulador: a IA não sente o carro,
      então castiga a peça. É ISTO que faz o modo parar de compensar conforme a
      peça encarece — e é o mesmo mecanismo que quebra a fazenda de contas. */
-  const zeloso=(c.auto?1.30:1.00)*([0.78,1.00,1.34][c.auto?estado.plano.agressao:1] ?? 1);
+  const zeloso=(c.auto?AUTO_DESGASTE:1.00)*([0.78,1.00,1.34][c.auto?estado.plano.agressao:1] ?? 1);
   for(const k of ["chassi","motor","rodas","aero"])
     estado.dur[k]=cl((estado.dur[k]||100) - (7+Math.random()*5)*zeloso, 0, 100);
   sortearProxima();
