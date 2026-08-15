@@ -93,11 +93,11 @@
   #vel .n{font-family:var(--f-d);font-size:64px;line-height:.85;font-variant-numeric:tabular-nums;
           text-shadow:0 2px 18px rgba(0,0,0,.8)}
   #vel .u{font-family:var(--f-m);font-size:11px;letter-spacing:.16em;color:var(--tx3)}
-  #tempos{right:24px;top:76px;position:absolute;text-align:right}
+  #tempos{right:232px;top:26px;position:absolute;text-align:right}
   #tempos .l{font-family:var(--f-m);font-size:10px;letter-spacing:.14em;color:var(--tx3);text-transform:uppercase}
   #tempos .t{font-family:var(--f-d);font-size:30px;font-variant-numeric:tabular-nums;line-height:1.05}
   #tempos .t.d{font-size:17px;color:var(--tx2)}
-  #volta{left:34px;top:76px;position:absolute}
+  #volta{left:34px;top:26px;position:absolute}
   #volta .v{font-family:var(--f-d);font-size:32px;line-height:1}
   #volta .p{font-family:var(--f-m);font-size:11px;letter-spacing:.14em;color:var(--tx3);text-transform:uppercase}
   #volta .piso{font-family:var(--f-m);font-size:11px;letter-spacing:.16em;color:var(--amber);
@@ -136,6 +136,16 @@
          text-shadow:0 1px 6px rgba(0,0,0,.9)}
   /* vinheta vermelha pulsando: o alvo tem que SENTIR que está na mira, não
      ler um texto e voltar a olhar a pista */
+  /* Minimapa: durante a corrida, saber ONDE se está e QUEM está chegando vale
+     mais do que ver o menu. A barra de cima some junto. */
+  #mini{position:absolute;right:20px;top:16px;width:170px;text-align:center}
+  #mini canvas{width:170px;height:170px;display:block;
+               background:rgba(10,14,18,.62);border:1px solid var(--line)}
+  #mini .pos{font-family:var(--f-d);margin-top:2px;line-height:1}
+  #mini .pos b{font-size:34px;color:var(--amber)}
+  #mini .pos span{font-size:16px;color:var(--tx3)}
+  #mini .pos i{font-style:normal}
+  body.correndo #topo, body.correndo #nav{opacity:0;pointer-events:none;transition:opacity .25s}
   #perigo{position:absolute;inset:0;pointer-events:none;opacity:0;
      background:radial-gradient(ellipse at center,rgba(0,0,0,0) 38%,rgba(226,40,24,.62) 100%);
      transition:opacity .12s linear}
@@ -194,6 +204,38 @@
       background:rgba(20,26,32,.7);border:1px solid rgba(255,255,255,.18);color:var(--tx2);
       font-size:16px;cursor:pointer;display:none}
   #toque.on #sairCorrida{display:block}
+  /* O portão vem ANTES de tudo: pedir para travar a tela no meio da corrida
+     é pedir no pior momento possível. Aqui não há nada acontecendo ainda, e
+     o toque do usuário — que a API de tela cheia exige — vem de graça. */
+  #portao{position:fixed;inset:0;z-index:99;background:var(--bg);
+          display:flex;align-items:center;justify-content:center;padding:26px}
+  #portao .cx{max-width:330px;text-align:center}
+  #portao .marca{font-family:var(--f-d);font-size:27px;letter-spacing:.02em;
+                 line-height:1.05;color:var(--tx)}
+  #portao .marca span{display:block;color:var(--amber)}
+  #portao .fone{margin:30px auto 24px;width:96px;height:60px}
+  #portao .fone i{display:block;width:38px;height:64px;margin:-2px auto 0;
+     position:relative;border:2px solid var(--tx3);border-radius:6px;
+     animation:deita 2.6s cubic-bezier(.5,0,.2,1) infinite}
+  /* alto-falante e botão: sem eles o retângulo lê como caixa, não telefone */
+  #portao .fone i::before,#portao .fone i::after{content:"";position:absolute;
+     left:50%;transform:translateX(-50%);background:var(--tx3)}
+  #portao .fone i::before{top:5px;width:12px;height:2px;border-radius:2px}
+  #portao .fone i::after{bottom:5px;width:10px;height:10px;border-radius:50%;
+     background:none;border:1.5px solid var(--tx3)}
+  @keyframes deita{0%,22%{transform:rotate(0) scale(1)}
+                   48%,78%{transform:rotate(-90deg) scale(1.02)}
+                   100%{transform:rotate(0) scale(1)}}
+  #portao p{font-family:var(--f-b);font-size:14px;line-height:1.55;
+            color:var(--tx2);margin:0 0 24px}
+  #portao button{display:block;width:100%;font-family:var(--f-d);font-size:14px;
+     letter-spacing:.05em;text-transform:uppercase;font-weight:600;cursor:pointer;
+     background:var(--amber);color:#141414;border:0;padding:13px}
+  #portao button.fraco{background:none;color:var(--tx3);margin-top:6px;
+     font-size:11px;font-family:var(--f-m);letter-spacing:.1em;padding:11px}
+  @media (prefers-reduced-motion:reduce){ #portao .fone i{animation:none;
+     transform:rotate(-90deg)} }
+
   /* dica, não bloqueio: retrato tem que ser jogável, só mostra menos pista */
   #girar{left:50%;top:96px;transform:translateX(-50%);display:none;
          background:rgba(12,16,20,.92);border:1px solid var(--line);padding:9px 15px;
@@ -204,7 +246,10 @@
     background:var(--amber);color:#141414;border:0;padding:7px 12px;cursor:pointer;font-weight:600}
 
   /* ── telas estreitas ── */
-  @media (max-width:860px){
+  /* Largura sozinha não identifica celular: deitado, um aparelho comum passa
+     de 860px de largura com 375px de altura e caía no layout de PC — foi assim
+     que a habilidade voltou a sentar em cima do TURBO. A altura é que denuncia. */
+  @media (max-width:860px), (orientation:landscape) and (max-height:560px){
     #topo{gap:12px;padding:9px 12px}
     #topo .marca{font-size:15px}
     #topo .pilha .val{font-size:14px}
@@ -221,7 +266,12 @@
     #tempos{top:60px;right:14px}
     #volta{top:60px;left:16px}
     #nitro{left:16px;bottom:auto;top:104px;width:140px}
-    #item{width:210px;bottom:auto;top:128px;left:16px;transform:none;text-align:left}
+    /* Ficava em cima do manche: no deitado as habilidades sobem para a
+       coluna do turbo, que é onde o polegar direito já está. */
+    #item{width:auto;left:auto;right:22px;top:auto;bottom:126px;
+          transform:none;text-align:center}
+    #item .slots{flex-direction:column;gap:10px}
+    #item .slot{width:74px;height:74px}
     #item .cx{padding:7px 8px}
     #item .cx span{font-size:17px}
     #item .oq{font-size:9px;margin-top:4px}
@@ -230,7 +280,15 @@
     #vel .n{font-size:34px;text-shadow:0 2px 12px rgba(0,0,0,.95)}
     #vel .u{font-size:9px}
     #dica{display:none}
-    #aviso{font-size:52px}
+    #mini{width:126px;right:12px;top:10px}
+    #mini canvas{width:126px;height:126px}
+    #mini .pos b{font-size:26px}
+    #mini .pos span{font-size:12px}
+    #tempos{right:150px;top:12px}
+    #volta{top:12px;left:14px}
+    /* o texto laranja colava no carro e parecia amador: sobe para o alto */
+    #pericia{top:16%;font-size:18px}
+    #aviso{font-size:52px;top:26%}
     .cartao{min-width:0;width:92vw;padding:22px 20px}
     .cartao h2{font-size:26px}
   }
@@ -252,23 +310,29 @@
     #manche i{width:50px;height:50px}
     #vel{left:50%;transform:translateX(-50%);bottom:8px}
     #volta{top:92px;left:14px}
-    #tempos{top:92px;right:14px}
+    /* em pé o minimapa ocupa o canto direito até ~164px: o tempo desce para
+       baixo dele em vez de ficar por trás */
+    #tempos{top:180px;right:14px}
     #nitro{left:14px;right:auto;width:150px;top:auto;bottom:176px}
     /* EM PÉ: não há largura para o arco, então as habilidades empilham
        ACIMA do turbo, uma sobre a outra, no alcance do mesmo polegar */
-    #item{left:auto;right:0;width:120px;height:280px;top:auto;bottom:0;transform:none}
-    #slot0{right:16px !important; bottom:120px !important}
-    #slot1{right:16px !important; bottom:200px !important}
+    #item{left:auto;right:16px;width:auto;height:auto;top:auto;bottom:130px;transform:none}
+    #item .slot{width:78px;height:78px}
     #item .oq{display:none}
     #item .cx span{font-size:16px}
     #nav.someNaCorrida{display:none}
   }
-  @media (max-width:1000px) and (orientation:landscape){
+  @media (max-width:1000px) and (orientation:landscape), (orientation:landscape) and (max-height:560px){
     #garagem{width:47%;top:50px;border-left:1px solid var(--line);border-top:0}
     #topo{padding:7px 12px}
     #nav{top:6px}
+    /* Deitado, a única faixa realmente livre é a de baixo entre o manche e o
+       turbo: acima dela está o minimapa, e à esquerda o polegar que guia. */
+    #item{right:116px;bottom:26px;top:auto;left:auto;width:auto}
+    #item .slots{flex-direction:row;gap:10px}
+    #item .slot{width:74px;height:74px}
   }
-  @media (max-width:520px){
+  @media (max-width:520px), (orientation:landscape) and (max-height:440px){
     .tq{width:70px;height:70px;font-size:21px}
     .tq.grande{width:88px;height:88px;font-size:27px}
     .tq.peq{width:62px;height:62px;font-size:10px}
@@ -322,6 +386,10 @@
     </div>
     <div class="oq" id="oqItem">pegue as caixas na pista</div>
   </div>
+  <div id="mini">
+    <canvas id="miniCv" width="220" height="220"></canvas>
+    <div class="pos"><b id="posN">1</b><span>/<i id="posT">8</i></span></div>
+  </div>
   <div id="perigo"></div>
   <div id="aviso"></div>
   <div id="pericia"></div>
@@ -338,6 +406,16 @@
 <div class="ui" id="girar" hidden>
   <span>Deite o celular para ver mais pista</span>
   <button id="btDeitar">Travar deitado</button>
+</div>
+<div id="portao" hidden>
+  <div class="cx">
+    <div class="marca">CIRCUITO<span>ABERTO</span></div>
+    <div class="fone"><i></i></div>
+    <p>O jogo é feito para a tela deitada. Travando a posição, nada
+       sai do lugar no meio da corrida.</p>
+    <button id="pgTravar">Travar deitado e jogar</button>
+    <button id="pgPular" class="fraco">Jogar do jeito que está</button>
+  </div>
 </div>
 <div class="ui" id="modal"></div>
 <div class="ui" id="dica"></div>
@@ -1451,9 +1529,12 @@ async function travarDeitado(){
     if(el.requestFullscreen) await el.requestFullscreen();
     else if(el.webkitRequestFullscreen) await el.webkitRequestFullscreen();
     if(screen.orientation && screen.orientation.lock) await screen.orientation.lock("landscape");
-    mostrarDica("TELA TRAVADA NA HORIZONTAL",3000);
+    return true;
   }catch(e){
+    /* iPhone não tem a API, e alguns Android recusam fora de tela cheia. Não é
+       erro: o retrato continua jogável, só mostra menos pista. */
     mostrarDica("SEU APARELHO NÃO DEIXA TRAVAR A TELA — GIRE NA MÃO MESMO",4200);
+    return false;
   }
 }
 
@@ -1763,15 +1844,18 @@ const VOLTAS=2;
 const GRID=8;   // com quatro dava para passar todo mundo em uma volta
 function novoPiloto(i){
   // largada em duas colunas, como grid de verdade
+  // largada SEMPRE à frente da linha. Atrás dela, o carro cruzava o índice 0
+  // no primeiro segundo e ganhava uma volta de graça.
   const fila=Math.floor(i/2), col=(i%2)?1:-1;
-  const p=pista.pontos[(pista.n - fila*3) % pista.n];
+  const p=pista.pontos[(3 + fila*3) % pista.n];
   const off=col*3.6;
   const r=semente(1000+i*37+Math.floor(Math.random()*9999));
   return {x:p.x+p.nx*off, z:p.z+p.nz*off, h:Math.atan2(p.tz,p.tx),
           vx:0,vz:0,vl:0,dir:0,derrapa:0,
           nitro:0, itens:[null,null], desde:[0,0], sel:0, escudo:0,
           oleado:0, travado:0, turbando:0,
-          seg:0, volta:0, prog:0, terminou:-1, ia:i>0,
+          seg:(3+Math.floor(i/2)*3)%pista.n, meio:false,
+          volta:0, prog:0, terminou:-1, ia:i>0,
           // PERSONALIDADE: sem isto os rivais andam em fila indiana feito trenzinho
           perfil:{
             linha:   (r()*2-1)*0.62,      // quanto puxa pra dentro ou pra fora
@@ -1888,8 +1972,12 @@ function passoCorrida(){
     const p=c.pilotos[i];
     if(p.terminou>=0){ p.vx*=.98; p.vz*=.98; p.x+=p.vx*DT; p.z+=p.vz*DT; continue; }
     const np=maisProximo(pista,p.x,p.z,p.seg);
-    // detecta a volta pelo cruzamento do índice 0 no sentido certo
-    if(p.seg>pista.n-12 && np.i<12){ p.volta++;
+    /* A volta só conta se o carro passou pelo MEIO da pista antes de cruzar a
+       linha. Sem esse pedágio, qualquer vaivém perto do índice 0 — largada,
+       batida, ré — contava volta. */
+    const meioPista = np.i > pista.n*0.42 && np.i < pista.n*0.62;
+    if(meioPista) p.meio=true;
+    if(p.meio && p.seg>pista.n-12 && np.i<12){ p.volta++; p.meio=false;
       if(!p.ia){ const v=c.tVolta; c.tVolta=0;
         if(v>1 && (c.melhor<0||v<c.melhor)){ c.melhor=v; if(estado.melhorVolta<0||v<estado.melhorVolta) estado.melhorVolta=v; }
         if(p.volta>=VOLTAS){ p.terminou=c.t; terminarCorrida(); } }
@@ -2434,6 +2522,60 @@ function quadro(agora){
 /* ══════════════════════════════════════════════════════════════════════════
    INTERFACE
    ══════════════════════════════════════════════════════════════════════════ */
+/* O minimapa é 2D puro: traçado da pista uma vez, e um ponto por carro. Fazer
+   em WebGL exigiria outra câmera e outro passe para ganhar nada. */
+let miniCtx=null, miniCaixa=null;
+function prepararMini(){
+  const cv2=$("miniCv"); miniCtx=cv2.getContext("2d");
+  let x0=1e9,x1=-1e9,z0=1e9,z1=-1e9;
+  for(const p of pista.pontos){
+    x0=Math.min(x0,p.x); x1=Math.max(x1,p.x);
+    z0=Math.min(z0,p.z); z1=Math.max(z1,p.z);
+  }
+  const larg=Math.max(x1-x0,z1-z0)*1.10;
+  miniCaixa={cx:(x0+x1)/2, cz:(z0+z1)/2, esc:cv2.width/larg, meio:cv2.width/2};
+}
+function desenharMini(){
+  if(!miniCtx||!corrida) return;
+  const c=miniCtx, L=$("miniCv").width, B=miniCaixa;
+  const px=(x)=>B.meio+(x-B.cx)*B.esc, pz=(z)=>B.meio+(z-B.cz)*B.esc;
+  c.clearRect(0,0,L,L);
+  // traçado
+  c.beginPath();
+  for(let i=0;i<pista.n;i++){
+    const p=pista.pontos[i];
+    i?c.lineTo(px(p.x),pz(p.z)):c.moveTo(px(p.x),pz(p.z));
+  }
+  c.closePath();
+  c.strokeStyle="rgba(150,162,172,.30)"; c.lineWidth=11; c.lineJoin="round"; c.stroke();
+  c.strokeStyle="rgba(190,202,212,.55)"; c.lineWidth=2.5; c.stroke();
+  // linha de chegada
+  const p0=pista.pontos[0];
+  c.fillStyle="#E9E4DA";
+  c.fillRect(px(p0.x)-4,pz(p0.z)-4,8,8);
+  // carros
+  const ordem=[...corrida.pilotos].sort((a,b)=>b.prog-a.prog);
+  for(let i=corrida.pilotos.length-1;i>=0;i--){
+    const p=corrida.pilotos[i], eu=(i===0);
+    const x=px(p.x), y=pz(p.z);
+    if(eu){
+      c.beginPath(); c.arc(x,y,9,0,6.2832);
+      c.strokeStyle="#E9992B"; c.lineWidth=2.5; c.stroke();
+    }
+    c.beginPath(); c.arc(x,y,eu?5.5:4.2,0,6.2832);
+    c.fillStyle = eu ? "#E8321C" : (corrida.missil&&corrida.missil.alvo===p ? "#FF4A2E" : "#7C8A94");
+    c.fill();
+  }
+  // míssil no mapa
+  if(corrida.missil){
+    const m=corrida.missil;
+    c.beginPath(); c.arc(px(m.x),pz(m.z),3.4,0,6.2832);
+    c.fillStyle="#FFD36B"; c.fill();
+  }
+  $("posN").textContent = ordem.indexOf(corrida.pilotos[0])+1;
+  $("posT").textContent = corrida.pilotos.length;
+}
+
 function atualizarHUD(){
   if(tela==="mapa"&&mapa&&mapa.total>0&&(mapa.t|0)!==ultimoTick){
     ultimoTick=mapa.t|0;
@@ -2450,6 +2592,7 @@ function atualizarHUD(){
     $("velN").textContent=Math.round(Math.hypot(p.vx,p.vz)*3.6);
     $("vAtual").textContent=Math.min(VOLTAS,p.volta+1);
     $("pisoHud").textContent=PISOS[estado.piso].nome;
+    desenharMini();
     const naMira = !!corrida.missil && corrida.missil.alvo===p;
     $("perigo").classList.toggle("on",naMira);
     if(!naMira) $("perigo").style.opacity=0; else $("perigo").style.opacity="";
@@ -2532,12 +2675,14 @@ function irPara(t){
   setTimeout(atualizarToque,0);
   $("modal").classList.remove("on"); $("hud").classList.remove("on");
   $("garagem").style.display = t==="garagem"?"block":"none";
+  document.body.classList.toggle("correndo", t==="corrida");
   for(const[id,alvo] of [["nGar","garagem"],["nMapa","mapa"],["nCor","corrida"]])
     $(id).setAttribute("aria-pressed", String(t===alvo));
   if(t==="mapa") iniciarMapa();
   if(t==="corrida"){ if(!gastarEnergia()){ tela="garagem"; $("garagem").style.display="block";
       $("nGar").setAttribute("aria-pressed","true"); $("nCor").setAttribute("aria-pressed","false"); return; }
-    pista=gerarPista(estado.sementePista, estado.piso); reconstruirPista(); iniciarCorrida(); }
+    pista=gerarPista(estado.sementePista, estado.piso); reconstruirPista();
+    iniciarCorrida(); prepararMini(); }
   $("dica").textContent=dicaPadrao();
 }
 $("nGar").onclick=()=>irPara("garagem");
@@ -2674,5 +2819,18 @@ if(voltou){
   }
 }
 $("dica").textContent=dicaPadrao();
-requestAnimationFrame(quadro);
+
+/* Nada é desenhado enquanto o portão está de pé: o primeiro quadro que o
+   jogador vê já está na orientação que ele escolheu. */
+function comecar(){ $("portao").hidden=true; atualizarToque(); requestAnimationFrame(quadro); }
+if(ehToque && !localStorage.getItem("ca_orientacao")){
+  $("portao").hidden=false;
+  $("pgTravar").addEventListener("click",async()=>{
+    localStorage.setItem("ca_orientacao","travado");
+    await travarDeitado(); comecar();
+  });
+  $("pgPular").addEventListener("click",()=>{
+    localStorage.setItem("ca_orientacao","livre"); comecar();
+  });
+}else comecar();
 </script>
