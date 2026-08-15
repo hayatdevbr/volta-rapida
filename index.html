@@ -364,6 +364,25 @@
     .tq.grande{width:88px;height:88px;font-size:27px}
     .tq.peq{width:62px;height:62px;font-size:10px}
   }
+  /* ── perfil e classe ── */
+  .grp.perfil{display:flex;align-items:center;justify-content:space-between;gap:14px}
+  .grp.perfil .quem{flex:1;min-width:0}
+  #nomeJog{width:100%;background:none;border:0;border-bottom:1px solid var(--line);
+    font-family:var(--f-d);font-size:21px;color:var(--tx);padding:2px 0;
+    letter-spacing:.02em}
+  #nomeJog:focus{outline:none;border-bottom-color:var(--amber)}
+  .grp.perfil .rot{margin-top:3px}
+  /* A classe é do carro: letra grande porque é o que decide com quem você
+     corre, e a soma ao lado para não virar número mágico. */
+  .grp.perfil .classe{display:flex;flex-direction:column;align-items:center;
+    border:1px solid var(--line);padding:5px 12px;min-width:74px}
+  .grp.perfil .classe b{font-family:var(--f-d);font-size:30px;line-height:1;
+    color:var(--amber)}
+  .grp.perfil .classe span{font-family:var(--f-m);font-size:8.5px;letter-spacing:.11em;
+    text-transform:uppercase;color:var(--tx3);margin-top:3px}
+  .grp.perfil .classe i{font-family:var(--f-m);font-size:9px;font-style:normal;
+    color:var(--tx3);margin-top:1px}
+
   /* pixel art precisa de vizinho-mais-próximo, senão borra e vira mingau */
   .ic{image-rendering:pixelated;image-rendering:crisp-edges;vertical-align:middle;
       display:inline-block;flex:0 0 auto}
@@ -799,24 +818,24 @@ const ORDEM_PISO = ["asfalto","terra","chuva"];
 /* ── peças: cada uma muda a GEOMETRIA e muda a FÍSICA ── */
 const PECAS = {
   chassi:[
-    {nome:"Ferro-Velho", desc:"aguenta qualquer piso", custo:0, g:{length:4.15,width:1.84,ride:.25,hoodH:.82,roofH:1.34,deckH:1.02,noseDrop:.03,tHood:.30,tWs:.44,tRoof:.64,tDeck:.82,noseTaper:.08,tailTaper:.07,tumble:.20,chamfer:.06,flare:.08}, peso:1.00,aderencia:1.00,pot:1.00, piso:{asfalto:1.00,terra:1.00,chuva:1.02}},
-    {nome:"Cunha GT",    desc:"voa no asfalto, sofre na terra", custo:900, pericia:20, g:{length:4.5,width:2.02,ride:.16,hoodH:.62,roofH:1.12,deckH:.78,noseDrop:.22,tHood:.36,tWs:.51,tRoof:.66,tDeck:.83,noseTaper:.22,tailTaper:.13,tumble:.34,chamfer:.09,flare:.18}, peso:.88,aderencia:1.14,pot:1.00, piso:{asfalto:1.14,terra:0.80,chuva:0.86}},
-    {nome:"Buggy",       desc:"dono da terra e da chuva", custo:750, pericia:12, g:{length:3.85,width:1.92,ride:.40,hoodH:.84,roofH:1.50,deckH:1.12,noseDrop:.04,tHood:.26,tWs:.40,tRoof:.60,tDeck:.78,noseTaper:.15,tailTaper:.17,tumble:.38,chamfer:.08,flare:.25}, peso:1.06,aderencia:.90,pot:1.00, piso:{asfalto:0.90,terra:1.28,chuva:1.20}},
+    {nome:"Ferro-Velho", desc:"aguenta qualquer piso", custo:0, tier:0, g:{length:4.15,width:1.84,ride:.25,hoodH:.82,roofH:1.34,deckH:1.02,noseDrop:.03,tHood:.30,tWs:.44,tRoof:.64,tDeck:.82,noseTaper:.08,tailTaper:.07,tumble:.20,chamfer:.06,flare:.08}, peso:1.00,aderencia:1.00,pot:1.00, piso:{asfalto:1.00,terra:1.00,chuva:1.02}},
+    {nome:"Cunha GT",    desc:"voa no asfalto, sofre na terra", custo:900, pericia:20, tier:2, g:{length:4.5,width:2.02,ride:.16,hoodH:.62,roofH:1.12,deckH:.78,noseDrop:.22,tHood:.36,tWs:.51,tRoof:.66,tDeck:.83,noseTaper:.22,tailTaper:.13,tumble:.34,chamfer:.09,flare:.18}, peso:.88,aderencia:1.14,pot:1.00, piso:{asfalto:1.14,terra:0.80,chuva:0.86}},
+    {nome:"Buggy",       desc:"dono da terra e da chuva", custo:750, pericia:12, tier:2, g:{length:3.85,width:1.92,ride:.40,hoodH:.84,roofH:1.50,deckH:1.12,noseDrop:.04,tHood:.26,tWs:.40,tRoof:.60,tDeck:.78,noseTaper:.15,tailTaper:.17,tumble:.38,chamfer:.08,flare:.25}, peso:1.06,aderencia:.90,pot:1.00, piso:{asfalto:0.90,terra:1.28,chuva:1.20}},
   ],
   motor:[
-    {nome:"1.6 Aspirado", desc:"o que veio de fábrica", custo:0, g:{engine:0}, pot:1.00, peso:1.00},
-    {nome:"Turbo",        desc:"+24% de força", custo:700, pericia:15, g:{engine:2}, pot:1.24, peso:1.05},
-    {nome:"Compressor",   desc:"+45%, e pesado", custo:1600, pericia:40, g:{engine:3}, pot:1.45, peso:1.12},
+    {nome:"1.6 Aspirado", desc:"o que veio de fábrica", custo:0, tier:0, g:{engine:0}, pot:1.00, peso:1.00},
+    {nome:"Turbo",        desc:"+24% de força", custo:700, pericia:15, tier:1, g:{engine:2}, pot:1.24, peso:1.05},
+    {nome:"Compressor",   desc:"+45%, e pesado", custo:1600, pericia:40, tier:2, g:{engine:3}, pot:1.45, peso:1.12},
   ],
   rodas:[
-    {nome:"Pneu de rua", desc:"nunca é o melhor, nunca é o pior", custo:0, g:{wheelW:.22,wheelR:.33,spokes:8}, aderencia:1.00, piso:{asfalto:1.00,terra:0.98,chuva:1.12}},
-    {nome:"Slick",       desc:"imbatível no seco, inútil no resto", custo:600, pericia:10, g:{wheelW:.35,wheelR:.34,spokes:6}, aderencia:1.26, piso:{asfalto:1.22,terra:0.60,chuva:0.52}},
-    {nome:"Cravo",       desc:"morde terra e chuva", custo:600, pericia:10, g:{wheelW:.31,wheelR:.42,spokes:5}, aderencia:.92, piso:{asfalto:0.84,terra:1.36,chuva:1.24}},
+    {nome:"Pneu de rua", desc:"nunca é o melhor, nunca é o pior", custo:0, tier:0, g:{wheelW:.22,wheelR:.33,spokes:8}, aderencia:1.00, piso:{asfalto:1.00,terra:0.98,chuva:1.12}},
+    {nome:"Slick",       desc:"imbatível no seco, inútil no resto", custo:600, pericia:10, tier:2, g:{wheelW:.35,wheelR:.34,spokes:6}, aderencia:1.26, piso:{asfalto:1.22,terra:0.60,chuva:0.52}},
+    {nome:"Cravo",       desc:"morde terra e chuva", custo:600, pericia:10, tier:2, g:{wheelW:.31,wheelR:.42,spokes:5}, aderencia:.92, piso:{asfalto:0.84,terra:1.36,chuva:1.24}},
   ],
   aero:[
-    {nome:"Sem aerofólio",desc:"toda a velocidade final", custo:0, g:{wing:0}, arrasto:1.00, aderencia:1.00, piso:{asfalto:1,terra:1,chuva:1}},
-    {nome:"Asa média",    desc:"equilíbrio",       custo:450, g:{wing:2}, arrasto:1.07, aderencia:1.11, piso:{asfalto:1,terra:1,chuva:1}},
-    {nome:"Asa grande",   desc:"gruda na curva, custa reta", custo:1100, pericia:25, g:{wing:3}, arrasto:1.18, aderencia:1.24, piso:{asfalto:1,terra:1,chuva:1}},
+    {nome:"Sem aerofólio",desc:"toda a velocidade final", custo:0, tier:0, g:{wing:0}, arrasto:1.00, aderencia:1.00, piso:{asfalto:1,terra:1,chuva:1}},
+    {nome:"Asa média",    desc:"equilíbrio",       custo:450, tier:1, g:{wing:2}, arrasto:1.07, aderencia:1.11, piso:{asfalto:1,terra:1,chuva:1}},
+    {nome:"Asa grande",   desc:"gruda na curva, custa reta", custo:1100, pericia:25, tier:2, g:{wing:3}, arrasto:1.18, aderencia:1.24, piso:{asfalto:1,terra:1,chuva:1}},
   ],
 };
 const G_BASE={length:4.25,width:1.88,ride:.22,hoodH:.78,roofH:1.28,deckH:.92,tHood:.28,tWs:.44,
@@ -824,7 +843,35 @@ const G_BASE={length:4.25,width:1.88,ride:.22,hoodH:.78,roofH:1.28,deckH:.92,tHo
   flare:.10,wheelR:.34,rearRatio:1,wheelW:.24,spokes:5,axF:.21,axR:.80,wing:1,engine:0,exhaust:0,
   pattern:0,colBody:"#E8321C",colAcc:"#F2EDE2"};
 
+/* A classe é do CARRO, não do jogador. Soma dos níveis das quatro peças,
+   calculada na hora — não dá para moer em separado: melhorou o carro, subiu de
+   classe e passa a enfrentar gente melhor equipada.
+
+   Nível de conta foi recusado de propósito: conta com progresso acumulado vira
+   mercado de contas, e é por aí que o dinheiro sai do jogo por baixo.
+
+   A soma é de TIER, não de índice: Buggy e Cravo são especialização, não
+   degrau — somar índice diria que um carro de terra vale menos classe que um de
+   asfalto, o que é falso. Dois carros igualmente investidos, um para terra e
+   outro para asfalto, têm de cair na mesma sala. Com 4 slots de tier 0 a 2, a
+   soma vai de 0 a 8. */
+const CLASSES=[
+  {l:"D", ate:1, nome:"Lata-velha"},
+  {l:"C", ate:3, nome:"Rodando"},
+  {l:"B", ate:5, nome:"Montado"},
+  {l:"A", ate:7, nome:"Afiado"},
+  {l:"S", ate:99,nome:"Topo"},
+];
+function classeDe(build){
+  const b=build||estado.build;
+  const soma=["chassi","motor","rodas","aero"]
+    .reduce((t,k)=>t+(PECAS[k][b[k]].tier||0),0);
+  for(const c of CLASSES) if(soma<=c.ate) return {...c, soma};
+  return {...CLASSES[CLASSES.length-1], soma};
+}
+
 const estado={
+  nome:"Piloto",
   build:{chassi:0,motor:0,rodas:0,aero:1},
   cor:"#E8321C", acc:"#F2EDE2",
   energia:480, pericia:0, sucata:0,
@@ -842,7 +889,7 @@ const estado={
 const CHAVE="circuito-aberto-v1";
 function salvar(){
   try{ localStorage.setItem(CHAVE, JSON.stringify({
-    build:estado.build, cor:estado.cor, acc:estado.acc,
+    nome:estado.nome, build:estado.build, cor:estado.cor, acc:estado.acc,
     energia:estado.energia, pericia:estado.pericia, sucata:estado.sucata,
     melhorVolta:estado.melhorVolta, corridas:estado.corridas, vitorias:estado.vitorias,
     idleUltimo:estado.idleUltimo, piso:estado.piso, sementePista:estado.sementePista,
@@ -1085,10 +1132,40 @@ function passo(c, ent, at, naPista, terra){
 /* ── mapa idle: simulado por tick, recuperável offline ──
    Nada disso depende de aba aberta. Ao entrar no mapa a gente recalcula o
    que aconteceu desde a última visita — que é como o servidor faria. */
-function simularIdle(segundos, nivelSensor){
+/* O que o carro faz NO PÁTIO. Antes isto era `vel=21, giro=2.3` escrito na
+   mão: trocar de motor não mudava nada no mapa, e garagem e pátio eram dois
+   jogos que não se falavam.
+
+   A leitura de cada peça no mapa:
+     motor   → chega primeiro na carga disputada
+     chassi  → peso; carro leve acelera e vira melhor entre uma carga e outra
+     rodas   → curva fechada, pega a carga que o outro passou reto
+     aero    → faro: enxerga carga mais longe (o `nivelSensor` que existia sem
+               nada pendurado nele)
+   Os rivais do mapa andam a 16–26 de velocidade e 1,5–2,5 de giro, então o
+   carro de fábrica nasce ABAIXO da média e sobe com as peças. Antes ele era o
+   melhor do pátio por decreto. */
+function idleDoCarro(build){
+  const b=build||estado.build;
+  const p=k=>PECAS[k][b[k]];
+  const c=p("chassi"), m=p("motor"), r=p("rodas"), a=p("aero");
+  const peso=c.peso*m.peso;
+  return {
+    vel:  17.0 * m.pot / peso * (0.80+0.20*fatorDur("motor")),
+    giro:  1.70 * r.aderencia * c.aderencia * (0.80+0.20*fatorDur("rodas")),
+    faro:  b.aero,                       // 0, 1 ou 2
+  };
+}
+
+function simularIdle(segundos){
+  const d=idleDoCarro();
   const r=semente(estado.idleSemente++);
-  const porHora=55*(1+nivelSensor*0.03);
-  const disputa=0.55+r()*0.25;              // fatia da zona que coube ao seu carro
+  const porHora=55*(1+d.faro*0.06);
+  /* A fatia que coube ao seu carro sai de ele ser melhor ou pior que a média do
+     pátio (vel 21, giro 2,0). De fábrica dá ~0,55; no topo, ~0,69 — 1,25x, que
+     é o bastante para valer a pena sem virar corrida armamentista. */
+  const forca=(d.vel/21 + d.giro/2.0)/2;
+  const disputa=cl((0.30+0.32*forca)*(0.85+r()*0.30), 0.15, 0.95);
   const ganho=porHora*(segundos/3600)*disputa*2;
   const antes=estado.energia;
   estado.energia=cl(estado.energia+ganho,0,BATERIA);
@@ -2303,14 +2380,15 @@ function iniciarMapa(){
     x:(r()-.5)*330, z:(r()-.5)*330, h:r()*6.2832,
     vel:16+r()*10, giro:1.5+r()*1.0, meu:i===0, coletou:0, alvo:-1,
   });
-  carros[0].vel=21; carros[0].giro=2.3;      // o seu carro é o melhor do mapa
+  const meu=idleDoCarro();                   // as peças mandam, não o decreto
+  carros[0].vel=meu.vel; carros[0].giro=meu.giro;
   mapa={cargas:[], carros, t:0, proxima:0, minhas:0, total:0, zoom:1, cam:null, brilho:0};
   for(let i=0;i<26;i++) surgirCarga(mapa,r);
 
   // recupera o que rendeu desde a última visita: nada disso precisa de aba aberta
   const seg=Math.min(8*3600,(Date.now()-estado.idleUltimo)/1000);
   estado.idleUltimo=Date.now();
-  const res=simularIdle(Math.max(seg,240),0);
+  const res=simularIdle(Math.max(seg,240));
   if(res.ganho>1) mostrarDica("Seu carro coletou "+Math.round(res.ganho)+" de energia enquanto você esteve fora"
     +(res.cheia?" · bateria encheu e ele parou":""),6000);
 }
@@ -2750,6 +2828,21 @@ function montarGaragem(){
   const at=atributos(estado.piso);
   const PI=PISOS[estado.piso];
 
+  /* ── quem é você, e em que classe o seu carro corre ──
+     A classe fica aqui e não no topo porque ela é do CARRO: muda quando você
+     troca peça, e é aqui que se troca peça. */
+  const cl_=classeDe();
+  const perfil=document.createElement("div"); perfil.className="grp perfil";
+  perfil.innerHTML=`<div class="quem">
+      <input id="nomeJog" value="${estado.nome.replace(/"/g,'&quot;')}"
+             maxlength="14" spellcheck="false" aria-label="seu nome">
+      <div class="rot">seu nome</div>
+    </div>
+    <div class="classe" title="soma dos níveis das quatro peças">
+      <b>${cl_.l}</b><span>${cl_.nome}</span><i>${cl_.soma}/8</i>
+    </div>`;
+  g.append(perfil);
+
   /* ── a próxima corrida é anunciada ANTES: é o que transforma a garagem
         em decisão em vez de vitrine ── */
   const prox=document.createElement("div"); prox.className="grp prox";
@@ -2759,6 +2852,12 @@ function montarGaragem(){
   prox.innerHTML=`<h3>Próxima corrida</h3>
     <div class="pisoNome">${PI.nome}</div><div class="pisoDica">${dica}</div>`;
   g.append(prox);
+
+  const cnome=$("nomeJog");
+  cnome.addEventListener("input",()=>{
+    estado.nome=cnome.value.trim().slice(0,14)||"Piloto"; salvar();
+  });
+  cnome.addEventListener("blur",()=>{ cnome.value=estado.nome; });
 
   const rotulos={chassi:"Chassi",motor:"Motor",rodas:"Rodas e pneus",aero:"Aerodinâmica"};
   const icoSlot={chassi:"chassi",motor:"motor",rodas:"roda",aero:"aerofolio"};
@@ -2865,7 +2964,7 @@ if(voltou){
   const seg=Math.min(8*3600,(Date.now()-(estado.idleUltimo||Date.now()))/1000);
   estado.idleUltimo=Date.now();
   if(seg>120){
-    const r=simularIdle(seg,0); salvar();
+    const r=simularIdle(seg); salvar();
     if(r.ganho>1) setTimeout(()=>mostrarDica(
       "BEM-VINDO DE VOLTA · SEU CARRO COLETOU "+Math.round(r.ganho)+" DE ENERGIA"
       +(r.cheia?" E ENCHEU A BATERIA":""), 7000), 400);
