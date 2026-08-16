@@ -214,7 +214,7 @@
              background:rgba(233,153,43,.30);border-color:rgba(233,153,43,.55)}
   .tq.peq{width:68px;height:68px;font-size:11px}
   .tq.ativo{background:rgba(233,153,43,.72);border-color:var(--amber);color:#141414}
-  #sairCorrida{position:absolute;top:8px;right:10px;width:38px;height:38px;border-radius:50%;
+  #sairCorrida{position:absolute;top:8px;right:10px;width:44px;height:44px;border-radius:50%;
       background:rgba(20,26,32,.7);border:1px solid rgba(255,255,255,.18);color:var(--tx2);
       font-size:16px;cursor:pointer;display:none}
   #toque.on #sairCorrida{display:block}
@@ -272,8 +272,10 @@
     #topo .marca{font-size:15px}
     #topo .pilha .val{font-size:14px}
     #barraE{width:88px}
-    #nav{top:calc(14px + var(--sob-rotulo));right:10px;gap:3px}
-    #nav button{font-size:11px;padding:6px 9px}
+    #nav{top:calc(10px + var(--sob-rotulo));right:10px;gap:3px}
+    /* altura pelo dedo, largura enxuta: alargar o botão empurrou o menu para
+       cima do número de sucata — medido em -34px de folga. */
+    #nav button{font-size:11px;padding:0 8px;min-height:44px}
     /* deitado, divide a tela para o carro continuar visível enquanto você
        troca peça; em pé, ocupa tudo porque não cabe de outro jeito */
     #garagem{width:100%;top:56px;border-left:0;border-top:1px solid var(--line)}
@@ -298,10 +300,6 @@
     #vel .n{font-size:34px;text-shadow:0 2px 12px rgba(0,0,0,.95)}
     #vel .u{font-size:9px}
     #dica{display:none}
-    /* embaixo à esquerda é o manche: a peça sobe para junto do nitro */
-    #pecaHud{left:16px;bottom:auto;top:52px;max-width:200px;padding:5px 9px}
-    #pecaHud b{font-size:13px}
-    #pecaHud i{display:none}
     #mini{width:126px;right:12px;top:10px}
     #mini canvas{width:126px;height:126px}
     #mini .pos b{font-size:26px}
@@ -323,9 +321,12 @@
     #barraE{width:110px}
     #nav{top:auto;bottom:0;left:0;right:0;display:grid;grid-template-columns:repeat(4,1fr);
          gap:0;background:rgba(12,16,20,.96);border-top:1px solid var(--line)}
-    #nav button{border:0;border-right:1px solid var(--line2);padding:14px 4px;font-size:13px}
+    #nav button{border:0;border-right:1px solid var(--line2);padding:14px 4px;
+                font-size:13px;min-height:52px}
     #nav button:last-child{border-right:0}
-    #garagem{top:auto;bottom:47px;height:58vh;width:100%;
+    /* 47px era a altura antiga da barra de abas. Ao subir o alvo de toque para
+       52px eu mesmo criei uma sobreposição de 6px — medida. Fica 56 com folga. */
+    #garagem{top:auto;bottom:56px;height:58vh;width:100%;
              border-left:0;border-top:1px solid var(--line)}
     #toque .lado.dir{bottom:22px;right:18px}
     #manche{bottom:26px;left:16px;width:124px;height:124px}
@@ -348,8 +349,14 @@
     #nav.someNaCorrida{display:none}
   }
   @media (max-width:1000px) and (orientation:landscape), (orientation:landscape) and (max-height:560px){
-    #garagem{width:47%;top:50px;border-left:1px solid var(--line);border-top:0}
-    #topo{padding:7px 12px}
+    /* 50px punha o painel 14px POR BAIXO da barra de cima — medido. A barra
+       deitada tem 64px de altura com o padding dela. */
+    #garagem{width:47%;top:66px;border-left:1px solid var(--line);border-top:0}
+    /* A faixa da direita é do menu. Sem reservá-la, o botão sentava em cima do
+       número de sucata — medido em -34px de folga, que é a queixa de "menu em
+       cima de informação". E o `padding-right` tem de vir NESTE bloco: no
+       anterior ele era apagado por este `padding`, que vem depois. */
+    #topo{padding:7px 356px 7px 12px}
     #nav{top:6px}
     /* Deitado, a única faixa realmente livre é a de baixo entre o manche e o
        turbo: acima dela está o minimapa, e à esquerda o polegar que guia. */
@@ -363,8 +370,8 @@
     #nitro .rot{font-size:8px;letter-spacing:.08em;text-align:center}
     /* O ✕ ficava por cima do minimapa. Embaixo à esquerda é o manche, então
        vai para a faixa morta entre a barra de nitro e o topo do manche. */
-    #toque #sairCorrida{top:150px;bottom:auto;right:auto;left:16px;
-                        width:34px;height:34px;font-size:14px}
+    #toque #sairCorrida{top:146px;bottom:auto;right:auto;left:16px;
+                        width:44px;height:44px;font-size:15px}
   }
   @media (max-width:520px), (orientation:landscape) and (max-height:440px){
     .tq{width:70px;height:70px;font-size:21px}
@@ -398,6 +405,15 @@
     padding-left:8px;line-height:1.2;pointer-events:none;
     max-width:170px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   #pecaHud[hidden]{display:none}
+  /* No celular o canto de baixo à esquerda é o MANCHE. Esta regra vem depois
+     da base de propósito: quando ela morava lá em cima, na media query, a base
+     a sobrescrevia por vir depois com a mesma especificidade — e a tarja caía
+     sobre o manche. Ordem de arquivo é regra de CSS, não detalhe. */
+  @media (max-width:860px), (orientation:landscape) and (max-height:560px){
+    #pecaHud{left:auto;right:20px;bottom:auto;top:calc(50% - 8px);
+             max-width:150px;text-align:right;border-left:0;border-right:3px solid var(--cor,var(--line));
+             padding-left:0;padding-right:8px}
+  }
   #pecaHud.novo{animation:pecaEntra 2.4s forwards}
   @keyframes pecaEntra{
     0%{color:var(--cor);font-size:13px}
@@ -431,17 +447,18 @@
   .grp.carros{display:flex;align-items:center;gap:10px}
   .grp.carros .meio{flex:1;text-align:center;min-width:0}
   .grp.carros .cnt{font-family:var(--f-d);font-size:17px;color:var(--tx)}
-  .seta{width:42px;height:42px;flex:0 0 auto;font-size:22px;line-height:1;
+  .seta{width:46px;height:46px;flex:0 0 auto;font-size:22px;line-height:1;
     background:rgba(12,16,20,.5);color:var(--tx2);border:1px solid var(--line);
     cursor:pointer;transition:.12s}
   .seta:hover:not(:disabled){color:var(--amber);border-color:var(--amber)}
   .seta:disabled{opacity:.28;cursor:default}
-  .mais{width:42px;height:42px;flex:0 0 auto;font-size:20px;line-height:1;
+  .mais{width:46px;height:46px;flex:0 0 auto;font-size:20px;line-height:1;
     background:none;color:var(--patina);border:1px dashed var(--patina);cursor:pointer}
 
   /* ── pintura ── */
   .cores{display:flex;flex-wrap:wrap;gap:5px;margin-top:5px}
-  .tinta{width:30px;height:30px;border:1px solid var(--line);cursor:pointer;
+  /* 44px é o mínimo que um dedo acerta sem raiva. Estavam com 30. */
+  .tinta{width:44px;height:44px;border:1px solid var(--line);cursor:pointer;
     padding:0;transition:.12s}
   .tinta:hover{transform:scale(1.10)}
   .tinta.on{border-color:var(--tx);box-shadow:0 0 0 2px var(--bg),0 0 0 3px var(--amber)}
@@ -461,7 +478,8 @@
   .pl .ops{display:flex;gap:2px}
   .mini{flex:1;font-family:var(--f-m);font-size:9.5px;letter-spacing:.06em;
     text-transform:uppercase;background:rgba(12,16,20,.5);color:var(--tx3);
-    border:1px solid var(--line2);padding:7px 4px;cursor:pointer;transition:.12s}
+    border:1px solid var(--line2);padding:0 4px;min-height:44px;cursor:pointer;
+    transition:.12s}
   .mini:hover{color:var(--tx2);border-color:var(--line)}
   .mini.on{color:var(--amber);border-color:var(--amber);background:rgba(233,153,43,.10)}
 
