@@ -159,6 +159,13 @@
   #mini .pos b{font-size:34px;color:var(--amber)}
   #mini .pos span{font-size:16px;color:var(--tx3)}
   #mini .pos i{font-style:normal}
+  /* dois nomes, o de cima e o de baixo: quem você caça e quem te caça */
+  #vizinhos{display:flex;flex-direction:column;gap:1px;margin-top:5px;
+            font-family:var(--f-m);font-size:9.5px;letter-spacing:.04em;
+            text-transform:uppercase;color:var(--tx3);text-align:right}
+  #vizinhos .v{display:flex;gap:5px;justify-content:flex-end;align-items:center;
+               white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #vizinhos .v i{font-style:normal;font-size:8px;opacity:.7}
   body.correndo #topo, body.correndo #nav{opacity:0;pointer-events:none;transition:opacity .25s}
   #perigo{position:absolute;inset:0;pointer-events:none;opacity:0;
      background:radial-gradient(ellipse at center,rgba(0,0,0,0) 38%,rgba(226,40,24,.62) 100%);
@@ -432,6 +439,26 @@
     text-transform:uppercase;background:#140A08;color:#F2EDE2;border:0;
     padding:6px 10px;cursor:pointer}
 
+  /* ── a chegada, com nome ── */
+  .chegada{margin:2px 0 6px;border-top:1px solid var(--line2);
+           border-bottom:1px solid var(--line2);padding:6px 0;
+           max-height:196px;overflow-y:auto}
+  .chegada .ch{display:flex;align-items:center;gap:10px;padding:3px 0;
+               font-size:13.5px;color:var(--tx2)}
+  .chegada .ch i{font-family:var(--f-d);font-style:normal;font-size:14px;
+                 width:20px;text-align:right;color:var(--tx3);
+                 font-variant-numeric:tabular-nums}
+  .chegada .ch span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;
+                    white-space:nowrap}
+  .chegada .ch em{font-family:var(--f-m);font-style:normal;font-size:9px;
+                  letter-spacing:.1em;color:var(--tx3);border:1px solid var(--line);
+                  padding:1px 5px}
+  .chegada .ch.eu{color:var(--tx)}
+  .chegada .ch.eu i{color:var(--amber)}
+  .chegada .ch.eu em{color:var(--amber);border-color:var(--amber)}
+  .chegada .ch .ainda{font-family:var(--f-m);font-size:8.5px;font-weight:400;
+    letter-spacing:.09em;text-transform:uppercase;color:var(--tx3);opacity:.7}
+
   /* ── o apanhado da corrida, no cartão do fim ── */
   .apanhado{border-top:1px solid var(--line2);border-bottom:1px solid var(--line2);
     padding:11px 0;margin:4px 0}
@@ -537,6 +564,7 @@
   <div id="mini">
     <canvas id="miniCv" width="220" height="220"></canvas>
     <div class="pos"><b id="posN">1</b><span>/<i id="posT">8</i></span></div>
+    <div id="vizinhos"></div>
   </div>
   <div id="perigo"></div>
   <div id="aviso"></div>
@@ -1031,6 +1059,16 @@ function classeDe(build){
    isso o pátio vira multidão anônima e a derrota não ganha rosto. */
 const POVO={ quantos:60 };
 
+/* "Neném da Várzea" não cabe em 126px de minimapa, e o primeiro nome é o que a
+   pessoa é chamada. Mora AQUI, junto do povo, e não na camada de desenho: a
+   simulação escreve os avisos com nome, e `passoCorrida` não pode depender de
+   nada de tela — foi o mesmo tropeço do `sfx`, que a bancada pegou das duas
+   vezes. */
+function nomeCurto(p){
+  const n=(p&&p.nome)||"";
+  return n.length>12 ? n.split(" ")[0] : n;
+}
+
 const NOMES=["Marcos","Iara","Beto","Dandara","Zé Cabo","Neném","Vavá","Cleide",
   "Tião","Rosa","Juca","Nilda","Gerson","Sula","Bira","Fátima","Douglas","Preta",
   "Ademir","Joana","Lelo","Cida","Toninho","Márcia","Valdo","Bruna","Chico",
@@ -1047,12 +1085,22 @@ function habitante(i){
   /* A build é sorteada com PESO: a maioria do pátio anda em lata-velha, como
      numa população de verdade. Sem isso todo mundo seria classe S e o jogador
      novo se sentiria num campeonato que não é dele. */
+  /* O grau decide QUANTO a pessoa investiu; o sorteio por slot decide EM QUÊ.
+     Na primeira versão o grau baixo devolvia zero em todos os slots, então 45%
+     do povo tinha o carro exatamente igual — e, com a sala filtrada por classe,
+     o grid saía com duas builds em sete. Aqui cada peça é sorteada à parte:
+     dois motoristas de lata-velha podem ter escolhido gastar em coisas
+     diferentes, que é o que acontece na vida. */
   const grau=r();
-  const nivel = grau<0.45 ? 0 : grau<0.80 ? 1 : 2;
-  const esc=(n)=> n===0 ? 0 : (n===1 ? (r()<0.5?0:1+Math.floor(r()*2)) : 1+Math.floor(r()*2));
+  const chanceDeGastar = grau<0.45 ? 0.26 : grau<0.80 ? 0.58 : 0.88;
+  const escolhe=(k)=>{
+    if(r()>chanceDeGastar) return 0;                 // ficou com a de fábrica
+    return 1+Math.floor(r()*(PECAS[k].length-1));
+  };
   return {
     nome,
-    build:{ chassi:esc(nivel), motor:esc(nivel), rodas:esc(nivel), aero:esc(nivel) },
+    build:{ chassi:escolhe("chassi"), motor:escolhe("motor"),
+            rodas:escolhe("rodas"),   aero:escolhe("aero") },
     cor:  CORES_CARRO[Math.floor(r()*CORES_CARRO.length)][0],
     acc:  CORES_DETALHE[Math.floor(r()*CORES_DETALHE.length)][0],
     padrao:Math.floor(r()*PADROES.length),
@@ -1081,13 +1129,14 @@ function escalar(quantos, semSemente){
     const i=Math.floor(r()*POVO.quantos);
     if(usados.has(i)) continue;
     const h=habitante(i);
-    // dois "Douglas" na mesma sala confunde: índices diferentes podem sortear
-    // o mesmo nome, e é o NOME que o jogador lê
-    if(nomes.has(h.nome)) continue;
+    /* Compara o PRIMEIRO nome: "Neném" e "Neném da Várzea" são strings
+       diferentes e leem como a mesma pessoa duas vezes na lista de chegada. */
+    const prim=h.nome.split(" ")[0];
+    if(nomes.has(prim)) continue;
     // metade das tentativas exige classe próxima; depois disso aceita qualquer
     // um, para a sala nunca ficar vazia por excesso de exigência
     if(tentativas < POVO.quantos*4 && !perto(h)) continue;
-    usados.add(i); nomes.add(h.nome); vagas.push(h);
+    usados.add(i); nomes.add(prim); vagas.push(h);
   }
   return vagas;
 }
@@ -3251,11 +3300,13 @@ function passoCorrida(){
     if(d<3.2 || m.t>m.dur+2){
       if(a.escudo>0){
         a.escudo=0; efeito(c,a,"escudo");
-        c.aviso = a.ia ? "O LÍDER APAROU COM ESCUDO" : "SEU ESCUDO APAROU O MÍSSIL";
+        c.aviso = a.ia ? nomeCurto(a).toUpperCase()+" APAROU COM ESCUDO"
+                       : "SEU ESCUDO APAROU O MÍSSIL";
         c.avisoAte=c.t+2.2;
       } else if(a.terminou<0){
         a.travado=1.8; a.vx*=0.38; a.vz*=0.38; a.oleado=1.4; efeito(c,a,"estouro");
-        c.aviso = a.ia ? "MÍSSIL ACERTOU O LÍDER" : "VOCÊ FOI ATINGIDO";
+        c.aviso = a.ia ? "MÍSSIL ACERTOU "+nomeCurto(a).toUpperCase()
+                       : "VOCÊ FOI ATINGIDO";
         c.avisoAte=c.t+2.0;
       }
       c.misseis.splice(mi,1);
@@ -3313,7 +3364,8 @@ function passoCorrida(){
                      x:p.x, y:1.0, z:p.z, h:p.h, rastro:[] });
           efeito(c,p,"estouro");   // clarão em quem atirou
           c.sons.push("missil");   // o tiro se ouve venha de quem vier
-          c.aviso = alvo.ia ? "MÍSSIL A CAMINHO DO LÍDER" : "MÍSSIL VINDO NA SUA DIREÇÃO";
+          c.aviso = alvo.ia ? "MÍSSIL A CAMINHO DE "+nomeCurto(alvo).toUpperCase()
+                            : "MÍSSIL VINDO NA SUA DIREÇÃO";
           c.avisoAte=c.t+2.4;
         } else if(!p.ia) continue;
       }
@@ -3392,6 +3444,29 @@ function terminarCorrida(){
   abrirModal(`
     <h2>${pos===1?icone("trofeu",44)+" Vitória":pos+"º lugar"}</h2>
     <div class="sub">${VOLTAS} voltas · ${pos}º de ${GRID}${pos>5?" · fora da pontuação":""}</div>
+    ${(()=>{
+      /* A chegada com nome e classe. Sem isto o jogador só sabe o número dele,
+         e "3º de 8" não conta história nenhuma — quem ele passou, por quem foi
+         passado, quem estava logo ali. */
+      /* A corrida acaba quando VOCÊ cruza a linha, então quem vinha atrás nunca
+         "termina" — e mostrar seis traços num grid de oito parecia defeito. Quem
+         não chegou entra na ordem em que estava, que é a informação verdadeira:
+         a posição em que a bandeira o pegou. */
+      const ord=[...c.pilotos].filter(p=>p.terminou>=0).sort((a,b)=>a.terminou-b.terminou);
+      const resto=c.pilotos.filter(p=>p.terminou<0).sort((a,b)=>b.prog-a.prog);
+      const eu=c.pilotos[0];
+      const lin=(p,n,naPista)=>{
+        const cl=p.quem?classeDe(p.quem.build):classeDe();
+        return `<div class="ch${p===eu?" eu":""}">`
+          +`<i>${n}</i><span>${p.nome||"—"}</span>`
+          +(naPista?`<b class="ainda">na pista</b>`:``)
+          +`<em>${cl.l}</em></div>`;
+      };
+      return `<div class="chegada">`
+        + ord.map((p,i)=>lin(p,i+1,false)).join("")
+        + resto.map((p,i)=>lin(p,ord.length+i+1,true)).join("")
+        + `</div>`;
+    })()}
     <div class="linha"><span>Melhor volta</span><b>${tempo(c.melhor)}</b></div>
     <div class="linha"><span>Velocidade de pico</span><b>${Math.round(c.pico*3.6)} km/h</b></div>
     ${(()=>{
@@ -3452,10 +3527,22 @@ function surgirCarga(m,r){
    o que o modelo da Fase 1 diz. */
 function iniciarMapa(){
   const r=semente(91), carros=[];
-  for(let i=0;i<12;i++) carros.push({
-    x:(r()-.5)*330, z:(r()-.5)*330, h:r()*6.2832,
-    vel:16+r()*10, giro:1.5+r()*1.0, meu:i===0, coletou:0, alvo:-1,
-  });
+  /* O pátio tem as MESMAS pessoas da corrida. Antes eram doze anônimos com
+     velocidade sorteada, e o jogador não tinha como reconhecer ninguém — o que
+     esvazia a única coisa que o mapa idle tem de social: ver quem está lá.
+
+     O carro de cada um anda conforme a build DELE, pela mesma conta que rege o
+     seu: quem investiu em motor chega primeiro na carga. */
+  const gente=escalar(11, 91);
+  for(let i=0;i<12;i++){
+    const h = i===0 ? null : gente[i-1];
+    const d = h ? idleDoCarro(h.build) : idleDoCarro();
+    carros.push({
+      x:(r()-.5)*330, z:(r()-.5)*330, h:r()*6.2832,
+      vel:d.vel, giro:d.giro, meu:i===0, coletou:0, alvo:-1,
+      nome: h ? h.nome : estado.nome, cor: h ? h.cor : estado.cor,
+    });
+  }
   const meu=idleDoCarro();                   // as peças mandam, não o decreto
   carros[0].vel=meu.vel; carros[0].giro=meu.giro;
   mapa={cargas:[], carros, t:0, proxima:0, minhas:0, total:0, zoom:1, cam:null, brilho:0};
@@ -3803,8 +3890,19 @@ function desenharMini(){
     c.beginPath(); c.arc(px(m.x),pz(m.z),3.4,0,6.2832);
     c.fillStyle="#FFD36B"; c.fill();
   }
-  $("posN").textContent = ordem.indexOf(corrida.pilotos[0])+1;
+  const meuLugar=ordem.indexOf(corrida.pilotos[0]);
+  $("posN").textContent = meuLugar+1;
   $("posT").textContent = corrida.pilotos.length;
+  /* Quem está logo à frente e logo atrás. É a informação que muda o que você
+     faz agora — e é o que transforma "o carro azul" em "a Márcia". Oito nomes
+     de uma vez seriam poluição; dois são a briga que está acontecendo. */
+  const viz=$("vizinhos");
+  if(viz){
+    const frente=ordem[meuLugar-1], tras=ordem[meuLugar+1];
+    const linha=(p,seta)=> p ? `<span class="v"><i>${seta}</i>${nomeCurto(p)}</span>` : "";
+    const html=linha(frente,"▲")+linha(tras,"▼");
+    if(viz.dataset.q!==html){ viz.dataset.q=html; viz.innerHTML=html; }
+  }
 }
 
 /* "2h14" lê melhor que "8040 s", e "3 min" melhor que "0,05 h". */
