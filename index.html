@@ -1009,6 +1009,89 @@ function classeDe(build){
   return {...CLASSES[CLASSES.length-1], soma};
 }
 
+/* ══════════════════════════════════════════════════════════════════════════
+   O POVO DO PÁTIO
+
+   Os rivais usavam `montar()` — a build DO JOGADOR — só trocando a cor. Oito
+   carros iguais pintados diferente, e o dono notou na hora. Agora cada um é
+   uma pessoa: nome, carro montado por ela, pintura escolhida por ela, e um
+   jeito de dirigir.
+
+   São FABRICADOS de propósito, e isso é uma decisão de lançamento, não uma
+   gambiarra: no dia um não há oito mil jogadores para preencher sala nenhuma,
+   e um pátio vazio mata o jogo antes de ele começar. O dono pediu que a
+   quantidade fosse configurável, e é o campo `POVO.quantos`.
+
+   O formato aqui é DE PROPÓSITO o mesmo do fantasma que virá no multijogador
+   (`MULTIJOGADOR.md`): nome, build, pintura, perfil de pilotagem. Quando
+   houver gente de verdade, troca-se a fonte da lista e nada mais no jogo
+   precisa mudar.
+
+   Semeados: o Marcos de hoje é o Marcos de amanhã, com o mesmo carro. Sem
+   isso o pátio vira multidão anônima e a derrota não ganha rosto. */
+const POVO={ quantos:60 };
+
+const NOMES=["Marcos","Iara","Beto","Dandara","Zé Cabo","Neném","Vavá","Cleide",
+  "Tião","Rosa","Juca","Nilda","Gerson","Sula","Bira","Fátima","Douglas","Preta",
+  "Ademir","Joana","Lelo","Cida","Toninho","Márcia","Valdo","Bruna","Chico",
+  "Simone","Edinho","Lourdes","Wando","Tati","Paulão","Neide","Jamil","Rita"];
+const SOBRE=["do Ferro","Pé de Chumbo","da Curva","Meia-Noite","do Cravo","Cascalho",
+  "Faísca","da Várzea","Roda Solta","Bico Doce","Zero Bala","Mão Leve"];
+
+/* Um habitante é calculado, nunca guardado: 60 deles seriam 60 registos para
+   sincronizar. Do índice sai tudo, sempre igual. */
+function habitante(i){
+  const r=semente(7717+i*131);
+  const nome=NOMES[Math.floor(r()*NOMES.length)]
+    + (r()<0.45 ? " "+SOBRE[Math.floor(r()*SOBRE.length)] : "");
+  /* A build é sorteada com PESO: a maioria do pátio anda em lata-velha, como
+     numa população de verdade. Sem isso todo mundo seria classe S e o jogador
+     novo se sentiria num campeonato que não é dele. */
+  const grau=r();
+  const nivel = grau<0.45 ? 0 : grau<0.80 ? 1 : 2;
+  const esc=(n)=> n===0 ? 0 : (n===1 ? (r()<0.5?0:1+Math.floor(r()*2)) : 1+Math.floor(r()*2));
+  return {
+    nome,
+    build:{ chassi:esc(nivel), motor:esc(nivel), rodas:esc(nivel), aero:esc(nivel) },
+    cor:  CORES_CARRO[Math.floor(r()*CORES_CARRO.length)][0],
+    acc:  CORES_DETALHE[Math.floor(r()*CORES_DETALHE.length)][0],
+    padrao:Math.floor(r()*PADROES.length),
+    /* o jeito de dirigir, que no multijogador virá do plano do dono do carro */
+    perfil:{ linha:(r()*2-1)*0.62, coragem:0.86+r()*0.28,
+             forca:0.93+r()*0.12, erro:0.04+r()*0.20,
+             ritmo:0.6+r()*1.5, fase:r()*6.28 },
+  };
+}
+/* Quem está no pátio hoje. Sorteia por PROXIMIDADE DE CLASSE, que é a regra de
+   emparelhamento de `FILA.md` aplicada desde já — e resolve uma incoerência que
+   apareceria na tela: como todos os carros da corrida usam os mesmos atributos,
+   um rival classe S ao lado de um jogador classe D pareceria um carrão e
+   andaria igual a uma lata-velha. Mentira visual.
+
+   Não é filtro duro: com pouca gente na faixa, alarga. Sala vazia é pior que
+   sala desigual. */
+function escalar(quantos, semSemente){
+  const r=semente(semSemente);
+  const minha=classeDe().soma;
+  const perto=(h)=>Math.abs(classeDe(h.build).soma - minha) <= 3;
+  const vagas=[];
+  const usados=new Set(), nomes=new Set();
+  let tentativas=0;
+  while(vagas.length<quantos && tentativas++<POVO.quantos*8){
+    const i=Math.floor(r()*POVO.quantos);
+    if(usados.has(i)) continue;
+    const h=habitante(i);
+    // dois "Douglas" na mesma sala confunde: índices diferentes podem sortear
+    // o mesmo nome, e é o NOME que o jogador lê
+    if(nomes.has(h.nome)) continue;
+    // metade das tentativas exige classe próxima; depois disso aceita qualquer
+    // um, para a sala nunca ficar vazia por excesso de exigência
+    if(tentativas < POVO.quantos*4 && !perto(h)) continue;
+    usados.add(i); nomes.add(h.nome); vagas.push(h);
+  }
+  return vagas;
+}
+
 const estado={
   nome:"Piloto",
   /* Automático não é preguiça: é outro jogo. Você não pilota, você PREPARA —
@@ -2512,14 +2595,19 @@ function prepararCarro(P){
   return { corpo:subir(c.corpo), roda:subir(c.roda), rodaEsq:subir(c.rodaEsq),
            posRodas:c.posRodas, escape:c.escape };
 }
-function reconstruirCarro(){
-  malhaCarro=prepararCarro(montar());
+/* Uma malha POR HABITANTE: cada um montou o carro dele. Antes eram três cores
+   da build do JOGADOR, e o dono viu na hora que eram todos o mesmo carro. */
+function reconstruirRivais(){
   malhaRival.length=0;
-  const cores=[["#2E6B8C","#DDE4E8"],["#3E8A5B","#F0E9DC"],["#8C5A2E","#E9DCC8"]];
-  for(const[b,a] of cores){
-    const g={...montar(),colBody:b,colAcc:a,wing:2,engine:1};
+  for(const h of (corrida&&corrida.povo ? corrida.povo : escalar(GRID-1, 4242))){
+    const g={...G_BASE, colBody:h.cor, colAcc:h.acc, pattern:h.padrao};
+    for(const k of ["chassi","motor","rodas","aero"]) Object.assign(g, PECAS[k][h.build[k]].g);
     malhaRival.push(prepararCarro(g));
   }
+}
+function reconstruirCarro(){
+  malhaCarro=prepararCarro(montar());
+  if(!malhaRival.length) reconstruirRivais();
 }
 
 /* ── PARTÍCULAS DO TURBO ──────────────────────────────────────────────────
@@ -2813,30 +2901,42 @@ const VOLTAS=2;
 
    Largar no meio também é melhor de jogar: dá alguém para caçar. */
 function montarGrid(){
+  /* O sorteio é da VAGA no grid, não de quem é quem. Na primeira versão eu
+     embaralhava e devolvia `vagas.map(v=>novoPiloto(v))`, o que trocava a
+     IDENTIDADE junto: `pilotos[0]` passava a ser um rival qualquer, e o jogador
+     virava outro carro do array. Passou despercebido porque a corrida ainda
+     funcionava — e porque medir "a posição média de pilotos[0]" dava 4,5 por
+     construção, já que pilotos[0] era um carro sorteado. */
   const vagas=Array.from({length:GRID},(_,i)=>i);
   for(let i=vagas.length-1;i>0;i--){
     const j=Math.floor(Math.random()*(i+1));
     [vagas[i],vagas[j]]=[vagas[j],vagas[i]];
   }
-  return vagas.map(v=>novoPiloto(v));
+  // índice = quem é (0 é sempre o jogador); vaga = onde larga
+  return vagas.map((vaga,idx)=>novoPiloto(idx, vaga));
 }
 
-function novoPiloto(i){
+function novoPiloto(i, vaga){
   // largada em duas colunas, como grid de verdade
   // largada SEMPRE à frente da linha. Atrás dela, o carro cruzava o índice 0
   // no primeiro segundo e ganhava uma volta de graça.
-  const fila=Math.floor(i/2), col=(i%2)?1:-1;
+  if(vaga===undefined) vaga=i;
+  const fila=Math.floor(vaga/2), col=(vaga%2)?1:-1;
   const p=pista.pontos[(3 + fila*3) % pista.n];
   const off=col*3.6;
   const r=semente(1000+i*37+Math.floor(Math.random()*9999));
-  return {x:p.x+p.nx*off, z:p.z+p.nz*off, h:Math.atan2(p.tz,p.tx),
+  /* O rival não é mais "o carro do jogador de outra cor": é uma pessoa, com a
+     build dela. O jogador (i===0) segue sendo o jogador. */
+  const quem = i>0 ? (corrida&&corrida.povo ? corrida.povo[i-1] : null) : null;
+  return {quem, nome: quem?quem.nome:estado.nome,
+          x:p.x+p.nx*off, z:p.z+p.nz*off, h:Math.atan2(p.tz,p.tx),
           vx:0,vz:0,vl:0,dir:0,derrapa:0,
           nitro:0, itens:[null,null], desde:[0,0], sel:0, escudo:0, peca:null, pecaDesde:-99,
           oleado:0, travado:0, turbando:0,
-          seg:(3+Math.floor(i/2)*3)%pista.n, meio:false,
+          seg:(3+fila*3)%pista.n, meio:false,
           volta:0, prog:0, terminou:-1, ia:i>0,
           // PERSONALIDADE: sem isto os rivais andam em fila indiana feito trenzinho
-          perfil:{
+          perfil: quem ? quem.perfil : {
             linha:   (r()*2-1)*0.62,      // quanto puxa pra dentro ou pra fora
             coragem: 0.92+r()*0.12,       // leque estreito: diferença grande de ritmo mata a disputa
             forca:   0.93+r()*0.11,       // potência relativa
@@ -2858,11 +2958,22 @@ function montarCaixas(){
 }
 function iniciarCorrida(){
   const at=atributos();
-  corrida={
-    pilotos:montarGrid(),
+  /* O povo vem PRIMEIRO: `novoPiloto` lê `corrida.povo` para saber quem é cada
+     rival, e a malha de cada carro é construída a partir dele. Montar o objeto
+     `corrida` de uma vez só, com `pilotos` dentro, apagaria o povo no caminho —
+     a atribuição de fora sobrescreve a de dentro.
+
+     A semente junta o traçado com a HORA: o pátio muda de gente ao longo do
+     dia, mas não a cada corrida. Trocar de adversário a cada prova impede
+     qualquer rivalidade de nascer. */
+  corrida={ povo: escalar(GRID-1,
+    (estado.sementePista|0)*97 + Math.floor(Date.now()/3.6e6)) };
+  corrida.pilotos=montarGrid();
+  reconstruirRivais();          // cada um com o carro que montou
+  Object.assign(corrida,{
     at, t:-3.2, tVolta:0, melhor:-1, acabou:false, perLog:[], marcas:[],
     periciaGanha:0, pico:0, caixas:montarCaixas(), perigos:[], efeitos:[], brasas:[], misseis:[], sons:[], pegou:{}, aviso:"", avisoAte:0,
-  };
+  });
   /* No Automático a sua IA assume o volante. É a MESMA `iaEntrada` dos
      rivais, temperada pelo seu plano — não uma segunda inteligência. */
   corrida.pilotos[0].ia=estado.auto;
