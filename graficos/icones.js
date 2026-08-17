@@ -251,10 +251,10 @@ function gerarIcones(){
 
   gl.useProgram(pObj);
   gl.enable(gl.DEPTH_TEST); gl.depthMask(true); gl.disable(gl.BLEND);
-  gl.uniform1f(gl.getUniformLocation(pObj,"uNeb"),1e6);
-  gl.uniform3f(gl.getUniformLocation(pObj,"uTinta"),1,1,1);
-  gl.uniform1f(gl.getUniformLocation(pObj,"uAlfa"),1);
-  gl.uniform1f(gl.getUniformLocation(pObj,"uAlfa"),1);
+  gl.uniform1f(loc(pObj,"uNeb"),1e6);
+  gl.uniform3f(loc(pObj,"uTinta"),1,1,1);
+  gl.uniform1f(loc(pObj,"uAlfa"),1);
+  gl.uniform1f(loc(pObj,"uAlfa"),1);
 
   for(const nome of Object.keys(FORMAS)){
     const B=new M();
@@ -267,10 +267,10 @@ function gerarIcones(){
       gl.viewport(0,0,L,L);
       gl.clearColor(cr,cg,cb,1);
       gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
-      gl.uniformMatrix4fv(gl.getUniformLocation(pObj,"uP"),false,m4p(0.72,1,.1,60));
-      gl.uniformMatrix4fv(gl.getUniformLocation(pObj,"uV"),false,m4look(olho,[0,0,0],[0,1,0]));
-      gl.uniformMatrix4fv(gl.getUniformLocation(pObj,"uM"),false,m4pose(0,0,0,0));
-      gl.uniform3fv(gl.getUniformLocation(pObj,"uEye"),new Float32Array(olho));
+      gl.uniformMatrix4fv(loc(pObj,"uP"),false,m4p(0.72,1,.1,60));
+      gl.uniformMatrix4fv(loc(pObj,"uV"),false,m4look(olho,[0,0,0],[0,1,0]));
+      gl.uniformMatrix4fv(loc(pObj,"uM"),false,m4pose(0,0,0,0));
+      gl.uniform3fv(loc(pObj,"uEye"),new Float32Array(olho));
       gl.bindVertexArray(malha.vao);
       gl.drawArrays(gl.TRIANGLES,0,malha.n);
       gl.readPixels(0,0,L,L,gl.RGBA,gl.UNSIGNED_BYTE,destino);

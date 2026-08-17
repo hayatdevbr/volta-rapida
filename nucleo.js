@@ -44,13 +44,17 @@ const BATERIA = 800;
    corridas rodarem em pisos diferentes. Com um piso só, não há motivo para
    montar mais de um carro — e a garagem inteira perde o sentido.
    O piso da próxima corrida é anunciado ANTES, para a escolha ser sua. */
+/* A grama de cada piso é a COR-MÃE do mundo: encosta, terreno e tufos saem
+   dela. O dono cobrou "a pista é viva, o chão não" — e a resposta é saturação
+   AQUI, não objeto novo: verde de verdade no autódromo, ocre quente no rali,
+   verde-frio molhado no urbano. */
 const PISOS = {
   asfalto: { nome:"Asfalto", aderencia:1.00, arrasto:1.00,
-             pista:[.019,.021,.024], grama:[.020,.045,.026], ceu:1.00 },
+             pista:[.019,.021,.024], grama:[.024,.062,.027], ceu:1.00 },
   terra:   { nome:"Terra",   aderencia:0.64, arrasto:1.09,
-             pista:[.052,.032,.018], grama:[.038,.040,.020], ceu:1.06 },
+             pista:[.052,.032,.018], grama:[.055,.047,.018], ceu:1.06 },
   chuva:   { nome:"Chuva",   aderencia:0.58, arrasto:0.95,
-             pista:[.013,.016,.024], grama:[.014,.030,.024], ceu:0.62 },
+             pista:[.013,.016,.024], grama:[.016,.038,.028], ceu:0.62 },
 };
 const ORDEM_PISO = ["asfalto","terra","chuva"];
 

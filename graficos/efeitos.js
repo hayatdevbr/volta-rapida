@@ -31,8 +31,10 @@ function soltarBrasa(c,m,p){
   for(const lado of [-1,1]){
     const lz=ez*lado;
     c.brasas.push({
+      // + p.y: sem o relevo do carro a brasa nascia no nível do mar e, na
+      // subida, saía de dentro do morro
       x:p.x + ex*cs + lz*sn,
-      y:ey + (Math.random()-.5)*.12,
+      y:(p.y||0) + ey + (Math.random()-.5)*.12,
       z:p.z - ex*sn + lz*cs,
       // sai para trás do carro e espalha um pouco
       vx:-Math.cos(p.h)*(4+vel*.10) + (Math.random()-.5)*1.6,
@@ -49,12 +51,14 @@ function passoBrasas(c,dt){
     b.vy-=2.4*dt; b.vx*=1-1.8*dt; b.vz*=1-1.8*dt;
     b.giro+=dt*5;
   }
-  c.brasas=c.brasas.filter(b=>b.t<b.vida && b.y>0);
+  // só a vida mata: o corte em y>0 assumia chão no nível do mar e matava a
+  // brasa no ar em qualquer descida
+  c.brasas=c.brasas.filter(b=>b.t<b.vida);
 }
 function desenharBrasas(c,vista){
   gl.blendFunc(gl.SRC_ALPHA, gl.ONE);      // aditiva: luz soma, não tapa
   gl.depthMask(false);
-  const uT=gl.getUniformLocation(pObj,"uTinta"), uA=gl.getUniformLocation(pObj,"uAlfa");
+  const uT=loc(pObj,"uTinta"), uA=loc(pObj,"uAlfa");
   for(const b of c.brasas){
     /* Nitro queima AZUL. O núcleo sai branco-ciano estourado — valor bem
        acima de 1 para o tonemap saturar e virar brilho — e esfria para azul
@@ -120,7 +124,8 @@ function efeito(c,p,tipo){
   const cores={turbo:[3.0,1.6,.4], oleo:[.9,.8,.5], tranco:[3.0,1.0,.6],
                estouro:[3.4,.8,.3], reparo:[.7,2.4,1.9], escudo:[.5,2.2,3.2],
                batida:[2.4,2.4,2.6]};
-  c.efeitos.push({x:p.x,z:p.z,t:c.t,cor:cores[tipo]||cores.batida,
+  // y: o anel desenhado no nível do mar sumia dentro do morro
+  c.efeitos.push({x:p.x,y:p.y||0,z:p.z,t:c.t,cor:cores[tipo]||cores.batida,
                   raio: tipo==="estouro"?11:tipo==="tranco"?7:5});
   /* A simulação ANOTA o que aconteceu; quem toca é a camada de desenho.
      Chamar `sfx` daqui fazia `passoCorrida` depender do áudio — e ele tem de
@@ -132,8 +137,9 @@ function efeito(c,p,tipo){
   if(p===c.pilotos[0]) c.sons.push(tipo);
 }
 
-/* ── matrizes ── */
-function m4mul(a,b){const o=new Float32Array(16);
+/* ── matrizes ── (recicladas no anel m16: matriz nova por desenho era um
+   dos soluços de coletor de lixo que o dono sentia no turbo) */
+function m4mul(a,b){const o=m16();
   for(let i=0;i<4;i++)for(let j=0;j<4;j++)
     o[i*4+j]=a[j]*b[i*4]+a[4+j]*b[i*4+1]+a[8+j]*b[i*4+2]+a[12+j]*b[i*4+3];
   return o;}
@@ -142,8 +148,9 @@ function m4rodaLocal(w,giro,esterco){
   const cy=Math.cos(esterco), sy=Math.sin(esterco);
   // escala (r,r,1) · giro em Z · esterço em Y · translação
   const r=w.r;
-  const a=new Float32Array([ cz*r,sz*r,0,0,  -sz*r,cz*r,0,0,  0,0,1,0,  0,0,0,1]);
-  const b=new Float32Array([ cy,0,-sy,0,  0,1,0,0,  sy,0,cy,0,  w.x,w.y,w.z,1]);
+  const a=m16(), b=m16();
+  a.set([ cz*r,sz*r,0,0,  -sz*r,cz*r,0,0,  0,0,1,0,  0,0,0,1]);
+  b.set([ cy,0,-sy,0,  0,1,0,0,  sy,0,cy,0,  w.x,w.y,w.z,1]);
   return m4mul(b,a);
 }
 function desenharCarro(m,pose,giro,esterco){
@@ -167,8 +174,9 @@ function construirChao(){
 
   // chão: terra batida no miolo esmaecendo para grama suja — tons próximos,
   // porque contraste forte redesenha a grade que a gente veio tirar
-  const terra=[hex("#4A3E2C"),hex("#463A2A"),hex("#4E4230"),hex("#443826")];
-  const grama=[hex("#2C3822"),hex("#293520"),hex("#303C24"),hex("#273220")];
+  // mais quente e mais saturado: o pátio desbotado lia como morto
+  const terra=[hex("#59492E"),hex("#544430"),hex("#5F4D32"),hex("#4F412A")];
+  const grama=[hex("#32411F"),hex("#2D3C1D"),hex("#374624"),hex("#2A3819")];
   const L=560, P=80, w=L*2/P;   // mancha de ~14 m: menor que isso vira ruído,
                                 // maior vira o xadrez que a gente veio tirar
   for(let i=-P/2;i<P/2;i++) for(let j=-P/2;j<P/2;j++){
@@ -257,10 +265,47 @@ function construirSombra(){
   }
   malhaSombra=subir(B);
 }
-// pose deitada com escala anisotrópica: sombra é elipse, não círculo
-function m4deitado(x,y,z,ang,sx,sz){
-  const c=Math.cos(ang), s=Math.sin(ang);
-  return new Float32Array([c*sx,0,-s*sx,0, 0,1,0,0, s*sz,0,c*sz,0, x,y,z,1]);
+/* ── A BASE DO CHÃO ───────────────────────────────────────────────────────
+   Todo decalque que fica no chão — óleo, marca de pneu, sombra — precisa
+   DEITAR NA INCLINAÇÃO, não no plano do mundo. Um disco chato numa ladeira
+   entra pelo asfalto de um lado e flutua do outro: fica quebrado. E não
+   adianta só "pôr onde é plano", porque o óleo quem solta é o jogador, onde
+   ele quiser.
+
+   Da inclinação da pista sai a normal da superfície; do rumo pedido saem os
+   dois eixos dentro dela. Sem banking no modelo, a lateral é horizontal. */
+function baseNoChao(seg, rumo){
+  /* seg < 0 quer dizer CHÃO PLANO — o pátio idle e a vitrine da garagem não
+     têm pista nenhuma, e ler a inclinação do ponto 0 lá inclinaria a sombra
+     por um relevo que não existe naquela tela. */
+  const p = (seg>=0 && pista.pontos[seg|0]) || null;
+  const inc = p ? (p.inc||0) : 0;
+  let nx=p?-inc*p.tx:0, ny=1, nz=p?-inc*p.tz:0;
+  const nl=Math.hypot(nx,ny,nz)||1; nx/=nl; ny/=nl; nz/=nl;
+  let fx=Math.cos(rumo), fy=0, fz=Math.sin(rumo);
+  const d=fx*nx+fy*ny+fz*nz;               // projeta o rumo no plano do chão
+  fx-=nx*d; fy-=ny*d; fz-=nz*d;
+  const fl=Math.hypot(fx,fy,fz)||1; fx/=fl; fy/=fl; fz/=fl;
+  const rx=fy*nz-fz*ny, ry=fz*nx-fx*nz, rz=fx*ny-fy*nx;   // R = F × N
+  return {nx,ny,nz, fx,fy,fz, rx,ry,rz};
+}
+/* Pose para malha construída no plano XZ (a sombra): local Y é a normal. */
+function m4noChao(x,y,z,rumo,seg,sF,sR){
+  const b=baseNoChao(seg,rumo), o=m16();
+  o.set([b.fx*sF,b.fy*sF,b.fz*sF,0,
+         b.nx,b.ny,b.nz,0,
+         b.rx*sR,b.ry*sR,b.rz*sR,0,
+         x,y,z,1]);
+  return o;
+}
+/* Pose para malha construída no plano XY (a mancha): local Z é a normal. */
+function m4noChaoXY(x,y,z,rumo,seg,e){
+  const b=baseNoChao(seg,rumo), o=m16();
+  o.set([b.fx*e,b.fy*e,b.fz*e,0,
+         b.rx*e,b.ry*e,b.rz*e,0,
+         b.nx,b.ny,b.nz,0,
+         x,y,z,1]);
+  return o;
 }
 
 /* ── nuvens ───────────────────────────────────────────────────────────────
@@ -323,11 +368,17 @@ function desenharMarcas(marcas, proj, vista){
   const M2=marcasDin; let q=0;
   for(const m of marcas){
     if(q>=M2.MAX) break;
-    const cs=Math.cos(m.h), sn=Math.sin(m.h);
-    const tx=cs*0.62, tz=sn*0.62, nx=-sn*0.20, nz=cs*0.20;
+    /* A marca também DEITA na ladeira: com os quatro cantos na mesma altura,
+       um rastro de 1,2 m numa subida forte enterrava a ponta da frente. */
+    const b=baseNoChao(m.seg||0, m.h);
+    const fx=b.fx*0.62, fy=b.fy*0.62, fz=b.fz*0.62;
+    const rx=b.rx*0.20, ry=b.ry*0.20, rz=b.rz*0.20;
     const y=(m.y||0)+0.035, o=q*18;
-    M2.pos.set([m.x-tx-nx,y,m.z-tz-nz, m.x+tx-nx,y,m.z+tz-nz, m.x+tx+nx,y,m.z+tz+nz,
-                m.x-tx-nx,y,m.z-tz-nz, m.x+tx+nx,y,m.z+tz+nz, m.x-tx+nx,y,m.z-tz+nz], o);
+    M2.pos.set([
+      m.x-fx-rx, y-fy-ry, m.z-fz-rz,   m.x+fx-rx, y+fy-ry, m.z+fz-rz,
+      m.x+fx+rx, y+fy+ry, m.z+fz+rz,
+      m.x-fx-rx, y-fy-ry, m.z-fz-rz,   m.x+fx+rx, y+fy+ry, m.z+fz+rz,
+      m.x-fx+rx, y-fy+ry, m.z-fz+rz], o);
     // marca nova escurece forte; esvaindo, o fator volta a 1 e ela some.
     // 0,52 e não 0,42: na terra clara a marca lia como tinta preta.
     const g=lerp(1,0.52,cl(m.v,0,1));
@@ -335,10 +386,10 @@ function desenharMarcas(marcas, proj, vista){
     q++;
   }
   gl.useProgram(pCru);
-  gl.uniformMatrix4fv(gl.getUniformLocation(pCru,"uP"),false,proj);
-  gl.uniformMatrix4fv(gl.getUniformLocation(pCru,"uV"),false,vista);
-  gl.uniformMatrix4fv(gl.getUniformLocation(pCru,"uM"),false,m4pose(0,0,0,0));
-  gl.uniform1f(gl.getUniformLocation(pCru,"uAlfa"),1);
+  gl.uniformMatrix4fv(loc(pCru,"uP"),false,proj);
+  gl.uniformMatrix4fv(loc(pCru,"uV"),false,vista);
+  gl.uniformMatrix4fv(loc(pCru,"uM"),false,m4pose(0,0,0,0));
+  gl.uniform1f(loc(pCru,"uAlfa"),1);
   gl.bindVertexArray(M2.vao);
   gl.bindBuffer(gl.ARRAY_BUFFER,M2.bp);
   gl.bufferSubData(gl.ARRAY_BUFFER,0,M2.pos,0,q*18);
@@ -357,15 +408,16 @@ function desenharMarcas(marcas, proj, vista){
    luz; passar pelo sombreamento lavaria o fator com ambiente e névoa. */
 function comecarSombras(proj,vista){
   gl.useProgram(pCru);
-  gl.uniformMatrix4fv(gl.getUniformLocation(pCru,"uP"),false,proj);
-  gl.uniformMatrix4fv(gl.getUniformLocation(pCru,"uV"),false,vista);
-  gl.uniform1f(gl.getUniformLocation(pCru,"uAlfa"),1);
+  gl.uniformMatrix4fv(loc(pCru,"uP"),false,proj);
+  gl.uniformMatrix4fv(loc(pCru,"uV"),false,vista);
+  gl.uniform1f(loc(pCru,"uAlfa"),1);
   gl.blendFunc(gl.ZERO, gl.SRC_COLOR);
   gl.depthMask(false);
   gl.bindVertexArray(malhaSombra.vao);
 }
-function desenharSombra(x,y,z,ang,sx,sz){
-  gl.uniformMatrix4fv(gl.getUniformLocation(pCru,"uM"),false,m4deitado(x,y,z,ang,sx,sz));
+function desenharSombra(x,y,z,ang,seg,sF,sR){
+  // a sombra é um disco de 5 m: numa ladeira, chata, ela entra pelo asfalto
+  gl.uniformMatrix4fv(loc(pCru,"uM"),false,m4noChao(x,y,z,ang,seg,sF,sR));
   gl.drawArrays(gl.TRIANGLES,0,malhaSombra.n);
 }
 function acabarSombras(){
@@ -374,18 +426,45 @@ function acabarSombras(){
   gl.useProgram(pObj);
 }
 
+/* ── a poça de óleo ───────────────────────────────────────────────────────
+   Desenhada FORA do sombreamento, no pCru. Motivo medido na foto: o shader
+   de luz soma um brilho de borda azulado (`vec3(.42,.58,.82)*pow(1-N·V,3.4)`)
+   em toda superfície plana vista de raspão — e a pista é sempre vista de
+   raspão. É esse brilho que faz a POÇA D'ÁGUA da chuva parecer água de
+   verdade (o dono elogiou), e era ele que pintava o óleo preto de azul-claro:
+   "o óleo não parece óleo e sim água". Cor crua, e óleo volta a ser óleo. */
+function desenharManchas(perigos, proj, vista){
+  if(!perigos || !perigos.length) return;
+  gl.useProgram(pCru);
+  gl.uniformMatrix4fv(loc(pCru,"uP"),false,proj);
+  gl.uniformMatrix4fv(loc(pCru,"uV"),false,vista);
+  gl.depthMask(false);
+  gl.bindVertexArray(malhaMancha.vao);
+  for(const g of perigos){
+    const vida=cl(1-(g.t2||0),0,1);
+    gl.uniform1f(loc(pCru,"uAlfa"), 0.55+0.45*vida);
+    // deita na ladeira: óleo em subida com disco chato ficava meio enterrado
+    gl.uniformMatrix4fv(loc(pCru,"uM"),false,
+      m4noChaoXY(g.x,(g.y||0)+0.045,g.z, g.rumo||0, g.seg||0, g.esc));
+    gl.drawArrays(gl.TRIANGLES,0,malhaMancha.n);
+  }
+  gl.uniform1f(loc(pCru,"uAlfa"),1);
+  gl.depthMask(true);
+  gl.useProgram(pObj);
+}
+
 /* a cortina de chuva, em dois blocos reciclando na vertical */
 function desenharChuva(proj,vista,olho,t){
   gl.useProgram(pCru);
-  gl.uniformMatrix4fv(gl.getUniformLocation(pCru,"uP"),false,proj);
-  gl.uniformMatrix4fv(gl.getUniformLocation(pCru,"uV"),false,vista);
-  gl.uniform1f(gl.getUniformLocation(pCru,"uAlfa"),0.55);
+  gl.uniformMatrix4fv(loc(pCru,"uP"),false,proj);
+  gl.uniformMatrix4fv(loc(pCru,"uV"),false,vista);
+  gl.uniform1f(loc(pCru,"uAlfa"),0.55);
   gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
   gl.depthMask(false);
   gl.bindVertexArray(malhaChuva.vao);
   const desloca=-((t*17)%26);
   for(const dy of [desloca, desloca+26]){
-    gl.uniformMatrix4fv(gl.getUniformLocation(pCru,"uM"),false,
+    gl.uniformMatrix4fv(loc(pCru,"uM"),false,
       new Float32Array([1,0,0,0, 0,1,0,0, 0,0,1,0, olho[0],dy,olho[2],1]));
     gl.drawArrays(gl.TRIANGLES,0,malhaChuva.n);
   }
@@ -447,7 +526,9 @@ function construirChama(){
 function billboard(x,y,z,tam,vista){
   const dx=vista[0]*tam, dy=vista[4]*tam, dz=vista[8]*tam;    // direita da câmera
   const ux=vista[1]*tam, uy=vista[5]*tam, uz=vista[9]*tam;    // cima da câmera
-  return new Float32Array([dx,dy,dz,0, ux,uy,uz,0, 0,0,1,0, x,y,z,1]);
+  const o=m16();
+  o.set([dx,dy,dz,0, ux,uy,uz,0, 0,0,1,0, x,y,z,1]);
+  return o;
 }
 function construirAnel(){
   const B=new M(), c=[1,1,1];
@@ -466,8 +547,37 @@ function construirCaixa(){
   malhaCaixa=subir(B);
 }
 function construirMancha(){
-  const B=new M(), c=[.030,.024,.016];
-  B.disco(0,0,0,3.2,14,c);
+  /* ÓLEO, não água — o dono viu o disco escuro e leu "poça d'água". Óleo é
+     um BORRÃO irregular, quase preto no miolo, com a franja iridescente fina
+     de combustível na borda (violeta–verde–âmbar rodando com o ângulo).
+     Cor por vértice, arrays na mão — o disco da classe M pinta chapado. */
+  const B=new M(), seg=26;
+  const raio=a=>3.2*(0.78+0.16*Math.sin(3*a+1.1)+0.08*Math.sin(7*a));
+  /* Sem passar pela luz, a cor É o que se vê: preto-piche com um fio de
+     marrom no miolo, e a franja de combustível girando violeta→verde→âmbar.
+     Valores baixos porque o pós-processamento ainda sobe o contraste. */
+  const miolo=[0.030,0.026,0.022];
+  const franja=a=>{
+    const t=(Math.sin(5*a)+1)/2, u=(Math.sin(5*a+2.1)+1)/2;
+    return [0.10+0.16*t, 0.09+0.14*u, 0.12+0.20*(1-t)];
+  };
+  const põe=(x,y,c)=>{ B.p.push(x,y,0); B.n.push(0,0,1); B.c.push(c[0],c[1],c[2]); };
+  for(let i=0;i<seg;i++){
+    const a0=i/seg*6.2832, a1=(i+1)/seg*6.2832;
+    const r0=raio(a0), r1=raio(a1);
+    // miolo: leque do centro até 82% do raio, no preto-óleo
+    põe(0,0,miolo);
+    põe(Math.cos(a0)*r0*0.82, Math.sin(a0)*r0*0.82, miolo);
+    põe(Math.cos(a1)*r1*0.82, Math.sin(a1)*r1*0.82, miolo);
+    // franja: anel fino da borda com o arco-íris de combustível
+    const f0=franja(a0), f1=franja(a1);
+    põe(Math.cos(a0)*r0*0.82, Math.sin(a0)*r0*0.82, miolo);
+    põe(Math.cos(a0)*r0,      Math.sin(a0)*r0,      f0);
+    põe(Math.cos(a1)*r1,      Math.sin(a1)*r1,      f1);
+    põe(Math.cos(a0)*r0*0.82, Math.sin(a0)*r0*0.82, miolo);
+    põe(Math.cos(a1)*r1,      Math.sin(a1)*r1,      f1);
+    põe(Math.cos(a1)*r1*0.82, Math.sin(a1)*r1*0.82, miolo);
+  }
   malhaMancha=subir(B);
 }
 function construirSeta(){

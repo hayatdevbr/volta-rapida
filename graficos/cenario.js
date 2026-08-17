@@ -268,7 +268,8 @@ function construirCenario(pista, piso){
      então nunca briga com ele) e vira colina ao longe. */
   {
     const PI2=PISOS[piso]||PISOS.asfalto;
-    const perto=esc(PI2.grama,0.85), longe=esc(PI2.grama,0.52);
+    // 1,0 e 0,62: o campo desbotava rápido demais e lia como morto
+    const perto=esc(PI2.grama,1.0), longe=esc(PI2.grama,0.62);
     const seco = piso==="terra" ? [0.155,0.115,0.058]
                : piso==="chuva" ? [0.045,0.060,0.072] : [0.095,0.115,0.062];
     const cel=27, R=891, NC=Math.round(R*2/cel);
@@ -427,15 +428,23 @@ function construirPista(pista, nomePiso){
         }
       }
     }
-    // encosta de grama: da beira da pista ao nível base, em dois tons
+    /* Encosta em DUAS faixas: a régua de perto (até 14 m) mais viva e clara,
+       a encosta longa mais funda. É coloração, não objeto — o pedido do dono
+       era "o chão não parece vivo", e vivo aqui é saturação perto da pista,
+       onde o olho passa a corrida inteira. */
     for(const s of[-1,1]){
+      const meioA=14, tm=cl((meioA-1.5)/68.5,0,1);
       const a=L(p,s*(p.larg/2+1.5)), b=L(q,s*(q.larg/2+1.5));
+      const m1=L(p,s*(p.larg/2+meioA)), m2=L(q,s*(q.larg/2+meioA));
       const a2=L(p,s*(p.larg/2+APAVENTAL)), b2=L(q,s*(q.larg/2+APAVENTAL));
       a[1]=p.y+.10; b[1]=q.y+.10;
+      m1[1]=lerp(p.y+0.10, p.y*SOBRA-.07, tm);
+      m2[1]=lerp(q.y+0.10, q.y*SOBRA-.07, tm);
       a2[1]=p.y*SOBRA-.07; b2[1]=q.y*SOBRA-.07;
-      // 1,16 e não 1,35: com o avental acompanhando o relevo as listras
-      // ficaram enormes na paisagem, e contraste forte virava zebra
-      B.quad(a,b,b2,a2, (i%2? gr : esc(gr,1.16)));
+      B.quad(a,b,m2,m1, esc(gr, i%2 ? 1.34 : 1.18));
+      // 1,16 e não 1,35 na faixa longa: com o avental acompanhando o relevo
+      // as listras ficaram enormes na paisagem, e contraste forte virava zebra
+      B.quad(m1,m2,b2,a2, (i%2? gr : esc(gr,1.16)));
     }
   }
 
@@ -444,11 +453,16 @@ function construirPista(pista, nomePiso){
      são o que faz "chuva" ler como chuva antes de o primeiro pneu cantar. */
   if(nomePiso==="chuva"){
     const espelho=[.16,.20,.27];
-    for(let k=0;k<26;k++){
+    for(let k=0;k<44;k++){
       const i=Math.floor(r()*n), p=pts[i];
       if(p.rampa>0) continue;
+      /* Água empoça no PLANO — em ladeira o disco chato atravessava o
+         asfalto e saía cortado, o dono viu. É também fisicamente o certo:
+         poça em rampa escorre. */
+      const q0=pts[(i-1+n)%n], q2=pts[(i+1)%n];
+      if(Math.abs(p.inc)>0.012 || Math.abs(q2.y-p.y)>0.09 || Math.abs(q0.y-p.y)>0.09) continue;
       const off=(r()*2-1)*p.larg*0.30;
-      discoChao(p.x+p.nx*off, p.y+.028, p.z+p.nz*off, 1.2+r()*2.0, 10, espelho);
+      discoChao(p.x+p.nx*off, p.y+.028, p.z+p.nz*off, 1.1+r()*1.7, 10, espelho);
     }
   }
 

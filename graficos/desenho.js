@@ -10,7 +10,7 @@ function redim(){const r=Math.min(devicePixelRatio||1,2);
 
 function desenhar(malha,M4){
   gl.bindVertexArray(malha.vao);
-  gl.uniformMatrix4fv(gl.getUniformLocation(pObj,"uM"),false,M4);
+  gl.uniformMatrix4fv(loc(pObj,"uM"),false,M4);
   gl.drawArrays(gl.TRIANGLES,0,malha.n);
 }
 
@@ -25,13 +25,13 @@ function quadro(agora){
   gl.clear(gl.DEPTH_BUFFER_BIT);
   gl.depthMask(false); gl.disable(gl.DEPTH_TEST);
   gl.useProgram(pFundo);
-  gl.uniform1f(gl.getUniformLocation(pFundo,"uLuz"),
+  gl.uniform1f(loc(pFundo,"uLuz"),
     tela==="corrida" ? (PISOS[estado.piso]||PISOS.asfalto).ceu : 1.0);
   const tomCeu = tela!=="corrida" ? [1,1,1]
     : estado.piso==="chuva" ? [.62,.72,.92]      // cinza-azulado de chuva
     : estado.piso==="terra" ? [1.10,.98,.82]     // poeira quente
     : [1,1,1];
-  gl.uniform3f(gl.getUniformLocation(pFundo,"uCeu"),tomCeu[0],tomCeu[1],tomCeu[2]);
+  gl.uniform3f(loc(pFundo,"uCeu"),tomCeu[0],tomCeu[1],tomCeu[2]);
   gl.bindVertexArray(vazio); gl.drawArrays(gl.TRIANGLES,0,3);
   gl.enable(gl.DEPTH_TEST); gl.depthMask(true);
 
@@ -127,20 +127,20 @@ function quadro(agora){
   }
 
   gl.useProgram(pObj);
-  gl.uniformMatrix4fv(gl.getUniformLocation(pObj,"uP"),false,proj);
-  gl.uniformMatrix4fv(gl.getUniformLocation(pObj,"uV"),false,vista);
-  gl.uniform3fv(gl.getUniformLocation(pObj,"uEye"),new Float32Array(olho));
-  gl.uniform1f(gl.getUniformLocation(pObj,"uNeb"),neb);
-  gl.uniform3f(gl.getUniformLocation(pObj,"uTinta"),1,1,1);
+  gl.uniformMatrix4fv(loc(pObj,"uP"),false,proj);
+  gl.uniformMatrix4fv(loc(pObj,"uV"),false,vista);
+  gl.uniform3fv(loc(pObj,"uEye"),new Float32Array(olho));
+  gl.uniform1f(loc(pObj,"uNeb"),neb);
+  gl.uniform3f(loc(pObj,"uTinta"),1,1,1);
 
   if(tela==="corrida"&&corrida){
     desenhar(malhaPista,m4pose(0,0,0,0));
     if(malhaCenario) desenhar(malhaCenario,m4pose(0,0,0,0));
     // nuvens fora da névoa: a névoa do chão as comeria
     if(malhaNuvens){
-      gl.uniform1f(gl.getUniformLocation(pObj,"uNeb"),1e6);
+      gl.uniform1f(loc(pObj,"uNeb"),1e6);
       desenhar(malhaNuvens,m4pose(0,0,0,0));
-      gl.uniform1f(gl.getUniformLocation(pObj,"uNeb"),neb);
+      gl.uniform1f(loc(pObj,"uNeb"),neb);
     }
     // marcas de pneu escurecendo o asfalto — a simulação sempre as anotou,
     // e nenhum quadro as desenhava
@@ -149,21 +149,35 @@ function quadro(agora){
     // e encolhe — é ela que conta a altura do salto.
     comecarSombras(proj,vista);
     for(const p of corrida.pilotos){
-      const chaoS=pista.pontos[p.seg]?pista.pontos[p.seg].y:0;
+      /* O chão da sombra é INTERPOLADO entre o ponto de pista e o seguinte.
+         Só o ponto mais próximo dava degraus de até 2 m entre segmentos na
+         ladeira: no meio do vão a sombra afundava sob o asfalto e PISCAVA —
+         a queixa exata do dono. No chão, o y do próprio carro (que a
+         suspensão já suaviza) é a verdade; a conta por segmento fica para o
+         voo, quando o carro está longe do chão. */
+      let chaoS;
+      if(!p.noAr){ chaoS=(p.y||0); }
+      else{
+        const a=pista.pontos[p.seg], b=pista.pontos[(p.seg+1)%pista.n];
+        const ex=b.x-a.x, ez=b.z-a.z, l2=ex*ex+ez*ez||1;
+        const t=cl(((p.x-a.x)*ex+(p.z-a.z)*ez)/l2,0,1);
+        chaoS=lerp(a.y,b.y,t);
+      }
       const alt=Math.max(0,(p.y||0)-chaoS);
       const k=1/(1+alt*0.22);
-      desenharSombra(p.x, chaoS+0.05, p.z, -p.h, 2.65*k, 1.75*k);
+      desenharSombra(p.x, chaoS+0.07, p.z, p.h, p.seg, 2.65*k, 1.75*k);
     }
     for(const cx of corrida.caixas)
-      if(!(cx.volta>0)) desenharSombra(cx.x,(cx.y||0)+0.06,cx.z,0,1.15,1.15);
+      if(!(cx.volta>0))
+        desenharSombra(cx.x,(cx.y||0)+0.06,cx.z,cx.rumo||0,cx.seg||0,1.15,1.15);
     acabarSombras();
+    // óleo: cor crua, senão o brilho de borda do shader o pinta de azul e ele
+    // vira poça d'água — a mancha deita no chão (X->X, Y->Z, espessura->Y)
     for(const g of corrida.perigos){
-      const vida=cl(1-(corrida.t-g.t)/14,0,1);
-      // a mancha deita no chão: X->X, Y->Z, Z(espessura)->Y
-      const e=0.6+vida*0.6;
-      desenhar(malhaMancha,new Float32Array([e,0,0,0, 0,0,e,0, 0,e,0,0,
-               g.x, (g.y||0)+0.05, g.z, 1]));
+      g.t2=(corrida.t-g.t)/14;
+      g.esc=0.6+cl(1-g.t2,0,1)*0.6;
     }
+    desenharManchas(corrida.perigos, proj, vista);
     // a caixa cicla pelas cores dos itens: comunica sozinha que o que vem
     // de dentro é sorteio, em vez de ser sempre a mesma estrela laranja
     const paleta=Object.values(ITENS).map(it=>hex(it.cor));
@@ -176,23 +190,25 @@ function quadro(agora){
       const n=paleta.length;
       const f=(((corrida.t*0.8+cx.x*0.05)%n)+n)%n;
       const c0=paleta[Math.floor(f)], c1=paleta[(Math.floor(f)+1)%n], k=f%1;
-      gl.uniform3f(gl.getUniformLocation(pObj,"uTinta"),
+      gl.uniform3f(loc(pObj,"uTinta"),
         lerp(c0[0],c1[0],k)*2.2, lerp(c0[1],c1[1],k)*2.2, lerp(c0[2],c1[2],k)*2.2);
       desenhar(malhaCaixa,m4pose(cx.x,(cx.y||0)+2.0+Math.sin(corrida.t*2.4+cx.x)*0.26,
                                  cx.z,corrida.t*2.1,0.82));
-      gl.uniform3f(gl.getUniformLocation(pObj,"uTinta"),1,1,1);
+      gl.uniform3f(loc(pObj,"uTinta"),1,1,1);
     }
     // escudo em volta de quem está protegido
     for(const p of corrida.pilotos){
       if(!(p.escudo>0)) continue;
       const pulso=1+Math.sin(corrida.t*9)*0.05;
       gl.blendFunc(gl.SRC_ALPHA, gl.ONE);       // aditiva: campo de força, não pedra
-      gl.uniform1f(gl.getUniformLocation(pObj,"uAlfa"),0.10+Math.sin(corrida.t*6)*0.035);
+      gl.uniform1f(loc(pObj,"uAlfa"),0.10+Math.sin(corrida.t*6)*0.035);
       gl.depthMask(false);
-      desenhar(malhaEscudo,m4pose(p.x,0.95,p.z,corrida.t*1.2, 1.95*pulso));
+      // + p.y: em altura fixa a bolha ficava enterrada na subida e voando na
+      // descida — "o escudo não fica certinho no carro", disse o dono
+      desenhar(malhaEscudo,m4pose(p.x,(p.y||0)+0.95,p.z,corrida.t*1.2, 1.95*pulso));
       gl.depthMask(true);
       gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-      gl.uniform1f(gl.getUniformLocation(pObj,"uAlfa"),1);
+      gl.uniform1f(loc(pObj,"uAlfa"),1);
     }
     for(const m of corrida.misseis)
       desenhar(malhaMissil,m4pose(m.x,m.y,m.z,-m.h,1.5));
@@ -201,7 +217,7 @@ function quadro(agora){
     if(corrida.misseis.length){
       // rastro do míssil, também como luz
       gl.blendFunc(gl.SRC_ALPHA, gl.ONE); gl.depthMask(false);
-      const uT=gl.getUniformLocation(pObj,"uTinta"), uA=gl.getUniformLocation(pObj,"uAlfa");
+      const uT=loc(pObj,"uTinta"), uA=loc(pObj,"uAlfa");
       for(const m of corrida.misseis) for(const g of m.rastro){
         const k=cl(1-g.t/0.7,0,1);
         gl.uniform3f(uT, 2.6*k+.3, .9*k*k+.15, .25*k*k);
@@ -217,21 +233,25 @@ function quadro(agora){
     if(corrida.efeitos.length){
       gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
       gl.depthMask(false);
-      gl.uniform1f(gl.getUniformLocation(pObj,"uAlfa"),0.6);
+      gl.uniform1f(loc(pObj,"uAlfa"),0.6);
       for(const e of corrida.efeitos){
         const v=(corrida.t-e.t)/0.75, r=e.raio*(0.25+v*1.5), br=(1-v)*(1-v);
-        gl.uniform3f(gl.getUniformLocation(pObj,"uTinta"),e.cor[0]*br,e.cor[1]*br,e.cor[2]*br);
-        desenhar(malhaAnel,new Float32Array([r,0,0,0, 0,0,r,0, 0,r,0,0, e.x,0.35,e.z,1]));
+        gl.uniform3f(loc(pObj,"uTinta"),e.cor[0]*br,e.cor[1]*br,e.cor[2]*br);
+        const M5=m16();
+        M5.set([r,0,0,0, 0,0,r,0, 0,r,0,0, e.x,(e.y||0)+0.35,e.z,1]);
+        desenhar(malhaAnel,M5);
       }
-      gl.uniform3f(gl.getUniformLocation(pObj,"uTinta"),1,1,1);
-      gl.uniform1f(gl.getUniformLocation(pObj,"uAlfa"),1);
+      gl.uniform3f(loc(pObj,"uTinta"),1,1,1);
+      gl.uniform1f(loc(pObj,"uAlfa"),1);
       gl.depthMask(true);
       gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
     }
     corrida.pilotos.forEach((p,i)=>{
       const m=i===0?malhaCarro:malhaRival[(i-1)%malhaRival.length];
       desenharCarro(m,m4pose(p.x,p.y||0,p.z,-p.h), p.giroRoda||0, (p.dir||0)*0.5);
-      if(p.turbando && Math.random()<.8) soltarBrasa(corrida,m,p);
+      // 0,55 e teto: mais que isso não aparece na tela e ainda pesa no quadro
+      if(p.turbando && Math.random()<.55 && corrida.brasas.length<110)
+        soltarBrasa(corrida,m,p);
 
     });
     // a chuva cai por último: é cortina, fica na frente de tudo
@@ -240,12 +260,13 @@ function quadro(agora){
   } else if(tela==="mapa"){
     desenhar(malhaChao,m4pose(0,0,0,0));
     if(malhaNuvens){
-      gl.uniform1f(gl.getUniformLocation(pObj,"uNeb"),1e6);
+      gl.uniform1f(loc(pObj,"uNeb"),1e6);
       desenhar(malhaNuvens,m4pose(0,0,0,0));
-      gl.uniform1f(gl.getUniformLocation(pObj,"uNeb"),neb);
+      gl.uniform1f(loc(pObj,"uNeb"),neb);
     }
     comecarSombras(proj,vista);
-    for(const c of mapa.carros) desenharSombra(c.x,0.06,c.z,-c.h,5.6,3.8);
+    // -1: o pátio é plano, não tem pista para inclinar a sombra
+    for(const c of mapa.carros) desenharSombra(c.x,0.06,c.z,c.h,-1,5.6,3.8);
     acabarSombras();
     mapa.cargas.forEach(g=>{
       const idade=mapa.t-g.nasceu;
@@ -269,7 +290,7 @@ function quadro(agora){
   } else {
     // a sombra ancora o carro da vitrine: sem ela, ele flutua no céu
     comecarSombras(proj,vista);
-    desenharSombra(0,-0.012,0,0,2.7,1.8);
+    desenharSombra(0,-0.012,0,0,-1,2.7,1.8);
     acabarSombras();
     desenharCarro(malhaCarro,m4pose(0,0,0,0),0,0);
   }

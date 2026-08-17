@@ -63,7 +63,7 @@ function montarCaixas(){
     for(const lado of [-0.50,-0.25,0,0.25,0.50])
       // a caixa nasce com a altura do ponto: em altura fixa ela flutuaria nos
       // vales e ficaria enterrada nos morros
-      cx.push({x:p.x+p.nx*p.larg*lado*0.80, y:p.y||0,
+      cx.push({x:p.x+p.nx*p.larg*lado*0.80, y:p.y||0, seg:i, rumo:Math.atan2(p.tz,p.tx),
                z:p.z+p.nz*p.larg*lado*0.80, volta:0});
   }
   return cx;
@@ -291,7 +291,9 @@ function passoCorrida(){
          ser desenhadas. */
       const dMarca=(p.x-(p.marcaX||1e9))**2+(p.z-(p.marcaZ||1e9))**2;
       if(p.derrapa>lim && naPista && c.marcas.length<900 && dMarca>1.4){
-        c.marcas.push({x:p.x,y:p.y,z:p.z,h:p.h,v:1});
+        // `seg` é ONDE na pista a marca ficou: o desenho precisa disso para
+        // deitá-la na inclinação em vez de a deixar chata numa ladeira
+        c.marcas.push({x:p.x,y:p.y,z:p.z,h:p.h,seg:p.seg,v:1});
         p.marcaX=p.x; p.marcaZ=p.z;
       }
     }
@@ -485,7 +487,8 @@ function passoCorrida(){
       if(it==="escudo"){ p.escudo=14; efeito(c,p,"escudo");
         if(!p.ia){ c.aviso="ESCUDO LIGADO"; c.avisoAte=c.t+1.8; } }
       if(it==="turbo"){ p.nitro=NITRO.max; efeito(c,p,"turbo"); }
-      if(it==="oleo"){  c.perigos.push({x:p.x-Math.cos(p.h)*4,y:p.y||0,z:p.z-Math.sin(p.h)*4,t:c.t,de:p});
+      if(it==="oleo"){  c.perigos.push({x:p.x-Math.cos(p.h)*4,y:p.y||0,z:p.z-Math.sin(p.h)*4,
+                                        t:c.t,de:p,seg:p.seg,rumo:p.h});
                         efeito(c,{x:p.x-Math.cos(p.h)*4,z:p.z-Math.sin(p.h)*4},"oleo"); }
       if(it==="reparo"){ p.nitro=cl((p.nitro||0)+55,0,NITRO.max); efeito(c,p,"reparo"); }
       if(it==="tranco"){

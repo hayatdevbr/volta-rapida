@@ -136,11 +136,30 @@ function acabarPos(){
   gl.useProgram(pPos);
   gl.activeTexture(gl.TEXTURE0);
   gl.bindTexture(gl.TEXTURE_2D,pos.tex);
-  gl.uniform1i(gl.getUniformLocation(pPos,"uTela"),0);
+  gl.uniform1i(loc(pPos,"uTela"),0);
   gl.bindVertexArray(vazio);
   gl.drawArrays(gl.TRIANGLES,0,3);
   gl.enable(gl.DEPTH_TEST); gl.depthMask(true);
 }
+
+/* ── os dois ralos de suavidade, tapados ─────────────────────────────────
+   1. `getUniformLocation` procura por TEXTO no driver, e o laço chamava isso
+      dezenas de vezes por quadro (uma por caixa, por brasa, por sombra…).
+   2. cada desenho criava uma Float32Array de matriz nova — centenas por
+      segundo — e o coletor de lixo cobrava em soluços periódicos. Era o
+      "anda travando" que o dono sentia no turbo, quando as brasas dobram a
+      conta. Cache de endereço e anel de matrizes recicladas. */
+const _locs=new Map();
+function loc(p,nome){
+  let m=_locs.get(p);
+  if(!m){ m=new Map(); _locs.set(p,m); }
+  let u=m.get(nome);
+  if(u===undefined){ u=gl.getUniformLocation(p,nome); m.set(nome,u); }
+  return u;
+}
+const _anelM=[]; let _anelI=0;
+for(let i=0;i<512;i++) _anelM.push(new Float32Array(16));
+function m16(){ _anelI=(_anelI+1)&511; return _anelM[_anelI]; }
 
 const vazio=gl.createVertexArray();
 function subir(mesh){
@@ -160,4 +179,7 @@ function m4look(e,c,u){let z=[e[0]-c[0],e[1]-c[1],e[2]-c[2]];let l=Math.hypot(..
   return new Float32Array([x[0],y[0],z[0],0,x[1],y[1],z[1],0,x[2],y[2],z[2],0,
     -(x[0]*e[0]+x[1]*e[1]+x[2]*e[2]),-(y[0]*e[0]+y[1]*e[1]+y[2]*e[2]),-(z[0]*e[0]+z[1]*e[1]+z[2]*e[2]),1]);}
 function m4pose(x,y,z,ang,esc=1){const c=Math.cos(ang)*esc,s=Math.sin(ang)*esc;
-  return new Float32Array([c,0,-s,0, 0,esc,0,0, s,0,c,0, x,y,z,1]);}
+  const o=m16();
+  o[0]=c;o[1]=0;o[2]=-s;o[3]=0; o[4]=0;o[5]=esc;o[6]=0;o[7]=0;
+  o[8]=s;o[9]=0;o[10]=c;o[11]=0; o[12]=x;o[13]=y;o[14]=z;o[15]=1;
+  return o;}
