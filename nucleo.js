@@ -38,6 +38,10 @@ const CUSTO_CORRIDA = 120;
 const AUTO_SUCATA = 0.82;
 const AUTO_DESGASTE = 1.30;
 const BATERIA = 800;
+/* O relevo inteiro num interruptor. `false` devolve a pista de mesa —
+   está aqui porque relevo mal-resolvido é pior que pista plana, e essa
+   decisão tem de caber numa linha. */
+const RELEVO_LIGADO = true;
 
 /* ── PISOS ────────────────────────────────────────────────────────────────
    A Lei L5 (nenhuma peça pode ser boa em tudo) só existe de verdade se as
@@ -470,6 +474,22 @@ function gerarPista(sem, piso){
     for(let k=0;k<=q;k++) if(curvEm[(i0+k)%nMeio]>(tol||0.055)) return false;
     return true;
   };
+  /* Uma linha só desliga o relevo inteiro. Se um dia ele voltar a dar
+     problema, a pista volta a ser mesa sem tirar mais nada do jogo. */
+  if(!RELEVO_LIGADO){
+    const n0=meio.length, planos=[];
+    let t0=0;
+    for(let i=0;i<n0;i++){
+      const a=meio[(i-1+n0)%n0], b=meio[i], c=meio[(i+1)%n0];
+      let tx=c[0]-a[0], tz=c[1]-a[1]; const l=Math.hypot(tx,tz)||1; tx/=l; tz/=l;
+      const curv=Math.abs(Math.atan2(c[1]-b[1],c[0]-b[0])-Math.atan2(b[1]-a[1],b[0]-a[0]));
+      t0+=Math.hypot(b[0]-a[0], b[1]-a[1]);
+      planos.push({x:b[0],z:b[1],y:0,yBase:0,rampa:0,saltoBorda:false,inc:0,
+                   tx,tz,nx:-tz,nz:tx,larg:larguraBase-cl(curv,0,.5)*aperto,s:t0});
+    }
+    return {pontos:planos, n:n0, comprimento:t0, piso, feicoes:[], alto:0, baixo:0};
+  }
+
   const PLANO={   // o caráter de cada piso, em feições
     asfalto:{ morros:2, vales:1, ampM:[5.0,8.5], ampV:[3.5,5.5], larg:[0.085,0.125], rampas:0 },
     terra:  { morros:3, vales:1, ampM:[4.0,7.5], ampV:[3.0,5.0], larg:[0.055,0.085], rampas:2 },
@@ -493,7 +513,10 @@ function gerarPista(sem, piso){
      E em vez de sortear um lugar e torcer para ser reto, o gerador VARRE a
      volta e escolhe as retas mais retas que existem. */
   if(PLANO.rampas>0){
-    const deckU=32/aprox, pousoU=48/aprox;
+    // deck mais curto e mais alto: 32 m com 2,5 m dava 8% de inclinação — uma
+    // lombada, não uma rampa. 24 m com 3,2-4,1 m dá 13-17%, que é rampa de
+    // terra de verdade e joga o carro longe o bastante para o salto existir.
+    const deckU=24/aprox, pousoU=52/aprox;
     const jan=Math.ceil((deckU+pousoU)*nMeio);
     const candidatos=[];
     for(let i0=0;i0<nMeio;i0+=2){
@@ -509,8 +532,10 @@ function gerarPista(sem, piso){
       if(!livre(cand.u+deckU/2, deckU/2+pousoU)) continue;
       // o `w` é a extensão que os morros respeitam: deck E pouso, porque
       // morro em cima da área de pouso é pouso quebrado
+      // 2,8-3,6 m em 24 m (12-15%): com 3,2-4,1 o salto passava de 7 m de
+      // altura e 2,5 s de ar — bonito uma vez, injogável toda volta
       feicoes.push({tipo:"rampa", u:cand.u, len:deckU, w:deckU+pousoU,
-                    H:2.3+r()*0.8});
+                    H:2.8+r()*0.8});
       postas++;
     }
   }
@@ -527,16 +552,26 @@ function gerarPista(sem, piso){
   poe(PLANO.morros, PLANO.ampM, 1);
   poe(PLANO.vales,  PLANO.ampV, -1);
 
+  /* O TERRENO e a RAMPA são coisas separadas, e misturá-las foi um bug feio:
+     a rampa é uma estrutura CONSTRUÍDA sobre o chão, não um morro. Quando o
+     terreno em volta lia a altura dela, nascia um platô de barro depois do
+     salto — e o carro pousava DENTRO da terra. O dono viu na hora.
+     `alturaEm` é o chão de verdade; `rampaEm` é o que se construiu por cima. */
   const alturaEm=(u)=>{
     let y=0;
     for(const f of feicoes){
-      if(f.tipo==="rampa"){
-        let du=u-f.u; if(du<-0.5)du+=1; if(du>0.5)du-=1;
-        if(du>=0 && du<=f.len) y+=f.H*(du/f.len);
-      } else {
-        let du=Math.abs(u-f.u); if(du>0.5)du=1-du;
-        if(du<f.w) y+=f.amp*0.5*(1+Math.cos(Math.PI*du/f.w));
-      }
+      if(f.tipo==="rampa") continue;
+      let du=Math.abs(u-f.u); if(du>0.5)du=1-du;
+      if(du<f.w) y+=f.amp*0.5*(1+Math.cos(Math.PI*du/f.w));
+    }
+    return y;
+  };
+  const rampaEm=(u)=>{
+    let y=0;
+    for(const f of feicoes){
+      if(f.tipo!=="rampa") continue;
+      let du=u-f.u; if(du<-0.5)du+=1; if(du>0.5)du-=1;
+      if(du>=0 && du<=f.len) y+=f.H*(du/f.len);
     }
     return y;
   };
@@ -559,7 +594,10 @@ function gerarPista(sem, piso){
     // a→b é UM segmento; o *0.5 daqui fazia o perímetro sair pela metade,
     // e a IA calcula a distância de frenagem a partir dele
     total+=Math.hypot(b[0]-meio[(i-1+n)%n][0], b[1]-meio[(i-1+n)%n][1]);
-    dados.push({x:b[0],z:b[1],y:alturaEm(i/n),rampa:naRampa(i/n),
+    const u=i/n, yb=alturaEm(u);
+    // y = a superfície em que o carro anda (com rampa); yBase = o chão que o
+    // terreno e o cenário em volta seguem (sem rampa)
+    dados.push({x:b[0],z:b[1],y:yb+rampaEm(u),yBase:yb,rampa:naRampa(u),
                 tx,tz,nx:-tz,nz:tx,larg,s:total});
   }
   /* Inclinação: quanto o chão sobe por metro andado. É o que o motor sente na
@@ -579,6 +617,46 @@ function gerarPista(sem, piso){
   }
   return {pontos:dados, n, comprimento:total, piso, feicoes,
           alto:Math.max(...dados.map(d=>d.y)), baixo:Math.min(...dados.map(d=>d.y))};
+}
+
+/* ── A ALTURA DO CHÃO ─────────────────────────────────────────────────────
+   Ler a altura do PONTO MAIS PRÓXIMO foi o pior bug do relevo, e explicava
+   três queixas de uma vez: os pontos ficam a ~7,4 m um do outro e o degrau
+   entre vizinhos chega a 2,4 m — medido. O carro perseguia essa ESCADA
+   enquanto a malha desenha a rampa contínua entre os dois pontos, então na
+   subida ele ficava abaixo do asfalto ("entra dentro do chão") e fora da
+   pista afundava até sumir.
+
+   Aqui a altura é interpolada AO LONGO DO SEGMENTO, que é exatamente a
+   superfície desenhada. A única descontinuidade que sobra é de propósito: a
+   beira da rampa, que é o degrau de onde o salto nasce. */
+function alturaChao(pista, seg, x, z, comRampa){
+  const n=pista.n, pts=pista.pontos;
+  const projeta=(i)=>{
+    const a=pts[i], b=pts[(i+1)%n];
+    const ex=b.x-a.x, ez=b.z-a.z, l2=ex*ex+ez*ez||1;
+    return ((x-a.x)*ex+(z-a.z)*ez)/l2;
+  };
+  // o ponto mais próximo pode estar À FRENTE do carro: neste caso o segmento
+  // que vale é o de trás
+  let i=((seg|0)%n+n)%n, t=projeta(i);
+  if(t<0){ i=(i-1+n)%n; t=projeta(i); }
+  const a=pts[i], b=pts[(i+1)%n];
+  const ay = comRampa ? a.y : (a.yBase!==undefined?a.yBase:a.y);
+  const by = comRampa ? b.y : (b.yBase!==undefined?b.yBase:b.y);
+  /* Sem caso especial na beira da rampa. Ela já foi um degrau aqui, para
+     "forçar" o salto — e isso punha 3,2 m de desacordo entre o chão da física
+     e a rampa que a malha desenha, bem onde o carro pousa. O salto agora sai
+     da física (ver `passoCorrida`): o carro decola porque o chão foge mais
+     depressa do que a gravidade o puxa, que é o que acontece de verdade. */
+  return lerp(ay,by,cl(t,0,1));
+}
+/* O quanto o terreno já desceu em relação à pista, na distância lateral `d`.
+   É a MESMA conta do avental de grama e do terreno desenhado — três contas
+   diferentes para a mesma superfície era o que fazia o carro afundar no
+   barranco ao sair da pista. */
+function quedaDoAvental(d, larg){
+  return 1 - 0.72*cl((d - larg/2)/70, 0, 1);
 }
 
 /* Índice do ponto mais próximo — busca local, porque o carro anda contínuo. */
@@ -624,7 +702,11 @@ const NITRO = { max:100, gasto:34, forca:1.85, calor:0, porDeslize:11, porVacuo:
    corrida viva depois que alguém abre vantagem. */
 const ITENS = {
   turbo:  { nome:"Turbo",  cor:"#E9992B", peso:[4,5,7,8], ic:"turbo" },
-  oleo:   { nome:"Óleo",   cor:"#7A6A50", peso:[7,5,3,2], ic:"oleo" },
+  /* Óleo caiu de [7,5,3,2] para [4,3,2,1]: com o peso antigo o líder tirava
+     óleo quase toda caixa, a pista virava um campo minado e o dono relatou
+     que ficou difícil de controlar. Continua sendo a mão de quem lidera —
+     só deixou de ser a mão PADRÃO de quem lidera. */
+  oleo:   { nome:"Óleo",   cor:"#7A6A50", peso:[4,3,2,1], ic:"oleo" },
   tranco: { nome:"Tranco", cor:"#D2604A", peso:[0,2,4,6], ic:"tranco" },
   reparo: { nome:"Recarga",cor:"#5AA894", peso:[3,4,5,5], ic:"recarga" },
   // ESTOURO: só cai pra quem está em 3º ou 4º e acerta o LÍDER onde ele
@@ -709,7 +791,9 @@ function passo(c, ent, at, naPista, terra){
   /* NO AR o carro é um projétil: o pneu não toca nada, então não há tração,
      freio, aderência nem ladeira — só o arrasto. O volante gira um resto,
      porque carro que trava feito pedra no ar parece travado, não voando. */
-  const noAr=!!c.noAr;
+  // `voando`, não `noAr`: pulinho de centímetros na quebra da pista não pode
+  // tirar a tração — ver o comentário em `passoCorrida`
+  const noAr=!!c.voando;
 
   // volante: afina em alta velocidade, mas nunca some
   const dirMax=(1-0.40*cl(spd/44,0,1))*(noAr?0.22:1);

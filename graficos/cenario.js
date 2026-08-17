@@ -194,18 +194,25 @@ function construirCenario(pista, piso){
   /* Cada peça é construída no zero e depois levantada até a altura do ponto de
      pista mais próximo — senão árvore e container ficariam enterrados nos
      morros ou flutuando sobre os vales. */
+  /* A altura do TERRENO num ponto qualquer do mundo — a mesma conta que o
+     carro usa quando sai da pista, e a mesma que o chão desenhado segue.
+     Três detalhes, cada um custou um bug:
+       1. interpola ao longo do segmento (o ponto mais próximo dá degrau de
+          2,4 m, e o carro afundava nele);
+       2. usa `yBase`, o chão SEM a rampa — a rampa é estrutura construída, e
+          quando o terreno lia a altura dela nascia um platô de barro depois
+          do salto, com o carro pousando dentro da terra;
+       3. desce pelo avental conforme se afasta: o morro é da pista, não do
+          mundo inteiro. */
   const alturaPerto=(x,z)=>{
-    let melhor=null, md=1e9;
-    for(let i=0;i<n;i+=3){
+    let mel=0, md=1e9;
+    for(let i=0;i<n;i++){
       const d=(pts[i].x-x)**2+(pts[i].z-z)**2;
-      if(d<md){ md=d; melhor=pts[i]; }
+      if(d<md){ md=d; mel=i; }
     }
-    /* A MESMA conta do avental de grama (construirPista): o terreno desce da
-       altura da pista para o nível base conforme se afasta dela. Peça posta na
-       altura CHEIA da pista flutuava no meio da encosta — o morro é da pista,
-       não do mundo inteiro. */
-    const d=Math.sqrt(md);
-    return melhor.y*(1-0.72*cl((d-melhor.larg/2)/70,0,1));
+    const p0=pts[mel];
+    return alturaChao(pista, mel, x, z, false)
+         * quedaDoAvental(Math.sqrt(md), p0.larg);
   };
   const noChao=(f)=>(x,z,...resto)=>{
     const marca=B.p.length;
@@ -272,13 +279,15 @@ function construirCenario(pista, piso){
     const perto=esc(PI2.grama,1.0), longe=esc(PI2.grama,0.62);
     const seco = piso==="terra" ? [0.155,0.115,0.058]
                : piso==="chuva" ? [0.045,0.060,0.072] : [0.095,0.115,0.062];
-    const cel=27, R=891, NC=Math.round(R*2/cel);
+    // 20 m e não 27: a célula grande deixava o terreno desviar da conta que o
+    // carro usa, e ele afundava no barranco entre um canto e outro
+    const cel=20, R=900, NC=Math.round(R*2/cel);
     const alturaT=(x,z)=>{
-      let md=1e9, mp=pts[0];
-      for(let i=0;i<n;i+=3){ const d2=(pts[i].x-x)**2+(pts[i].z-z)**2;
-        if(d2<md){ md=d2; mp=pts[i]; } }
-      const d=Math.sqrt(md);
-      const base=mp.y*(1-0.72*cl((d-mp.larg/2)/70,0,1));
+      let md=1e9, mi=0;
+      for(let i=0;i<n;i++){ const d2=(pts[i].x-x)**2+(pts[i].z-z)**2;
+        if(d2<md){ md=d2; mi=i; } }
+      const d=Math.sqrt(md), mp=pts[mi];
+      const base=alturaChao(pista, mi, x, z, false)*quedaDoAvental(d, mp.larg);
       // sob o avental o terreno mergulha meio palmo: coberto, nunca z-briga
       if(d < mp.larg/2+68) return {h:base-0.45, d};
       // colinas: só crescem longe da pista, e a chuva é mais mansa
@@ -323,9 +332,11 @@ function construirCenario(pista, piso){
         if(r()>0.55) continue;
         const dd=p.larg/2+2.5+r()*9;
         const x=p.x+p.nx*lado*dd, z=p.z+p.nz*lado*dd;
-        // a MESMA interpolação do avental, senão o tufo flutua na encosta
+        // a MESMA interpolação do avental, senão o tufo flutua na encosta —
+        // e pelo chão natural, senão ele sobe na rampa junto com o tabuleiro
+        const pyb2=p.yBase!==undefined?p.yBase:p.y;
         const t3=cl((dd-p.larg/2-1.5)/68.5,0,1);
-        const y=lerp(p.y+0.10, p.y*0.28-0.07, t3);
+        const y=lerp(pyb2+0.10, pyb2*0.28-0.07, t3);
         const tt=0.25+r()*0.40;
         const cor = r()<0.14
           ? (piso==="terra" ? [0.55,0.42,0.10] : [0.72,0.70,0.58])
@@ -370,7 +381,10 @@ function construirPista(pista, nomePiso){
   for(let i=0;i<n;i++){
     const p=pts[i], q=pts[(i+1)%n];
     const L=(o,w)=>[o.x+o.nx*w, o.y+.02, o.z+o.nz*w];
-    const naRampa = p.rampa>0 && q.rampa>0;
+    /* `p.rampa>0` e não `p && q`: o segmento que DESCE da beira até o chão
+       também é a estrutura da rampa — pintado de asfalto ele lia como um
+       tobogã de asfalto no meio do rali. */
+    const naRampa = p.rampa>0;
     // o tabuleiro da rampa tem cor própria: o jogador precisa LER de longe
     // que aquilo é uma coisa construída, não um calombo do chão
     B.quad(L(p,-p.larg/2),L(q,-q.larg/2),L(q,q.larg/2),L(p,p.larg/2),
@@ -378,15 +392,18 @@ function construirPista(pista, nomePiso){
 
     if(naRampa){
       // saias laterais até o chão e vigas por baixo: rampa é ARMADA, não morro
+      // a saia desce até o CHÃO NATURAL, não até o nível do mar: numa rampa
+      // sobre terreno inclinado ela ficava boiando ou enterrada
+      const pb=p.yBase||0, qb=q.yBase||0;
       for(const s of[-1,1]){
         const a=L(p,s*p.larg/2), b=L(q,s*q.larg/2);
         B.quad([a[0],p.y+.10,a[2]],[b[0],q.y+.10,b[2]],
-               [b[0],0,b[2]],[a[0],0,a[2]], saia);
+               [b[0],qb,b[2]],[a[0],pb,a[2]], saia);
       }
       if(i%2===0)
         for(const s of[-0.4,0.4]){
           const a=L(p,s*p.larg);
-          B.box(a[0], p.y/2, a[2], .34, Math.max(.2,p.y), .34, viga);
+          B.box(a[0], (p.y+pb)/2, a[2], .34, Math.max(.2,p.y-pb), .34, viga);
         }
       // listra âmbar na beirada do deck, que é o aviso universal de "salto"
       for(const s of[-1,1]){
@@ -395,12 +412,6 @@ function construirPista(pista, nomePiso){
                [L(q,s*q.larg/2)[0],q.y+.045,L(q,s*q.larg/2)[2]],
                [L(p,s*p.larg/2)[0],p.y+.045,L(p,s*p.larg/2)[2]],
                (i%2? [1.4,.75,.10] : [.10,.10,.10]));
-      }
-      if(p.saltoBorda){
-        // a cara da borda: um painel vertical fechando o fim do tabuleiro
-        const a=L(p,-p.larg/2), b=L(p,p.larg/2);
-        B.quad([a[0],p.y+.05,a[2]],[b[0],p.y+.05,b[2]],
-               [b[0],0,b[2]],[a[0],0,a[2]], viga);
       }
     } else {
       // meio-fio zebrado dos dois lados
@@ -432,15 +443,18 @@ function construirPista(pista, nomePiso){
        a encosta longa mais funda. É coloração, não objeto — o pedido do dono
        era "o chão não parece vivo", e vivo aqui é saturação perto da pista,
        onde o olho passa a corrida inteira. */
+    /* O avental segue o CHÃO NATURAL (yBase), não o tabuleiro da rampa: a
+       grama do lado de uma rampa construída não sobe junto com ela. */
+    const pyb=p.yBase!==undefined?p.yBase:p.y, qyb=q.yBase!==undefined?q.yBase:q.y;
     for(const s of[-1,1]){
       const meioA=14, tm=cl((meioA-1.5)/68.5,0,1);
       const a=L(p,s*(p.larg/2+1.5)), b=L(q,s*(q.larg/2+1.5));
       const m1=L(p,s*(p.larg/2+meioA)), m2=L(q,s*(q.larg/2+meioA));
       const a2=L(p,s*(p.larg/2+APAVENTAL)), b2=L(q,s*(q.larg/2+APAVENTAL));
-      a[1]=p.y+.10; b[1]=q.y+.10;
-      m1[1]=lerp(p.y+0.10, p.y*SOBRA-.07, tm);
-      m2[1]=lerp(q.y+0.10, q.y*SOBRA-.07, tm);
-      a2[1]=p.y*SOBRA-.07; b2[1]=q.y*SOBRA-.07;
+      a[1]=pyb+.10; b[1]=qyb+.10;
+      m1[1]=lerp(pyb+0.10, pyb*SOBRA-.07, tm);
+      m2[1]=lerp(qyb+0.10, qyb*SOBRA-.07, tm);
+      a2[1]=pyb*SOBRA-.07; b2[1]=qyb*SOBRA-.07;
       B.quad(a,b,m2,m1, esc(gr, i%2 ? 1.34 : 1.18));
       // 1,16 e não 1,35 na faixa longa: com o avental acompanhando o relevo
       // as listras ficaram enormes na paisagem, e contraste forte virava zebra
@@ -452,17 +466,28 @@ function construirPista(pista, nomePiso){
      Não mudam a física — a aderência do piso já é a da chuva inteira — mas
      são o que faz "chuva" ler como chuva antes de o primeiro pneu cantar. */
   if(nomePiso==="chuva"){
+    /* As poças SUMIRAM na versão passada: eu as restringi ao chão plano, e
+       com 7,4 m entre pontos quase nenhum ponto passava no teste — a chuva
+       ficou sem poça nenhuma. A resposta certa não é escolher onde elas
+       nascem, é elas DEITAREM na inclinação, como todo decalque. */
     const espelho=[.16,.20,.27];
-    for(let k=0;k<44;k++){
+    for(let k=0;k<40;k++){
       const i=Math.floor(r()*n), p=pts[i];
       if(p.rampa>0) continue;
-      /* Água empoça no PLANO — em ladeira o disco chato atravessava o
-         asfalto e saía cortado, o dono viu. É também fisicamente o certo:
-         poça em rampa escorre. */
-      const q0=pts[(i-1+n)%n], q2=pts[(i+1)%n];
-      if(Math.abs(p.inc)>0.012 || Math.abs(q2.y-p.y)>0.09 || Math.abs(q0.y-p.y)>0.09) continue;
       const off=(r()*2-1)*p.larg*0.30;
-      discoChao(p.x+p.nx*off, p.y+.028, p.z+p.nz*off, 1.1+r()*1.7, 10, espelho);
+      const cx=p.x+p.nx*off, cy=p.y+.028, cz=p.z+p.nz*off;
+      const raio=1.1+r()*1.7, seg=10;
+      // base do plano da pista ali: tangente com a inclinação, lateral reta
+      const fl=Math.hypot(1,p.inc||0);
+      const fx=p.tx/fl, fy=(p.inc||0)/fl, fz=p.tz/fl;
+      for(let q=0;q<seg;q++){
+        const a0=q/seg*6.2832, a1=(q+1)/seg*6.2832;
+        const c0=Math.cos(a0)*raio, s0=Math.sin(a0)*raio;
+        const c1=Math.cos(a1)*raio, s1=Math.sin(a1)*raio;
+        B.tri([cx,cy,cz],
+              [cx+fx*c1+p.nx*s1, cy+fy*c1, cz+fz*c1+p.nz*s1],
+              [cx+fx*c0+p.nx*s0, cy+fy*c0, cz+fz*c0+p.nz*s0], espelho);
+      }
     }
   }
 

@@ -174,7 +174,7 @@ function quadro(agora){
     // óleo: cor crua, senão o brilho de borda do shader o pinta de azul e ele
     // vira poça d'água — a mancha deita no chão (X->X, Y->Z, espessura->Y)
     for(const g of corrida.perigos){
-      g.t2=(corrida.t-g.t)/14;
+      g.t2=(corrida.t-g.t)/9;    // a mesma vida que a simulação usa
       g.esc=0.6+cl(1-g.t2,0,1)*0.6;
     }
     desenharManchas(corrida.perigos, proj, vista);

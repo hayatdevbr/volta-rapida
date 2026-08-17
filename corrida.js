@@ -58,12 +58,16 @@ function montarCaixas(){
   const cx=[];
   // Caixa rara e fora da linha de corrida quase nunca é pega: 27 caixas
   // renderam 6 itens numa prova inteira. Mais fileiras, mais larguras.
+  /* QUATRO cristais por fileira, bem separados. Com cinco a 3,8 m um do
+     outro e um raio de coleta de 5,4 m, um carro passava no meio e levava
+     dois de uma vez — o dono viu acontecer. Quatro abrem 5,5 m de vão, e o
+     raio de coleta caiu para 3,2 m (mais a carência de 1 s lá embaixo). */
   for(let i=8;i<pista.n;i+=13){
     const p=pista.pontos[i];
-    for(const lado of [-0.50,-0.25,0,0.25,0.50])
+    for(const lado of [-0.42,-0.14,0.14,0.42])
       // a caixa nasce com a altura do ponto: em altura fixa ela flutuaria nos
       // vales e ficaria enterrada nos morros
-      cx.push({x:p.x+p.nx*p.larg*lado*0.80, y:p.y||0, seg:i, rumo:Math.atan2(p.tz,p.tx),
+      cx.push({x:p.x+p.nx*p.larg*lado*0.94, y:p.y||0, seg:i, rumo:Math.atan2(p.tz,p.tx),
                z:p.z+p.nz*p.larg*lado*0.80, volta:0});
   }
   return cx;
@@ -97,7 +101,7 @@ function iaEntrada(p, at, t, rivais){
   /* No ar não há decisão: freio no ar não freia (o CADERNO avisou — "a IA
      precisa saber que a rampa existe, senão freia no ar") e volante no ar só
      torce o pouso. Reto, acelerando, esperando o chão. */
-  if(p.noAr) return {dir:0, acel:1, freio:false, mao:false, turbo:false};
+  if(p.voando) return {dir:0, acel:1, freio:false, mao:false, turbo:false};
   const n=pista.n, spd=Math.hypot(p.vx,p.vz), P=p.perfil;
   const look=Math.round(4+spd*0.20);
   const norm=a=>{while(a>Math.PI)a-=6.2832; while(a<-Math.PI)a+=6.2832; return a;};
@@ -227,33 +231,67 @@ function passoCorrida(){
        gravidade de verdade, e só volta a obedecer o volante quando pousa.
        Sem isto a rampa seria um tobogã; com isto ela é a coisa mais
        partilhável do jogo. */
-    const chao=pista.pontos[np.i].y;
+    /* O chão sob o carro, pela MESMA conta que desenha o mundo:
+       — na pista, a superfície interpolada do segmento (com rampa);
+       — fora dela, o terreno, que desce pelo avental conforme se afasta.
+       Antes eram três contas diferentes para a mesma superfície, e o carro
+       afundava no barranco até sumir. */
+    const forasPista=Math.max(0, np.dist - pista.pontos[np.i].larg/2);
+    const chao = forasPista<=0
+      ? alturaChao(pista, np.i, p.x, p.z, true)
+      : alturaChao(pista, np.i, p.x, p.z, false)
+        * quedaDoAvental(np.dist, pista.pontos[np.i].larg);
     const spdAr=Math.hypot(p.vx,p.vz);
-    if(p.y===undefined){ p.y=chao; p.vy=0; }
-    if(!p.noAr){
-      p.inc = pista.pontos[np.i].inc || 0;
-      p.y = lerp(p.y, chao, 1-Math.pow(0.0006,DT));
-      // subindo, o carro carrega velocidade vertical — é ela que vira o arco
-      p.vy = p.inc>0 ? p.inc*spdAr : 0;
-      if(p.y > chao+0.9 && spdAr>15){
-        p.noAr=true;
-        if(p===c.pilotos[0] && p.y-chao>1.6){
-          c.sons.push("salto");
-          c.aviso="SALTO!"; c.avisoAte=c.t+1.1;
-        }
+    if(p.y===undefined){ p.y=chao; p.vy=0; p.chaoAnt=chao; }
+
+    /* ── CHÃO E AR, por projétil contra terreno ──────────────────────────
+       A regra é uma só, e vale para rampa, crista, buraco e piso plano:
+       tenta-se o VOO LIVRE; se ele terminaria acima do chão, o carro está no
+       ar; senão, ele está no chão, e ponto.
+
+       Antes havia dois casos especiais empilhados — "a beira da rampa é um
+       degrau" e "no ar se subiu 0,9 m acima do chão" — e eles brigavam com a
+       malha desenhada bem onde o carro pousa: 3,2 m de desacordo, medidos. O
+       carro decola porque o chão foge mais depressa do que a gravidade o
+       puxa, que é o que acontece de verdade numa rampa. */
+    const vyLivre=(p.vy||0) - 9.8*DT;
+    const yLivre =p.y + vyLivre*DT;
+    if(yLivre > chao + 0.06){
+      if(!p.noAr && p===c.pilotos[0] && spdAr>16 && (p.vy||0)>2.2){
+        c.sons.push("salto");
+        c.aviso="SALTO!"; c.avisoAte=c.t+1.1;
       }
+      p.noAr=true; p.inc=0;
+      p.vy=cl(vyLivre,-40,20);
+      // e uma rede por cima: nada neste jogo sobe 25 m acima do chão
+      p.y=Math.min(yLivre, chao+25);
+      /* VOAR não é PULAR. Numa quebra convexa da pista o carro sai do chão
+         por poucos centímetros dezenas de vezes por volta — é o certo para o
+         arco, e seria péssimo para o comando: sem tração nem volante nesses
+         instantes, o carro pareceria patinar. Só perde o chão de verdade quem
+         está bem acima dele. */
+      p.voando = (p.y - chao) > 0.22;
     } else {
-      p.vy -= 9.8*DT;
-      p.y  += p.vy*DT;
-      p.inc = 0;
-      if(p.y <= chao+0.02){
+      if(p.noAr){
         // pouso: quanto mais duro, mais velocidade fica no amortecedor
-        const tranco=cl((-p.vy-4)/10,0,0.16);
+        const tranco=cl((-(p.vy||0)-4)/10,0,0.16);
         p.vx*=1-tranco; p.vz*=1-tranco;
-        if(p===c.pilotos[0] && p.vy<-4.5) c.sons.push("pouso");
-        p.y=chao; p.vy=0; p.noAr=false;
+        if(p===c.pilotos[0] && (p.vy||0)<-4.5) c.sons.push("pouso");
       }
+      p.noAr=false; p.voando=false;
+      p.y=chao;
+      /* No chão a velocidade vertical É a do chão: é ela que vira o arco do
+         salto quando o tabuleiro acaba.
+
+         Com TETO, e o teto não é decoração: longe da pista a busca do ponto
+         mais próximo pode pular de índice, `chao` salta metros num quadro só
+         e a conta cospe centenas de m/s. Um carro subiu 2.430 metros na
+         bancada. Nenhuma ladeira deste jogo passa de 30% a 60 m/s, ou seja,
+         18 m/s — 20 é folga. */
+      p.vy=cl((chao-(p.chaoAnt===undefined?chao:p.chaoAnt))/DT, -20, 20);
+      p.inc = pista.pontos[np.i].inc || 0;
     }
+    p.chaoAnt=chao;
     // A largada vale pra todo mundo. Antes o gate de contagem regressiva só
     // existia no ramo do jogador e as IAs saíam 3,2 s na frente.
     const ent = c.t<0 ? {dir:0,acel:0,freio:false,mao:false}
@@ -326,10 +364,13 @@ function passoCorrida(){
 
     // caixa de item: entra no primeiro encaixe livre dos DOIS
     const livre=p.itens.indexOf(null);
-    if(livre>=0){
+    // carência de 1 s entre coletas: com dois cristais no alcance ao mesmo
+    // tempo, o carro levava os dois em quadros seguidos
+    if(livre>=0 && c.t-(p.pegouEm||-99) > 1.0){
       for(const cx of c.caixas){
         if(cx.volta>0) continue;
-        if(Math.hypot(cx.x-p.x,cx.z-p.z)<5.4){
+        if(Math.hypot(cx.x-p.x,cx.z-p.z)<3.2){
+          p.pegouEm=c.t;
           cx.volta=18;
           /* Peça entra montada na hora, sem passar pelo bolso: ela não é algo
              que se guarda para o momento certo, é o carro mudando. */
@@ -369,7 +410,8 @@ function passoCorrida(){
     }
   }
   for(const cx of c.caixas) if(cx.volta>0) cx.volta-=DT;
-  c.perigos=c.perigos.filter(g=>c.t-g.t<14);
+  // 9 s e não 14: com 14 as poças de três voltas atrás ainda estavam lá
+  c.perigos=c.perigos.filter(g=>c.t-g.t<9);
   c.efeitos=c.efeitos.filter(e=>c.t-e.t<0.75);
 
   /* ── contato entre carros ──
