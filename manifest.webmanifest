@@ -1,0 +1,14 @@
+{
+  "name": "Circuito Aberto",
+  "short_name": "Circuito",
+  "description": "Jogo de corrida meio idle, meio jogável. Colete energia no pátio, monte o carro e corra.",
+  "start_url": ".",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#0C1014",
+  "theme_color": "#0C1014",
+  "lang": "pt-BR",
+  "icons": [
+    { "src": "icone.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

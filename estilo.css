@@ -1,0 +1,565 @@
+  :root{
+    --bg:#0C1014; --panel:#151B21; --line:#232C34; --line2:#1A2229;
+    --tx:#DFE6EB; --tx2:#93A0AA; --tx3:#65727C;
+    --amber:#E9992B; --patina:#5AA894; --oxide:#D2604A;
+    /* raio único e sombras do painel: o acabamento vem daqui, não de caixa nova */
+    --r:4px;
+    --sombra:0 2px 10px rgba(0,0,0,.35);
+    --f-d: Bahnschrift,"DIN Alternate","Roboto Condensed","Arial Narrow",ui-sans-serif,sans-serif;
+    --f-b: "Segoe UI",system-ui,-apple-system,sans-serif;
+    --f-m: ui-monospace,"Cascadia Mono",Consolas,"SF Mono",Menlo,monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;overflow:hidden}
+  body{background:var(--bg);color:var(--tx);font-family:var(--f-b);
+       -webkit-font-smoothing:antialiased;user-select:none;
+       touch-action:none;overscroll-behavior:none;-webkit-tap-highlight-color:transparent}
+  canvas{display:block;width:100vw;height:100vh}
+
+  .ui{position:fixed;pointer-events:none}
+  .ui *{pointer-events:auto}
+
+  /* ── barra de topo ── */
+  #topo{top:0;left:0;right:0;display:flex;align-items:center;gap:20px;
+        padding:12px 18px;background:linear-gradient(180deg,rgba(8,11,14,.92),rgba(8,11,14,0))}
+  #topo .marca{font-family:var(--f-d);font-size:19px;letter-spacing:.05em;text-transform:uppercase;
+               /* item centrado: a margem desloca metade, então vai o dobro */
+               margin-top:calc(var(--sob-rotulo)*2)}
+  #topo .marca b{color:var(--amber);font-weight:600}
+  /* O rótulo empurrava o número para baixo: a barra centra o bloco inteiro,
+     então quanto mais alto o rótulo, mais fundo o valor. Linha justa. */
+  /* Metade do rótulo + gap: é exatamente o quanto o valor cai abaixo do centro
+     do bloco. Quem não tem rótulo em cima desce isto para pousar na mesma
+     linha dos números — que é o que o olho compara. */
+  :root{ --sob-rotulo:5.25px }
+  .pilha{display:flex;flex-direction:column;gap:1px}
+  .rot{font-family:var(--f-m);font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;
+       color:var(--tx3);line-height:1}
+  .val{font-family:var(--f-d);font-size:17px;font-variant-numeric:tabular-nums}
+  /* a taxa fica ao lado do número, discreta: informa sem competir */
+  .taxa{font-family:var(--f-m);font-size:9px;letter-spacing:.06em;color:var(--tx3);
+        white-space:nowrap;align-self:center;margin-left:2px}
+  #barraE{width:150px;height:5px;background:var(--line);position:relative;overflow:hidden;
+          border-radius:3px}
+  #barraE i{position:absolute;inset:0 auto 0 0;background:var(--amber);transition:width .25s}
+  .cresce{flex:1}
+
+  /* ── navegação ── */
+  /* o menu vive fora da barra: sem este acerto ele fica preso no topo
+     enquanto energia, perícia e sucata se centram — e o desnível é visível */
+  #nav{top:calc(20px + var(--sob-rotulo));right:18px;display:flex;gap:5px}
+  #nav button,.btn{font-family:var(--f-d);font-size:13px;letter-spacing:.05em;text-transform:uppercase;
+     background:rgba(21,27,33,.9);color:var(--tx2);border:1px solid var(--line);
+     padding:8px 15px;cursor:pointer;transition:.12s;border-radius:var(--r);
+     box-shadow:var(--sombra)}
+  #nav button:hover,.btn:hover{color:var(--tx);border-color:var(--tx3)}
+  #nav button{display:flex;align-items:center;gap:7px}
+  #nav .mi{display:flex;align-items:center}
+  #nav button[aria-pressed=true] .ic{filter:brightness(.25) saturate(0)}
+  #nav button[aria-pressed=true]{background:linear-gradient(180deg,#F2A93F,var(--amber));
+     color:#141414;border-color:var(--amber);font-weight:600;
+     box-shadow:0 2px 12px rgba(233,153,43,.30)}
+  .btn.p{background:linear-gradient(180deg,#F2A93F,var(--amber));color:#141414;
+     border-color:var(--amber);font-weight:600;
+     box-shadow:0 2px 12px rgba(233,153,43,.28)}
+  .btn.p:hover{background:#c9821f;color:#141414}
+  .btn:disabled{opacity:.35;cursor:not-allowed}
+  button:focus-visible{outline:2px solid var(--amber);outline-offset:2px}
+
+  /* ── garagem ── */
+  /* 74 e não 64: a barra de cima mede 74px no PC e o painel deslizava 10px
+     por baixo dela — medido pela auditoria. */
+  #garagem{right:0;top:74px;bottom:0;width:330px;
+           background:linear-gradient(180deg,rgba(24,31,38,.96),rgba(18,23,29,.94));
+           box-shadow:-6px 0 22px rgba(0,0,0,.30);
+           border-left:1px solid var(--line);overflow-y:auto;padding:0 0 20px}
+  #garagem::-webkit-scrollbar{width:8px}
+  #garagem::-webkit-scrollbar-thumb{background:var(--line)}
+  .grp{padding:14px 16px;border-bottom:1px solid var(--line2)}
+  .grp h3{font-family:var(--f-m);font-size:9.5px;letter-spacing:.17em;text-transform:uppercase;
+          color:var(--amber);margin:0 0 10px;font-weight:400}
+  .opc{display:flex;flex-direction:column;gap:4px}
+  .opc button{text-align:left;font-family:var(--f-b);font-size:13px;background:#10151A;
+      border-radius:var(--r);
+      color:var(--tx2);border:1px solid var(--line);padding:7px 11px;cursor:pointer;
+      display:flex;justify-content:space-between;align-items:center;gap:8px}
+  .opc button:hover{border-color:var(--tx3);color:var(--tx)}
+  .opc button>span{flex:1 1 auto;min-width:0}
+  .opc .preco{flex:0 0 auto}
+  .opc button[aria-pressed=true]{border-color:var(--amber);color:var(--tx);background:#1C232A}
+  .opc button[aria-pressed=true]::after{content:"●";color:var(--amber);font-size:9px}
+  .opc small{color:var(--tx3);font-family:var(--f-m);font-size:10px}
+
+  .st{display:grid;grid-template-columns:76px 1fr 30px;gap:8px;align-items:center;margin-bottom:6px}
+  .st .n{font-size:12px;color:var(--tx2)}
+  .st .b{height:4px;background:var(--line);position:relative;overflow:hidden}
+  .st .b i{position:absolute;inset:0 auto 0 0;background:var(--amber);transition:width .18s}
+  .st .b.g i{background:var(--patina)} .st .b.r i{background:var(--oxide)}
+  .st .q{font-family:var(--f-m);font-size:10.5px;text-align:right;font-variant-numeric:tabular-nums}
+  .grp h3 .dur{float:right;font-family:var(--f-m);font-size:10px;letter-spacing:.06em;text-transform:none}
+  .prox{background:#10161C}
+  .prox .pisoNome{font-family:var(--f-d);font-size:27px;color:var(--amber);line-height:1;text-transform:uppercase}
+  .prox .pisoDica{font-size:12.5px;color:var(--tx2);margin-top:4px}
+  .opc button em{font-style:normal;font-family:var(--f-m);font-size:9.5px;letter-spacing:.08em;
+                 text-transform:uppercase;margin-left:5px}
+  .opc button em.bom{color:var(--patina)} .opc button em.ruim{color:var(--oxide)}
+  .opc button.trava{opacity:.45}
+  .opc button.trava.pode{opacity:.85;border-color:var(--amber)}
+  .opc button.trava::after{content:none}
+  .opc .preco{font-family:var(--f-m);font-size:10.5px;color:var(--amber);white-space:nowrap}
+  .btn.semGrana{opacity:.45}
+
+  /* ── HUD de corrida ── */
+  #hud{inset:0;display:none}
+  #hud.on{display:block}
+  #vel{left:34px;bottom:28px;position:absolute;display:flex;align-items:baseline;gap:8px}
+  #vel .n{font-family:var(--f-d);font-size:64px;line-height:.85;font-variant-numeric:tabular-nums;
+          text-shadow:0 2px 18px rgba(0,0,0,.8)}
+  #vel .u{font-family:var(--f-m);font-size:11px;letter-spacing:.16em;color:var(--tx3)}
+  #tempos{right:232px;top:26px;position:absolute;text-align:right}
+  #tempos .l{font-family:var(--f-m);font-size:10px;letter-spacing:.14em;color:var(--tx3);text-transform:uppercase}
+  #tempos .t{font-family:var(--f-d);font-size:30px;font-variant-numeric:tabular-nums;line-height:1.05}
+  #tempos .t.d{font-size:17px;color:var(--tx2)}
+  #volta{left:34px;top:26px;position:absolute}
+  #volta .v{font-family:var(--f-d);font-size:32px;line-height:1}
+  #volta .p{font-family:var(--f-m);font-size:11px;letter-spacing:.14em;color:var(--tx3);text-transform:uppercase}
+  #volta .piso{font-family:var(--f-m);font-size:11px;letter-spacing:.16em;color:var(--amber);
+               text-transform:uppercase;margin-top:6px}
+  #nitro{position:absolute;left:34px;bottom:118px;width:240px}
+  #nitro .nb{height:11px;background:rgba(10,14,18,.8);position:relative;overflow:hidden;margin-top:5px;
+             border:1px solid rgba(255,255,255,.10);border-radius:6px}
+  #nitro .nb i{position:absolute;inset:0 auto 0 0;background:linear-gradient(90deg,#3E8A5B,#E9992B,#FFD36B);width:0%;
+               transition:width .08s linear}
+  #item{position:absolute;right:26px;bottom:20px;text-align:center}
+  #item .slots{display:flex;gap:12px;justify-content:center}
+  .slot{width:96px;height:96px;border-radius:50%;border:2px solid var(--line);
+        background:rgba(12,16,20,.86);color:var(--tx2);cursor:pointer;position:relative;
+        display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+        transition:border-color .14s, box-shadow .14s, transform .14s;
+        touch-action:none;-webkit-user-select:none;user-select:none}
+  .slot .ico{height:44px;display:flex;align-items:center;justify-content:center}
+  .slot .nm{font-family:var(--f-d);font-size:13px;letter-spacing:.05em;text-transform:uppercase;
+            line-height:1;font-weight:600}
+  .slot .tec{position:absolute;bottom:-17px;left:0;right:0;font-family:var(--f-m);font-size:9px;
+             letter-spacing:.14em;color:var(--tx3);font-style:normal}
+  .slot.tem{border-color:var(--amber);box-shadow:0 0 22px rgba(233,153,43,.26)}
+  .slot.sel{transform:scale(1.08)}
+  .slot.sel::after{content:"";position:absolute;inset:-7px;border-radius:50%;
+                   border:2px solid var(--amber);opacity:.55}
+  #item .oq{font-family:var(--f-m);font-size:10px;letter-spacing:.10em;text-transform:uppercase;
+            color:var(--tx3);margin-top:24px;max-width:220px;margin-left:auto}
+  @keyframes bate{0%{transform:scale(1)}35%{transform:scale(1.16)}100%{transform:scale(1)}}
+  .slot.novo{animation:bate .45s ease-out}
+  #carro{position:absolute;left:34px;bottom:112px;display:flex;flex-direction:column;gap:7px;width:210px}
+  .med{display:grid;grid-template-columns:44px 1fr 40px;gap:8px;align-items:center}
+  .med span{font-family:var(--f-m);font-size:9.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--tx3)}
+  .med .bar{height:5px;background:rgba(10,14,18,.75);position:relative;overflow:hidden}
+  .med .bar i{position:absolute;inset:0 auto 0 0;background:var(--patina);width:100%;transition:width .1s linear}
+  .med b{font-family:var(--f-m);font-size:11px;text-align:right;font-variant-numeric:tabular-nums;
+         text-shadow:0 1px 6px rgba(0,0,0,.9)}
+  /* vinheta vermelha pulsando: o alvo tem que SENTIR que está na mira, não
+     ler um texto e voltar a olhar a pista */
+  /* Minimapa: durante a corrida, saber ONDE se está e QUEM está chegando vale
+     mais do que ver o menu. A barra de cima some junto. */
+  #mini{position:absolute;right:20px;top:16px;width:170px;text-align:center}
+  #mini canvas{width:170px;height:170px;display:block;
+               background:rgba(10,14,18,.62);border:1px solid var(--line);
+               border-radius:6px;box-shadow:var(--sombra)}
+  #mini .pos{font-family:var(--f-d);margin-top:2px;line-height:1}
+  #mini .pos b{font-size:34px;color:var(--amber)}
+  #mini .pos span{font-size:16px;color:var(--tx3)}
+  #mini .pos i{font-style:normal}
+  /* dois nomes, o de cima e o de baixo: quem você caça e quem te caça */
+  #vizinhos{display:flex;flex-direction:column;gap:1px;margin-top:5px;
+            font-family:var(--f-m);font-size:9.5px;letter-spacing:.04em;
+            text-transform:uppercase;color:var(--tx3);text-align:right}
+  #vizinhos .v{display:flex;gap:5px;justify-content:flex-end;align-items:center;
+               white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #vizinhos .v i{font-style:normal;font-size:8px;opacity:.7}
+  body.correndo #topo, body.correndo #nav{opacity:0;pointer-events:none;transition:opacity .25s}
+  #perigo{position:absolute;inset:0;pointer-events:none;opacity:0;
+     background:radial-gradient(ellipse at center,rgba(0,0,0,0) 38%,rgba(226,40,24,.62) 100%);
+     transition:opacity .12s linear}
+  #perigo.on{animation:pulsaPerigo .62s infinite}
+  @keyframes pulsaPerigo{0%,100%{opacity:.35}50%{opacity:.95}}
+  #aviso{position:absolute;left:50%;top:15%;transform:translateX(-50%);text-align:center;
+         font-family:var(--f-d);font-size:78px;letter-spacing:.02em;text-shadow:0 4px 30px rgba(0,0,0,.9)}
+  #aviso small{display:block;font-size:15px;letter-spacing:.2em;color:var(--tx2);margin-top:4px}
+  #pericia{position:absolute;left:50%;top:25%;transform:translateX(-50%);
+     font-family:var(--f-d);font-size:26px;color:var(--amber);opacity:0;text-shadow:0 2px 14px rgba(0,0,0,.9)}
+
+  /* ── painel de fim / mapa ── */
+  #modal{inset:0;display:none;align-items:center;justify-content:center;
+         background:rgba(8,11,14,.82);padding:16px;overflow-y:auto}
+  #modal.on{display:flex}
+  /* O cartão ficou alto quando ganhou a lista de chegada, e num celular
+     deitado de 375px de altura ele estourava a tela SEM ROLAR: o `#modal` é
+     flex centrado, então sobrava conteúdo cortado em cima e embaixo, fora de
+     alcance. O dono relatou exatamente isso. */
+  .cartao{background:linear-gradient(180deg,#1A222A,#141A21);border:1px solid var(--line);
+          border-radius:8px;box-shadow:0 12px 44px rgba(0,0,0,.5);padding:30px 34px;
+          min-width:380px;max-width:92vw;max-height:calc(100vh - 32px);
+          overflow-y:auto;-webkit-overflow-scrolling:touch}
+  .cartao h2{font-family:var(--f-d);font-size:34px;text-transform:uppercase;margin:0 0 4px;letter-spacing:.02em}
+  .cartao .sub{font-family:var(--f-m);font-size:11px;letter-spacing:.14em;color:var(--tx3);
+               text-transform:uppercase;margin-bottom:20px}
+  .linha{display:flex;justify-content:space-between;gap:24px;padding:8px 0;border-top:1px solid var(--line2);
+         font-size:14px}
+  .linha b{font-family:var(--f-m);font-variant-numeric:tabular-nums}
+  .linha.d b{color:var(--amber)}
+  .acoes{display:flex;gap:8px;margin-top:22px}
+  .acoes .btn{flex:1;text-align:center;padding:11px}
+
+  /* ── controles de toque ────────────────────────────────────────────────
+     Sem isto o jogo é assistível no celular e injogável, e a maior parte das
+     pessoas abre link no telefone. */
+  #toque{inset:0;display:none}
+  #toque.on{display:block}
+  /* manche: um polegar só, e o acelerador é automático */
+  #manche{position:absolute;left:20px;bottom:18px;width:132px;height:132px;border-radius:50%;
+          background:rgba(20,26,32,.42);border:2px solid rgba(255,255,255,.14);
+          touch-action:none;-webkit-user-select:none;user-select:none;
+          display:flex;align-items:center;justify-content:center;backdrop-filter:blur(3px)}
+  #manche i{width:56px;height:56px;border-radius:50%;background:rgba(233,153,43,.55);
+            border:2px solid rgba(255,255,255,.30);display:block;
+            transition:transform .04s linear;pointer-events:none}
+  #manche.puxado i{background:rgba(233,153,43,.85)}
+  #manche .mDica{position:absolute;bottom:-19px;left:0;right:0;text-align:center;
+                 font-family:var(--f-m);font-size:9px;letter-spacing:.16em;
+                 text-transform:uppercase;color:var(--tx3);pointer-events:none}
+  .lado{position:absolute;display:flex;gap:12px;align-items:center}
+  .lado.dir{right:18px;bottom:24px}
+  .tq{font-family:var(--f-d);font-size:14px;letter-spacing:.05em;color:var(--tx);
+      background:rgba(20,26,32,.62);border:2px solid rgba(255,255,255,.16);
+      width:86px;height:86px;border-radius:50%;cursor:pointer;
+      display:flex;align-items:center;justify-content:center;
+      touch-action:none;-webkit-user-select:none;user-select:none;
+      backdrop-filter:blur(3px)}
+  .tq.grande{width:104px;height:104px;font-size:15px;
+             background:rgba(233,153,43,.30);border-color:rgba(233,153,43,.55)}
+  .tq.peq{width:68px;height:68px;font-size:11px}
+  .tq.ativo{background:rgba(233,153,43,.72);border-color:var(--amber);color:#141414}
+  #sairCorrida{position:absolute;top:8px;right:10px;width:44px;height:44px;border-radius:50%;
+      background:rgba(20,26,32,.7);border:1px solid rgba(255,255,255,.18);color:var(--tx2);
+      font-size:16px;cursor:pointer;display:none}
+  #toque.on #sairCorrida{display:block}
+  /* O portão vem ANTES de tudo: pedir para travar a tela no meio da corrida
+     é pedir no pior momento possível. Aqui não há nada acontecendo ainda, e
+     o toque do usuário — que a API de tela cheia exige — vem de graça. */
+  #portao{position:fixed;inset:0;z-index:99;background:var(--bg);
+          display:flex;align-items:center;justify-content:center;padding:26px}
+  /* Sem isto o `display:flex` acima vence o [hidden] do navegador e o portão
+     NUNCA sai da frente — nem ao tocar no botão, nem no PC, onde ele nem
+     deveria aparecer. */
+  #portao[hidden]{display:none}
+  #portao .cx{max-width:330px;text-align:center}
+  #portao .marca{font-family:var(--f-d);font-size:27px;letter-spacing:.02em;
+                 line-height:1.05;color:var(--tx)}
+  #portao .marca span{display:block;color:var(--amber)}
+  #portao .fone{margin:30px auto 24px;width:96px;height:60px}
+  #portao .fone i{display:block;width:38px;height:64px;margin:-2px auto 0;
+     position:relative;border:2px solid var(--tx3);border-radius:6px;
+     animation:deita 2.6s cubic-bezier(.5,0,.2,1) infinite}
+  /* alto-falante e botão: sem eles o retângulo lê como caixa, não telefone */
+  #portao .fone i::before,#portao .fone i::after{content:"";position:absolute;
+     left:50%;transform:translateX(-50%);background:var(--tx3)}
+  #portao .fone i::before{top:5px;width:12px;height:2px;border-radius:2px}
+  #portao .fone i::after{bottom:5px;width:10px;height:10px;border-radius:50%;
+     background:none;border:1.5px solid var(--tx3)}
+  @keyframes deita{0%,22%{transform:rotate(0) scale(1)}
+                   48%,78%{transform:rotate(-90deg) scale(1.02)}
+                   100%{transform:rotate(0) scale(1)}}
+  #portao p{font-family:var(--f-b);font-size:14px;line-height:1.55;
+            color:var(--tx2);margin:0 0 24px}
+  #portao button{display:block;width:100%;font-family:var(--f-d);font-size:14px;
+     letter-spacing:.05em;text-transform:uppercase;font-weight:600;cursor:pointer;
+     background:var(--amber);color:#141414;border:0;padding:13px}
+  #portao button.fraco{background:none;color:var(--tx3);margin-top:6px;
+     font-size:11px;font-family:var(--f-m);letter-spacing:.1em;padding:11px}
+  @media (prefers-reduced-motion:reduce){ #portao .fone i{animation:none;
+     transform:rotate(-90deg)} }
+
+  /* dica, não bloqueio: retrato tem que ser jogável, só mostra menos pista */
+  #girar{left:50%;top:96px;transform:translateX(-50%);display:none;
+         background:rgba(12,16,20,.92);border:1px solid var(--line);padding:9px 15px;
+         font-family:var(--f-m);font-size:10.5px;letter-spacing:.11em;text-transform:uppercase;
+         color:var(--tx2);white-space:nowrap}
+  #girar.on{display:flex;gap:12px;align-items:center}
+  #girar button{font-family:var(--f-d);font-size:12px;letter-spacing:.06em;text-transform:uppercase;
+    background:var(--amber);color:#141414;border:0;padding:7px 12px;cursor:pointer;font-weight:600}
+
+  /* ── telas estreitas ── */
+  /* Largura sozinha não identifica celular: deitado, um aparelho comum passa
+     de 860px de largura com 375px de altura e caía no layout de PC — foi assim
+     que a habilidade voltou a sentar em cima do TURBO. A altura é que denuncia. */
+  @media (max-width:860px), (orientation:landscape) and (max-height:560px){
+    #topo{gap:12px;padding:9px 12px}
+    #topo .marca{font-size:15px}
+    #topo .pilha .val{font-size:14px}
+    #barraE{width:88px}
+    #nav{top:calc(10px + var(--sob-rotulo));right:10px;gap:3px}
+    /* altura pelo dedo, largura enxuta: alargar o botão empurrou o menu para
+       cima do número de sucata — medido em -34px de folga. */
+    #nav button{font-size:11px;padding:0 8px;min-height:44px}
+    /* deitado, divide a tela para o carro continuar visível enquanto você
+       troca peça; em pé, ocupa tudo porque não cabe de outro jeito */
+    #garagem{width:100%;top:56px;border-left:0;border-top:1px solid var(--line)}
+    #vel .n{font-size:40px}
+    #volta .v{font-size:22px}
+    #tempos .t{font-size:20px}
+    #tempos .t.d{font-size:13px}
+    #tempos{top:60px;right:14px}
+    #volta{top:60px;left:16px}
+    #nitro{left:16px;bottom:auto;top:104px;width:140px}
+    /* Ficava em cima do manche: no deitado as habilidades sobem para a
+       coluna do turbo, que é onde o polegar direito já está. */
+    #item{width:auto;left:auto;right:22px;top:auto;bottom:126px;
+          transform:none;text-align:center}
+    #item .slots{flex-direction:column;gap:10px}
+    #item .slot{width:74px;height:74px}
+    #item .cx{padding:7px 8px}
+    #item .cx span{font-size:17px}
+    #item .oq{font-size:9px;margin-top:4px}
+    /* o velocímetro sai do canto: ali ele fica embaixo do botão de virar */
+    #vel{left:50%;transform:translateX(-50%);bottom:8px;align-items:baseline}
+    #vel .n{font-size:34px;text-shadow:0 2px 12px rgba(0,0,0,.95)}
+    #vel .u{font-size:9px}
+    #dica{display:none}
+    #mini{width:126px;right:12px;top:10px}
+    #mini canvas{width:126px;height:126px}
+    #mini .pos b{font-size:26px}
+    #mini .pos span{font-size:12px}
+    #tempos{right:150px;top:12px}
+    #volta{top:12px;left:14px}
+    /* o texto laranja colava no carro e parecia amador: sobe para o alto */
+    #pericia{top:25%;font-size:18px}
+    #aviso{font-size:52px;top:14%}
+    .cartao{min-width:0;width:92vw;padding:16px 18px;max-height:calc(100vh - 24px)}
+    .cartao h2{font-size:26px}
+    .cartao .sub{margin-bottom:12px}
+    /* deitado sobram 375px de altura: a lista não pode comer a tela toda,
+       senão o prémio e os botões ficam fora de alcance */
+    .chegada{max-height:112px}
+    .chegada .ch{padding:2px 0;font-size:12.5px}
+  }
+  /* ── EM PÉ ─────────────────────────────────────────────────────────────
+     O menu vira barra de abas embaixo, para nunca cobrir energia, perícia e
+     sucata. A garagem vira gaveta de baixo, e o carro fica visível em cima. */
+  @media (max-width:1000px) and (orientation:portrait){
+    #topo{padding:10px 12px;gap:14px;flex-wrap:wrap}
+    #topo .marca{font-size:16px;width:100%;margin-bottom:2px}
+    #barraE{width:110px}
+    #nav{top:auto;bottom:0;left:0;right:0;display:grid;grid-template-columns:repeat(4,1fr);
+         gap:0;background:rgba(12,16,20,.96);border-top:1px solid var(--line)}
+    #nav button{border:0;border-right:1px solid var(--line2);padding:14px 4px;
+                font-size:13px;min-height:52px}
+    #nav button:last-child{border-right:0}
+    /* 47px era a altura antiga da barra de abas. Ao subir o alvo de toque para
+       52px eu mesmo criei uma sobreposição de 6px — medida. Fica 56 com folga. */
+    #garagem{top:auto;bottom:56px;height:58vh;width:100%;
+             border-left:0;border-top:1px solid var(--line)}
+    #toque .lado.dir{bottom:22px;right:18px}
+    #manche{bottom:26px;left:16px;width:124px;height:124px}
+    #manche i{width:50px;height:50px}
+    #vel{left:50%;transform:translateX(-50%);bottom:8px}
+    #volta{top:92px;left:14px}
+    /* em pé o minimapa ocupa o canto direito até ~206px (com os vizinhos): o
+       tempo desce para baixo dele em vez de ficar por trás — 180 deixava 12px
+       de sobreposição, medido. */
+    #tempos{top:206px;right:14px}
+    #nitro{left:14px;right:auto;width:150px;top:auto;bottom:176px}
+    /* EM PÉ: não há largura para o arco, então as habilidades empilham
+       ACIMA do turbo, uma sobre a outra, no alcance do mesmo polegar */
+    #item{left:auto;right:16px;width:auto;height:auto;top:auto;bottom:130px;transform:none}
+    #item .slot{width:78px;height:78px}
+    /* mesmo motivo do deitado: o canto direito de cima virou minimapa. Em pé
+       o topo esquerdo está livre porque a barra some durante a corrida. */
+    #toque #sairCorrida{top:12px;left:14px;right:auto}
+    #item .oq{display:none}
+    #item .cx span{font-size:16px}
+    #nav.someNaCorrida{display:none}
+  }
+  @media (max-width:1000px) and (orientation:landscape), (orientation:landscape) and (max-height:560px){
+    /* 50px punha o painel 14px POR BAIXO da barra de cima — medido. A barra
+       deitada tem 64px de altura com o padding dela. */
+    #garagem{width:47%;top:66px;border-left:1px solid var(--line);border-top:0}
+    /* A faixa da direita é do menu. Sem reservá-la, o botão sentava em cima do
+       número de sucata — medido em -34px de folga, que é a queixa de "menu em
+       cima de informação". E o `padding-right` tem de vir NESTE bloco: no
+       anterior ele era apagado por este `padding`, que vem depois. */
+    #topo{padding:7px 356px 7px 12px}
+    #nav{top:6px}
+    /* Deitado, a única faixa realmente livre é a de baixo entre o manche e o
+       turbo: acima dela está o minimapa, e à esquerda o polegar que guia. */
+    #item{right:116px;bottom:26px;top:auto;left:auto;width:auto}
+    #item .slots{flex-direction:row;gap:10px}
+    #item .slot{width:74px;height:74px}
+    #item .oq{display:none}
+    /* A barra de nitro é do TURBO: fica em cima dele, na mesma largura, em vez
+       de morar do outro lado da tela longe do botão que ela descreve. */
+    #nitro{left:auto;right:18px;bottom:122px;top:auto;width:88px}
+    #nitro .rot{font-size:8px;letter-spacing:.08em;text-align:center}
+    /* O ✕ ficava por cima do minimapa. Embaixo à esquerda é o manche, então
+       vai para a faixa morta entre a barra de nitro e o topo do manche. */
+    #toque #sairCorrida{top:146px;bottom:auto;right:auto;left:16px;
+                        width:44px;height:44px;font-size:15px}
+  }
+  @media (max-width:520px), (orientation:landscape) and (max-height:440px){
+    .tq{width:70px;height:70px;font-size:21px}
+    .tq.grande{width:88px;height:88px;font-size:27px}
+    .tq.peq{width:62px;height:62px;font-size:10px}
+  }
+  /* ── perfil e classe ── */
+  .grp.perfil{display:flex;align-items:center;justify-content:space-between;gap:14px}
+  .grp.perfil .quem{flex:1;min-width:0}
+  #nomeJog{width:100%;background:none;border:0;border-bottom:1px solid var(--line);
+    font-family:var(--f-d);font-size:21px;color:var(--tx);padding:2px 0;
+    letter-spacing:.02em}
+  #nomeJog:focus{outline:none;border-bottom-color:var(--amber)}
+  .grp.perfil .rot{margin-top:3px}
+  /* A classe é do carro: letra grande porque é o que decide com quem você
+     corre, e a soma ao lado para não virar número mágico. */
+  .grp.perfil .classe{display:flex;flex-direction:column;align-items:center;
+    border:1px solid var(--line);padding:5px 12px;min-width:74px}
+  .grp.perfil .classe b{font-family:var(--f-d);font-size:30px;line-height:1;
+    color:var(--amber)}
+  .grp.perfil .classe span{font-family:var(--f-m);font-size:8.5px;letter-spacing:.11em;
+    text-transform:uppercase;color:var(--tx3);margin-top:3px}
+  .grp.perfil .classe i{font-family:var(--f-m);font-size:9px;font-style:normal;
+    color:var(--tx3);margin-top:1px}
+
+  /* ── peça de corrida montada ── */
+  /* Uma tarja fina da cor da peça, e o nome só no instante da troca. */
+  /* 76px encostava no velocímetro; 104 encostava na barra de nitro por 1px.
+     116 limpa os dois — medido, não estimado. */
+  #pecaHud{position:absolute;left:34px;bottom:150px;font-family:var(--f-m);
+    font-size:9.5px;letter-spacing:.11em;text-transform:uppercase;
+    color:var(--tx3);border-left:3px solid var(--cor,var(--line));
+    padding-left:8px;line-height:1.2;pointer-events:none;
+    max-width:170px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #pecaHud[hidden]{display:none}
+  /* No celular o canto de baixo à esquerda é o MANCHE. Esta regra vem depois
+     da base de propósito: quando ela morava lá em cima, na media query, a base
+     a sobrescrevia por vir depois com a mesma especificidade — e a tarja caía
+     sobre o manche. Ordem de arquivo é regra de CSS, não detalhe. */
+  @media (max-width:860px), (orientation:landscape) and (max-height:560px){
+    /* A direita a 375px de altura está LOTADA: minimapa (10–212), nitro
+       (223–253) e itens (275–349) — não existe faixa livre, e a tarja colidia
+       com um deles em qualquer altura, medido três vezes. A esquerda tem a
+       faixa 90–215 livre entre a volta e o manche: a tarja mora lá. */
+    #pecaHud{left:16px;right:auto;bottom:auto;top:104px;
+             max-width:150px;text-align:left;
+             border-left:3px solid var(--cor,var(--line));border-right:0;
+             padding-left:8px;padding-right:0}
+  }
+  /* Em pé o topo esquerdo é da volta (92–150) e o 104 cairia em cima dela.
+     Este bloco vem DEPOIS do deitado de propósito — ordem de arquivo é regra. */
+  @media (max-width:1000px) and (orientation:portrait){
+    #pecaHud{top:200px}
+  }
+  #pecaHud.novo{animation:pecaEntra 2.4s forwards}
+  @keyframes pecaEntra{
+    0%{color:var(--cor);font-size:13px}
+    22%{color:var(--cor);font-size:13px}
+    100%{color:var(--tx3);font-size:9.5px}
+  }
+
+  /* ── banca de teste: berrante de propósito ── */
+  #avisoTeste{position:fixed;left:50%;bottom:10px;transform:translateX(-50%);z-index:60;
+    display:flex;align-items:center;gap:10px;background:var(--oxide);color:#140A08;
+    padding:6px 8px 6px 13px;font-family:var(--f-m);font-size:10px;
+    letter-spacing:.1em;text-transform:uppercase;box-shadow:0 3px 14px rgba(0,0,0,.4)}
+  #avisoTeste b{font-family:var(--f-d);font-size:12px;letter-spacing:.05em}
+  #avisoTeste span{opacity:.78}
+  #avisoTeste button{font-family:var(--f-m);font-size:9.5px;letter-spacing:.09em;
+    text-transform:uppercase;background:#140A08;color:#F2EDE2;border:0;
+    padding:6px 10px;cursor:pointer}
+
+  /* ── a chegada, com nome ── */
+  .chegada{margin:2px 0 6px;border-top:1px solid var(--line2);
+           border-bottom:1px solid var(--line2);padding:6px 0;
+           max-height:196px;overflow-y:auto}
+  .chegada .ch{display:flex;align-items:center;gap:10px;padding:3px 0;
+               font-size:13.5px;color:var(--tx2)}
+  .chegada .ch i{font-family:var(--f-d);font-style:normal;font-size:14px;
+                 width:20px;text-align:right;color:var(--tx3);
+                 font-variant-numeric:tabular-nums}
+  .chegada .ch span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;
+                    white-space:nowrap}
+  .chegada .ch em{font-family:var(--f-m);font-style:normal;font-size:9px;
+                  letter-spacing:.1em;color:var(--tx3);border:1px solid var(--line);
+                  padding:1px 5px}
+  .chegada .ch.eu{color:var(--tx)}
+  .chegada .ch.eu i{color:var(--amber)}
+  .chegada .ch.eu em{color:var(--amber);border-color:var(--amber)}
+  .chegada .ch .ainda{font-family:var(--f-m);font-size:8.5px;font-weight:400;
+    letter-spacing:.09em;text-transform:uppercase;color:var(--tx3);opacity:.7}
+
+  /* ── o apanhado da corrida, no cartão do fim ── */
+  .apanhado{border-top:1px solid var(--line2);border-bottom:1px solid var(--line2);
+    padding:11px 0;margin:4px 0}
+  .apanhado .rot{margin-bottom:7px}
+  .apanhado .pc{display:inline-block;font-family:var(--f-m);font-size:10px;
+    letter-spacing:.08em;text-transform:uppercase;color:var(--tx2);
+    border-left:3px solid var(--cor);padding:3px 9px 3px 7px;margin:0 6px 4px 0;
+    background:rgba(255,255,255,.03)}
+  .apanhado .nota{font-family:var(--f-m);font-size:9px;letter-spacing:.06em;
+    color:var(--tx3);margin-top:4px}
+
+  /* ── trocar de carro ── */
+  .grp.carros{display:flex;align-items:center;gap:10px}
+  .grp.carros .meio{flex:1;text-align:center;min-width:0}
+  .grp.carros .cnt{font-family:var(--f-d);font-size:17px;color:var(--tx)}
+  .seta{width:46px;height:46px;flex:0 0 auto;font-size:22px;line-height:1;
+    border-radius:var(--r);
+    background:rgba(12,16,20,.5);color:var(--tx2);border:1px solid var(--line);
+    cursor:pointer;transition:.12s}
+  .seta:hover:not(:disabled){color:var(--amber);border-color:var(--amber)}
+  .seta:disabled{opacity:.28;cursor:default}
+  .mais{width:46px;height:46px;flex:0 0 auto;font-size:20px;line-height:1;
+    border-radius:var(--r);
+    background:none;color:var(--patina);border:1px dashed var(--patina);cursor:pointer}
+
+  /* ── pintura ── */
+  .cores{display:flex;flex-wrap:wrap;gap:5px;margin-top:5px}
+  /* 44px é o mínimo que um dedo acerta sem raiva. Estavam com 30. */
+  .tinta{width:44px;height:44px;border:1px solid var(--line);cursor:pointer;
+    padding:0;transition:.12s;border-radius:var(--r)}
+  .tinta:hover{transform:scale(1.10)}
+  .tinta.on{border-color:var(--tx);box-shadow:0 0 0 2px var(--bg),0 0 0 3px var(--amber)}
+  .grp.pintura .ops{display:flex;gap:2px;margin-top:5px}
+
+  /* ── quem dirige ── */
+  .quem2{display:flex;gap:2px;margin-top:2px}
+  .quem2 .op{flex:1;font-family:var(--f-d);font-size:14px;letter-spacing:.03em;
+    border-radius:var(--r);
+    background:rgba(12,16,20,.5);color:var(--tx3);border:1px solid var(--line);
+    padding:10px 8px;cursor:pointer;transition:.12s}
+  .quem2 .op:hover{color:var(--tx2)}
+  .quem2 .op.on{background:var(--amber);color:#141414;border-color:var(--amber);font-weight:600}
+  .grp .oq2{font-size:12.5px;color:var(--tx3);margin-top:8px;line-height:1.45}
+  .grp .oq2 b{color:var(--tx2)}
+  .plano{margin-top:12px;display:grid;gap:8px}
+  .pl .rot{margin-bottom:3px}
+  .pl .ops{display:flex;gap:2px}
+  .mini{flex:1;font-family:var(--f-m);font-size:9.5px;letter-spacing:.06em;
+    border-radius:var(--r);
+    text-transform:uppercase;background:rgba(12,16,20,.5);color:var(--tx3);
+    border:1px solid var(--line2);padding:0 4px;min-height:44px;cursor:pointer;
+    transition:.12s}
+  .mini:hover{color:var(--tx2);border-color:var(--line)}
+  .mini.on{color:var(--amber);border-color:var(--amber);background:rgba(233,153,43,.10)}
+
+  /* pixel art precisa de vizinho-mais-próximo, senão borra e vira mingau */
+  .ic{image-rendering:pixelated;image-rendering:crisp-edges;vertical-align:middle;
+      display:inline-block;flex:0 0 auto}
+  .pilha .linha{display:flex;align-items:center;gap:7px}
+  .grp h3 .ic{margin-right:6px;vertical-align:-6px}
+  #item .cx{display:flex;align-items:center;justify-content:center;gap:12px}
+  .opc button .ic{margin-right:8px}
+  #dica{left:50%;bottom:22px;transform:translateX(-50%);font-family:var(--f-m);font-size:10.5px;
+        letter-spacing:.11em;color:var(--tx3);text-transform:uppercase;text-align:center;
+        background:rgba(10,14,18,.55);padding:6px 14px;border-radius:20px;
+        backdrop-filter:blur(2px);max-width:92vw}
+  /* chip sem texto é um comprimido cinza flutuando no rodapé */
+  #dica:empty{display:none}
