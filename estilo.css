@@ -457,6 +457,19 @@
   @media (max-width:1000px) and (orientation:portrait){
     #pecaHud{top:200px}
   }
+  /* ── retrato ESTREITO de verdade (≤430px) ──────────────────────────────
+     O headless não abre janela abaixo de ~500px, então esta faixa nunca entra
+     na auditoria — regra conservadora: aperta a barra de cima para os três
+     números caberem numa linha num Android comum de 360–412px. */
+  @media (max-width:430px) and (orientation:portrait){
+    #topo{gap:9px;padding:8px 10px}
+    #topo .marca{font-size:13px}
+    #barraE{width:64px}
+    #topo .pilha .val{font-size:13px}
+    .taxa{font-size:8px;letter-spacing:.02em}
+    #vel .n{font-size:30px}
+    .cartao{padding:14px 14px}
+  }
   #pecaHud.novo{animation:pecaEntra 2.4s forwards}
   @keyframes pecaEntra{
     0%{color:var(--cor);font-size:13px}

@@ -7,6 +7,29 @@
    de detalhe nenhum.
 
    Cada piso tem o seu mundo: autódromo, rali de montanha, circuito urbano. */
+
+/* Serra no horizonte: picos facetados num anel longe de tudo. A névoa os
+   transforma em silhueta azulada — é o que fecha o mundo em vez de deixar o
+   chão terminar no céu. Compartilhada entre a corrida e o pátio idle. */
+function serraNoHorizonte(B, r, tom, quantos, d0, d1){
+  for(let k=0;k<quantos;k++){
+    const ang=k/quantos*6.2832+r()*0.35, dist=d0+r()*(d1-d0);
+    const x=Math.cos(ang)*dist, z=Math.sin(ang)*dist;
+    const picos=2+Math.floor(r()*2), rM=95+r()*85;
+    for(let p2=0;p2<picos;p2++){
+      const px=x+(r()-.5)*rM, pz=z+(r()-.5)*rM;
+      const hh=(24+r()*30)*(0.6+r()*0.5), rr=rM*(0.5+r()*0.4);
+      const lados=5, cor=esc(tom,0.85+r()*0.35);
+      for(let q2=0;q2<lados;q2++){
+        const a0=q2/lados*6.2832, a1=(q2+1)/lados*6.2832;
+        // base BEM abaixo do terreno: colina nenhuma pode abrir fresta no pé
+        B.tri([px,hh,pz],
+              [px+Math.cos(a0)*rr,-6,pz+Math.sin(a0)*rr],
+              [px+Math.cos(a1)*rr,-6,pz+Math.sin(a1)*rr], cor);
+      }
+    }
+  }
+}
 /* ── as peças, numa FÁBRICA compartilhada ────────────────────────────────
    O pátio idle (construirChao, em efeitos.js) usa as MESMAS peças do
    cenário de corrida: guindaste, container, torre de água. Antes elas viviam
@@ -236,6 +259,83 @@ function construirCenario(pista, piso){
     }
   }
 
+  /* ── TERRENO ──────────────────────────────────────────────────────────
+     O chão de fundo era uma PLACA plana. Com o relevo, no vale a placa
+     ficava ACIMA da pista e cortava o buraco como uma lâmina d'água — o
+     dono viu "os carros passando por cima de um lago", e era exatamente
+     isso. Placa não tem conserto num mundo com altura: o fundo agora é uma
+     malha de terreno que segue a pista de perto (a MESMA conta do avental,
+     então nunca briga com ele) e vira colina ao longe. */
+  {
+    const PI2=PISOS[piso]||PISOS.asfalto;
+    const perto=esc(PI2.grama,0.85), longe=esc(PI2.grama,0.52);
+    const seco = piso==="terra" ? [0.155,0.115,0.058]
+               : piso==="chuva" ? [0.045,0.060,0.072] : [0.095,0.115,0.062];
+    const cel=27, R=891, NC=Math.round(R*2/cel);
+    const alturaT=(x,z)=>{
+      let md=1e9, mp=pts[0];
+      for(let i=0;i<n;i+=3){ const d2=(pts[i].x-x)**2+(pts[i].z-z)**2;
+        if(d2<md){ md=d2; mp=pts[i]; } }
+      const d=Math.sqrt(md);
+      const base=mp.y*(1-0.72*cl((d-mp.larg/2)/70,0,1));
+      // sob o avental o terreno mergulha meio palmo: coberto, nunca z-briga
+      if(d < mp.larg/2+68) return {h:base-0.45, d};
+      // colinas: só crescem longe da pista, e a chuva é mais mansa
+      const k=cl((d-95)/210,0,1), amp=piso==="chuva"?0.35:1;
+      const ond=Math.sin(x*0.0126+2.1)*Math.sin(z*0.0107+0.7)
+               +0.55*Math.sin(x*0.0311-1.2)*Math.sin(z*0.0273+2.4);
+      return {h:base-0.12 + k*(1.6+ond*3.1)*amp, d};
+    };
+    const H=[];
+    for(let j=0;j<=NC;j++){ H[j]=[];
+      for(let i2=0;i2<=NC;i2++) H[j][i2]=alturaT(-R+i2*cel, -R+j*cel); }
+    for(let j=0;j<NC;j++) for(let i2=0;i2<NC;i2++){
+      const x0=-R+i2*cel, z0=-R+j*cel;
+      const a=H[j][i2], b2=H[j][i2+1], c2=H[j+1][i2+1], d3=H[j+1][i2];
+      const dm=(a.d+b2.d+c2.d+d3.d)/4, hm=(a.h+b2.h+c2.h+d3.h)/4;
+      // o tom escurece com a distância, clareia no alto da colina, e de vez
+      // em quando vira mancha seca — é a variação que placa nenhuma tinha
+      const t2=cl((dm-80)/320,0,1);
+      let tom=[lerp(perto[0],longe[0],t2),lerp(perto[1],longe[1],t2),lerp(perto[2],longe[2],t2)];
+      if(r()<0.15) tom=[lerp(tom[0],seco[0],.6),lerp(tom[1],seco[1],.6),lerp(tom[2],seco[2],.6)];
+      tom=esc(tom, 1 + cl(hm*0.05,0,0.25) + (r()-0.5)*0.10);
+      B.quad([x0,a.h,z0],[x0+cel,b2.h,z0],[x0+cel,c2.h,z0+cel],[x0,d3.h,z0+cel],tom);
+    }
+    const tomSerra = piso==="chuva" ? [0.050,0.066,0.088]
+                   : piso==="terra" ? [0.135,0.110,0.085] : [0.095,0.115,0.150];
+    /* A distância da serra conta A PARTIR DA PISTA, não do centro do mundo:
+       medida do centro, uma pista larga chegava a 300 m de um pico e ele
+       aparecia gigante e sem névoa do lado do traçado — apareceu na chuva. */
+    let maxR=0;
+    for(let i=0;i<n;i+=3) maxR=Math.max(maxR, Math.hypot(pts[i].x,pts[i].z));
+    // +420: a 340 um pico ainda tomava um terço do quadro do lado de lá da
+    // volta. Serra é horizonte, não vizinho.
+    serraNoHorizonte(B, r, tomSerra, 13, maxR+420, maxR+640);
+  }
+
+  /* Tufos de capim e florzinhas na beira: é o que dá vida no close, onde a
+     encosta lisa denunciava o low-poly. Três triângulos por tufo. */
+  if(piso!=="chuva")
+    for(let i=0;i<n;i+=2){
+      const p=pts[i];
+      for(const lado of [-1,1]){
+        if(r()>0.55) continue;
+        const dd=p.larg/2+2.5+r()*9;
+        const x=p.x+p.nx*lado*dd, z=p.z+p.nz*lado*dd;
+        // a MESMA interpolação do avental, senão o tufo flutua na encosta
+        const t3=cl((dd-p.larg/2-1.5)/68.5,0,1);
+        const y=lerp(p.y+0.10, p.y*0.28-0.07, t3);
+        const tt=0.25+r()*0.40;
+        const cor = r()<0.14
+          ? (piso==="terra" ? [0.55,0.42,0.10] : [0.72,0.70,0.58])
+          : esc(PISOS[piso].grama, 1.3+r()*0.5);
+        for(let k=0;k<3;k++){
+          const a=r()*6.2832, dx=Math.cos(a)*tt, dz=Math.sin(a)*tt;
+          B.tri([x+dx,y,z+dz],[x-dz*0.3,y+tt*(1.5+r()),z+dx*0.3],[x-dx,y,z-dz],cor);
+        }
+      }
+    }
+
   return B;
 }
 
@@ -256,10 +356,10 @@ function construirPista(pista, nomePiso){
      flutuando sobre um campo plano, que foi exatamente a "pista quebrada"
      que o dono viu. A encosta é da pista, e o cenário pousa na mesma conta
      (alturaPerto, em construirCenario). */
+  /* A placa plana de fundo MORREU: num mundo com vale ela ficava acima da
+     pista e lia como um lago cortando o buraco. Quem faz o chão agora é o
+     terreno de construirCenario, que segue esta mesma conta de avental. */
   const APAVENTAL=70, SOBRA=0.28;
-  const F=900, ch=esc(PI.grama,0.62);
-  const fundo=(pista.baixo!==undefined ? Math.min(0,pista.baixo)*SOBRA : 0)-0.13;
-  B.quad([-F,fundo,-F],[F,fundo,-F],[F,fundo,F],[-F,fundo,F],ch);
 
   // cores da estrutura da rampa
   const deckCor = nomePiso==="terra" ? [.16,.11,.055] : esc(asf,1.25);

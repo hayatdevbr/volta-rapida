@@ -224,6 +224,8 @@ function construirChao(){
       else p.feno(x,z,r()*3.14);
     }
   }
+  // a mesma serra da corrida fecha o horizonte do pátio
+  serraNoHorizonte(B, r, [0.095,0.115,0.150], 12, 620, 800);
   malhaChao=subir(B);
 }
 
@@ -326,8 +328,9 @@ function desenharMarcas(marcas, proj, vista){
     const y=(m.y||0)+0.035, o=q*18;
     M2.pos.set([m.x-tx-nx,y,m.z-tz-nz, m.x+tx-nx,y,m.z+tz-nz, m.x+tx+nx,y,m.z+tz+nz,
                 m.x-tx-nx,y,m.z-tz-nz, m.x+tx+nx,y,m.z+tz+nz, m.x-tx+nx,y,m.z-tz+nz], o);
-    // marca nova escurece forte; esvaindo, o fator volta a 1 e ela some
-    const g=lerp(1,0.42,cl(m.v,0,1));
+    // marca nova escurece forte; esvaindo, o fator volta a 1 e ela some.
+    // 0,52 e não 0,42: na terra clara a marca lia como tinta preta.
+    const g=lerp(1,0.52,cl(m.v,0,1));
     for(let k=0;k<6;k++){ M2.cor[o+k*3]=g; M2.cor[o+k*3+1]=g; M2.cor[o+k*3+2]=g*1.04; }
     q++;
   }

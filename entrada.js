@@ -95,7 +95,7 @@ function ligarSomSeMudo(){ if(som.ctx&&som.ctx.state==="suspended") som.ctx.resu
 /* Travar a orientação só funciona em tela cheia, e o Safari do iPhone não
    implementa a API. Então é BOTÃO, não automático: onde dá, trava; onde não
    dá, o aviso de deitar continua valendo e nada quebra. */
-async function travarDeitado(){
+async function travarDeitado(silencioso){
   try{
     const el=document.documentElement;
     if(el.requestFullscreen) await el.requestFullscreen();
@@ -105,10 +105,41 @@ async function travarDeitado(){
   }catch(e){
     /* iPhone não tem a API, e alguns Android recusam fora de tela cheia. Não é
        erro: o retrato continua jogável, só mostra menos pista. */
-    mostrarDica("SEU APARELHO NÃO DEIXA TRAVAR A TELA — GIRE NA MÃO MESMO",4200);
+    if(!silencioso) mostrarDica("SEU APARELHO NÃO DEIXA TRAVAR A TELA — GIRE NA MÃO MESMO",4200);
     return false;
   }
 }
+
+/* ── a trava que se REARMA ────────────────────────────────────────────────
+   O dono relatou: "mesmo que eu trave deitado, às vezes no Android buga e
+   deixa em pé". A causa: a trava só era pedida UMA vez, no clique do portão
+   da primeira visita. Nas visitas seguintes o portão nem aparece, e quando o
+   gesto de voltar do Android derruba a tela cheia, a trava vai junto — e
+   ninguém pedia de novo, porque travar EXIGE um toque do usuário.
+
+   Então: sempre que a preferência é "travado" e a tela está em pé ou fora da
+   tela cheia, o PRÓXIMO toque em qualquer lugar tenta travar de novo — em
+   silêncio, sem atrapalhar o toque em si. No iPhone a tentativa falha calada
+   e não custa nada. */
+let travaArmada=false;
+function rearmarTrava(){
+  if(travaArmada) return;
+  travaArmada=true;
+  addEventListener("pointerdown", ()=>{
+    travaArmada=false;
+    travarDeitado(true);
+  }, {once:true, capture:true});
+}
+function vigiarOrientacao(){
+  if(!ehToque) return;
+  try{ if(localStorage.getItem("ca_orientacao")!=="travado") return; }catch(e){ return; }
+  const emPe = innerHeight>innerWidth;
+  const foraDaTelaCheia = !document.fullscreenElement;
+  if(emPe || foraDaTelaCheia) rearmarTrava();
+}
+addEventListener("orientationchange", vigiarOrientacao);
+addEventListener("resize", vigiarOrientacao);
+document.addEventListener("fullscreenchange", vigiarOrientacao);
 
 function atualizarToque(){
   const mostrar = ehToque && tela==="corrida";

@@ -71,7 +71,10 @@ $("dica").textContent=dicaPadrao();
 
 /* Nada é desenhado enquanto o portão está de pé: o primeiro quadro que o
    jogador vê já está na orientação que ele escolheu. */
-function comecar(){ $("portao").hidden=true; atualizarToque(); requestAnimationFrame(quadro); }
+function comecar(){ $("portao").hidden=true; atualizarToque(); requestAnimationFrame(quadro);
+  // visita de quem já escolheu "travado": arma a trava para o primeiro toque,
+  // porque sem gesto do usuário o navegador não deixa travar nada
+  vigiarOrientacao(); }
 if(ehToque && !localStorage.getItem("ca_orientacao")){
   $("portao").hidden=false;
   $("pgTravar").addEventListener("click",async()=>{
