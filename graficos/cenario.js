@@ -307,7 +307,16 @@ function construirCenario(pista, piso){
       // em quando vira mancha seca — é a variação que placa nenhuma tinha
       const t2=cl((dm-80)/320,0,1);
       let tom=[lerp(perto[0],longe[0],t2),lerp(perto[1],longe[1],t2),lerp(perto[2],longe[2],t2)];
-      if(r()<0.15) tom=[lerp(tom[0],seco[0],.6),lerp(tom[1],seco[1],.6),lerp(tom[2],seco[2],.6)];
+      /* Manchas ancoradas no MUNDO, não sorteadas por célula: sorteio virava
+         confete de um quadrado só; seno espacial vira pasto com manchas de
+         vários metros — a "cor por vértice" do conceito de 25/08. */
+      const tq=(0.5+0.5*Math.sin(x0*0.013+1.7)*Math.sin(z0*0.011+0.4))*0.55;
+      tom = piso==="chuva"
+        ? [lerp(tom[0],tom[0]*0.85,tq),lerp(tom[1],tom[1]*0.98,tq),lerp(tom[2],tom[2]*1.08,tq)]
+        : [lerp(tom[0],tom[0]*1.38,tq),lerp(tom[1],tom[1]*1.05,tq),lerp(tom[2],tom[2]*0.55,tq)];
+      const ts=0.5+0.5*Math.sin(x0*0.0093-2.2)*Math.sin(z0*0.0087+1.1);
+      if(ts>0.80) tom=[lerp(tom[0],seco[0],.55),lerp(tom[1],seco[1],.55),lerp(tom[2],seco[2],.55)];
+      else if(r()<0.06) tom=[lerp(tom[0],seco[0],.5),lerp(tom[1],seco[1],.5),lerp(tom[2],seco[2],.5)];
       tom=esc(tom, 1 + cl(hm*0.05,0,0.25) + (r()-0.5)*0.10);
       B.quad([x0,a.h,z0],[x0+cel,b2.h,z0],[x0+cel,c2.h,z0+cel],[x0,d3.h,z0+cel],tom);
     }
@@ -323,27 +332,42 @@ function construirCenario(pista, piso){
     serraNoHorizonte(B, r, tomSerra, 13, maxR+420, maxR+640);
   }
 
-  /* Tufos de capim e florzinhas na beira: é o que dá vida no close, onde a
-     encosta lisa denunciava o low-poly. Três triângulos por tufo. */
+  /* Tufos de capim, florzinhas e pedrinhas na beira E no meio do avental: é
+     o que dá vida no close, onde a encosta lisa denunciava o low-poly. Três
+     triângulos por tufo. O anel de 12–46 m estava PELADO e aparecia vazio em
+     toda foto — o olho passa a corrida inteira exatamente ali. */
   if(piso!=="chuva")
     for(let i=0;i<n;i+=2){
       const p=pts[i];
       for(const lado of [-1,1]){
-        if(r()>0.55) continue;
-        const dd=p.larg/2+2.5+r()*9;
-        const x=p.x+p.nx*lado*dd, z=p.z+p.nz*lado*dd;
         // a MESMA interpolação do avental, senão o tufo flutua na encosta —
         // e pelo chão natural, senão ele sobe na rampa junto com o tabuleiro
         const pyb2=p.yBase!==undefined?p.yBase:p.y;
-        const t3=cl((dd-p.larg/2-1.5)/68.5,0,1);
-        const y=lerp(pyb2+0.10, pyb2*0.28-0.07, t3);
-        const tt=0.25+r()*0.40;
-        const cor = r()<0.14
-          ? (piso==="terra" ? [0.55,0.42,0.10] : [0.72,0.70,0.58])
-          : esc(PISOS[piso].grama, 1.3+r()*0.5);
-        for(let k=0;k<3;k++){
-          const a=r()*6.2832, dx=Math.cos(a)*tt, dz=Math.sin(a)*tt;
-          B.tri([x+dx,y,z+dz],[x-dz*0.3,y+tt*(1.5+r()),z+dx*0.3],[x-dx,y,z-dz],cor);
+        const noAvental=(dd)=>{
+          const t3=cl((dd-p.larg/2-1.5)/68.5,0,1);
+          return lerp(pyb2+0.10, pyb2*0.28-0.07, t3);
+        };
+        const tufo=(dd,forca)=>{
+          const x=p.x+p.nx*lado*dd, z=p.z+p.nz*lado*dd, y=noAvental(dd);
+          const tt=(0.25+r()*0.40)*forca;
+          const cor = r()<0.14
+            ? (piso==="terra" ? [0.55,0.42,0.10] : [0.72,0.70,0.58])
+            : esc(PISOS[piso].grama, 1.3+r()*0.5);
+          for(let k=0;k<3;k++){
+            const a=r()*6.2832, dx=Math.cos(a)*tt, dz=Math.sin(a)*tt;
+            B.tri([x+dx,y,z+dz],[x-dz*0.3,y+tt*(1.5+r()),z+dx*0.3],[x-dx,y,z-dz],cor);
+          }
+        };
+        if(r()<0.45) tufo(p.larg/2+2.5+r()*9, 1);
+        // segundo anel, mais espaçado e SÓ um fio maior: com 1.3 o tufo
+        // passava de 2 m e lia como mini-pinheiro — visto na foto
+        if(r()<0.40) tufo(p.larg/2+12+r()*34, 1.1);
+        // pedrinha meio enterrada: cinza neutro, nunca compete com o capim
+        if(r()<0.08){
+          const dd=p.larg/2+6+r()*30;
+          const x=p.x+p.nx*lado*dd, z=p.z+p.nz*lado*dd, y=noAvental(dd);
+          B.box(x, y+0.14, z, 0.45+r()*0.55, 0.30+r()*0.25, 0.40+r()*0.45,
+                piso==="terra" ? [0.185,0.15,0.115] : [0.155,0.15,0.14]);
         }
       }
     }
@@ -356,6 +380,17 @@ function construirPista(pista, nomePiso){
   const B=new M(), PI=PISOS[nomePiso||"asfalto"], r=semente(pista.n*13+5);
   const asf=PI.pista, mf1=[.30,.045,.035], mf2=[.62,.60,.56], gr=PI.grama;
   const pts=pista.pontos, n=pista.n;
+  /* Manchas do avental ancoradas no MUNDO — a mesma conta do terreno de
+     construirCenario, para as manchas atravessarem a fronteira avental→campo
+     sem emenda. Chuva puxa pro musgo frio; os outros pisos pro capim seco. */
+  const manchada=(base,x,z)=>{
+    const t=(0.5+0.5*Math.sin(x*0.013+1.7)*Math.sin(z*0.011+0.4))
+            *(nomePiso==="chuva"?0.40:0.55);
+    const q2 = nomePiso==="chuva"
+      ? [base[0]*0.85,base[1]*0.98,base[2]*1.08]
+      : [base[0]*1.38,base[1]*1.05,base[2]*0.55];
+    return [lerp(base[0],q2[0],t),lerp(base[1],q2[1],t),lerp(base[2],q2[2],t)];
+  };
   // disco deitado no chão — o `disco` da classe M é vertical, este é o do piso
   const discoChao=(x,y,z,raio,seg,col)=>{
     for(let i=0;i<seg;i++){ const a0=i/seg*6.2832, a1=(i+1)/seg*6.2832;
@@ -455,10 +490,12 @@ function construirPista(pista, nomePiso){
       m1[1]=lerp(pyb+0.10, pyb*SOBRA-.07, tm);
       m2[1]=lerp(qyb+0.10, qyb*SOBRA-.07, tm);
       a2[1]=pyb*SOBRA-.07; b2[1]=qyb*SOBRA-.07;
-      B.quad(a,b,m2,m1, esc(gr, i%2 ? 1.34 : 1.18));
+      /* A listra i%2 continua (é o ritmo da beira), mais leve — quem carrega
+         a vida agora é a mancha espacial, que muda ao LONGO da volta. */
+      B.quad(a,b,m2,m1, esc(manchada(gr,(a[0]+m1[0])/2,(a[2]+m1[2])/2), i%2 ? 1.30 : 1.20));
       // 1,16 e não 1,35 na faixa longa: com o avental acompanhando o relevo
       // as listras ficaram enormes na paisagem, e contraste forte virava zebra
-      B.quad(m1,m2,b2,a2, (i%2? gr : esc(gr,1.16)));
+      B.quad(m1,m2,b2,a2, esc(manchada(gr,(m1[0]+a2[0])/2,(m1[2]+a2[2])/2), i%2? 1.0 : 1.12));
     }
   }
 

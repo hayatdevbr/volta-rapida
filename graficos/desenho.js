@@ -27,11 +27,19 @@ function quadro(agora){
   gl.useProgram(pFundo);
   gl.uniform1f(loc(pFundo,"uLuz"),
     tela==="corrida" ? (PISOS[estado.piso]||PISOS.asfalto).ceu : 1.0);
-  const tomCeu = tela!=="corrida" ? [1,1,1]
+  /* O asfalto é o clima-assinatura do jogo: entardecer, não meio-dia. O céu
+     neutro [1,1,1] era o que deixava tudo com cara de protótipo lavado —
+     decisão do conceito visual de 25/08. A garagem é o mesmo pátio, então
+     veste o mesmo fim de tarde. */
+  const tomCeu = tela!=="corrida" ? [1.04,.96,.90]
     : estado.piso==="chuva" ? [.62,.72,.92]      // cinza-azulado de chuva
     : estado.piso==="terra" ? [1.10,.98,.82]     // poeira quente
-    : [1,1,1];
+    : [1.04,.96,.88];                            // entardecer do asfalto
   gl.uniform3f(loc(pFundo,"uCeu"),tomCeu[0],tomCeu[1],tomCeu[2]);
+  // o sol só se apaga na chuva; no mapa ele fica discreto (a câmera olha o chão)
+  gl.uniform1f(loc(pFundo,"uSolI"),
+    tela==="corrida" ? (estado.piso==="chuva" ? 0.12 : 1.0)
+    : tela==="mapa" ? 0.8 : 1.0);
   gl.bindVertexArray(vazio); gl.drawArrays(gl.TRIANGLES,0,3);
   gl.enable(gl.DEPTH_TEST); gl.depthMask(true);
 
@@ -131,6 +139,15 @@ function quadro(agora){
   gl.uniformMatrix4fv(loc(pObj,"uV"),false,vista);
   gl.uniform3fv(loc(pObj,"uEye"),new Float32Array(olho));
   gl.uniform1f(loc(pObj,"uNeb"),neb);
+  /* A névoa herda a cor do horizonte do piso: o longe derrete PARA DENTRO do
+     céu (serra azulada, poeira dourada) em vez de escurecer num azul-carvão. */
+  const nebCor = tela==="corrida"
+    ? (estado.piso==="chuva" ? [.16,.20,.27]     // frio e fundo: chuva não tem brilho
+      : estado.piso==="terra" ? [.44,.36,.24]
+      : [.34,.30,.36])
+    : tela==="mapa" ? [.20,.19,.23]              // de cima o véu claro leitava o mapa
+    : [.30,.27,.32];
+  gl.uniform3f(loc(pObj,"uNebCor"),nebCor[0],nebCor[1],nebCor[2]);
   gl.uniform3f(loc(pObj,"uTinta"),1,1,1);
 
   if(tela==="corrida"&&corrida){
@@ -252,8 +269,18 @@ function quadro(agora){
       // 0,55 e teto: mais que isso não aparece na tela e ainda pesa no quadro
       if(p.turbando && Math.random()<.55 && corrida.brasas.length<110)
         soltarBrasa(corrida,m,p);
-
+      /* Poeira dourada da terra: qualquer carro andando levanta; fora da
+         pista levanta mais. Só nasce com o carro NO CHÃO — poeira saindo de
+         um carro voando entregaria que ela é enfeite. Teto próprio. */
+      if(estado.piso==="terra" && !p.voando){
+        const spd2=Math.hypot(p.vx,p.vz);
+        const chance=Math.min(.5, spd2*.006)*(p.naPista===false?1.8:1);
+        if(spd2>8 && Math.random()<chance && poeira.length<130)
+          soltarPoeira(p,spd2);
+      }
     });
+    passoPoeira(dt);
+    desenharPoeira(vista);
     // a chuva cai por último: é cortina, fica na frente de tudo
     if(estado.piso==="chuva" && malhaChuva)
       desenharChuva(proj,vista,olho,corrida.t+10);

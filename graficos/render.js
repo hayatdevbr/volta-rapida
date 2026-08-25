@@ -19,7 +19,7 @@ layout(location=0)in vec3 aP;layout(location=1)in vec3 aN;layout(location=2)in v
 uniform mat4 uP,uV,uM;out vec3 vN,vW,vC;
 void main(){vec4 w=uM*vec4(aP,1.);vW=w.xyz;vN=mat3(uM)*aN;vC=aC;gl_Position=uP*uV*w;}`,
 `#version 300 es
-precision highp float;in vec3 vN,vW,vC;uniform vec3 uEye;uniform float uNeb;uniform vec3 uTinta;uniform float uAlfa;out vec4 o;
+precision highp float;in vec3 vN,vW,vC;uniform vec3 uEye;uniform float uNeb;uniform vec3 uNebCor;uniform vec3 uTinta;uniform float uAlfa;out vec4 o;
 ${TONE}
 void main(){
   vec3 N=normalize(vN); if(!gl_FrontFacing)N=-N;
@@ -32,13 +32,15 @@ void main(){
   c+=vec3(1.,.92,.78)*pow(max(dot(N,normalize(K+V)),0.),64.)*.15;
   c+=vec3(.42,.58,.82)*pow(1.-max(dot(N,V),0.),3.4)*.22;
   float d=length(uEye-vW);
-  c=mix(c, vec3(.030,.042,.056), clamp((d-70.)/uNeb,0.,.82));
+  // a névoa tem a COR do céu do piso: o longe derrete para dentro do horizonte
+  // em vez de afundar num azul-carvão que lavava a cena inteira
+  c=mix(c, uNebCor, clamp((d-70.)/uNeb,0.,.82));
   o=vec4(saida(c),uAlfa);}`);
 
 const pFundo=prog(`#version 300 es
 out vec2 vU;void main(){vec2 p=vec2((gl_VertexID<<1)&2,gl_VertexID&2);vU=p;gl_Position=vec4(p*2.-1.,0.,1.);}`,
 `#version 300 es
-precision highp float;in vec2 vU;uniform float uLuz;uniform vec3 uCeu;out vec4 o;${TONE}
+precision highp float;in vec2 vU;uniform float uLuz;uniform vec3 uCeu;uniform float uSolI;out vec4 o;${TONE}
 void main(){
   // céu em três faixas — alto, meio e horizonte — mais um sol baixo que
   // sangra na linha do chão. Gradiente de duas cores era o teto do visual.
@@ -48,13 +50,15 @@ void main(){
   vec3 baixo= uCeu*vec3(.68,.58,.44);
   vec3 c = h>.55 ? mix(meio,alto,smoothstep(.55,1.,h))
                  : mix(baixo,meio,smoothstep(.10,.55,h));
-  // sol: um halo largo e um núcleo pequeno, ambos rentes ao horizonte
-  vec2 sol=vec2(.68,.30);
+  // sol: um halo largo e um núcleo pequeno, rentes ao horizonte VISÍVEL.
+  // Em y=.30 ele morava atrás do terreno e ninguém nunca o viu — a linha do
+  // chão nas câmeras do jogo fica perto de .55, medido em foto.
+  vec2 sol=vec2(.68,.54);
   float d=distance(vU*vec2(1.7,1.),sol*vec2(1.7,1.));
-  c += uCeu*vec3(.95,.60,.26)*smoothstep(.66,.0,d)*.62;
-  c += uCeu*vec3(1.8,1.3,.7)*smoothstep(.075,.0,d);
-  // banda quente colada no horizonte
-  c += uCeu*vec3(.40,.26,.13)*smoothstep(.24,.02,abs(h-.16));
+  c += uCeu*vec3(.95,.60,.26)*smoothstep(.66,.0,d)*.62*uSolI;
+  c += uCeu*vec3(1.8,1.3,.7)*smoothstep(.075,.0,d)*uSolI;
+  // banda quente colada no horizonte visível (mesmo motivo da subida do sol)
+  c += uCeu*vec3(.40,.26,.13)*smoothstep(.30,.03,abs(h-.50))*uSolI;
   c*=uLuz; o=vec4(saida(c),1.);}`);
 
 /* ── decalque e partícula plana: cor crua, sem luz nenhuma ────────────────
@@ -85,9 +89,13 @@ void main(){
   // saturação: afasta da luminância — é o "cores vivas" pedido, sem retocar
   // nenhum material um a um
   float l=dot(c,vec3(.299,.587,.114));
-  c=clamp(mix(vec3(l),c,1.16),0.,1.);
-  // contraste: um terço de curva S, dois terços de identidade
-  c=mix(c, c*c*(3.-2.*c), .30);
+  c=clamp(mix(vec3(l),c,1.24),0.,1.);
+  // contraste: curva S um pouco mais firme que antes
+  c=mix(c, c*c*(3.-2.*c), .34);
+  // duotônico discreto do fim de tarde: alta-luz puxa pro dourado, sombra
+  // pro azul — é o que separa "hora dourada" de "meio-dia lavado"
+  float l2=dot(c,vec3(.299,.587,.114));
+  c=mix(c*vec3(.972,.988,1.030), c*vec3(1.045,1.000,.945), smoothstep(.12,.72,l2));
   // vinheta discreta: escurece canto, concentra o olho no meio
   float d=distance(vU,vec2(.5,.46));
   c*=1.-.30*smoothstep(.52,.96,d);

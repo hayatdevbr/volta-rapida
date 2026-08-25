@@ -76,6 +76,51 @@ function desenharBrasas(c,vista){
   gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 }
 
+/* ── POEIRA DA TERRA ──────────────────────────────────────────────────────
+   Nasce da traseira do carro e fica para trás, como a brasa — mas poeira não
+   é luz: mistura normal, cor de barro ao sol, cresce enquanto esvai. No
+   contra-luz do entardecer ela é o que faz a terra parecer TERRA. O pool é
+   da camada de desenho (a simulação nunca sabe dela) e tem teto, como manda
+   a regra de partícula. */
+let poeira=[];
+function soltarPoeira(p,vel){
+  const cs=Math.cos(p.h), sn=Math.sin(p.h);
+  poeira.push({
+    // atrás do eixo traseiro, com espalhamento lateral de roda
+    x:p.x - cs*1.7 - sn*(Math.random()-.5)*1.8,
+    y:(p.y||0) + 0.22,
+    z:p.z - sn*1.7 + cs*(Math.random()-.5)*1.8,
+    vx:-cs*(1.5+vel*.04) + (Math.random()-.5)*1.2,
+    vz:-sn*(1.5+vel*.04) + (Math.random()-.5)*1.2,
+    vy:.55+Math.random()*.85,
+    t:0, vida:.55+Math.random()*.45,
+  });
+}
+function passoPoeira(dt){
+  if(tela!=="corrida"){ if(poeira.length) poeira.length=0; return; }
+  for(const g of poeira){
+    g.t+=dt;
+    g.x+=g.vx*dt; g.y+=g.vy*dt; g.z+=g.vz*dt;
+    // sobe desacelerando e deriva: poeira flutua, não cai como brasa
+    g.vy*=1-1.6*dt; g.vx*=1-1.1*dt; g.vz*=1-1.1*dt;
+  }
+  poeira=poeira.filter(g=>g.t<g.vida);
+}
+function desenharPoeira(vista){
+  if(!poeira.length) return;
+  gl.depthMask(false);
+  const uT=loc(pObj,"uTinta"), uA=loc(pObj,"uAlfa");
+  for(const g of poeira){
+    const k=1-g.t/g.vida;
+    // barro dourado que esfria pro tom do campo enquanto some
+    gl.uniform3f(uT, .92-k*.10, .74-k*.06, .46+k*.06);
+    gl.uniform1f(uA, .05+k*.13);
+    desenhar(malhaBrilho, billboard(g.x,g.y,g.z, .45+(1-k)*1.15, vista));
+  }
+  gl.uniform3f(uT,1,1,1); gl.uniform1f(uA,1);
+  gl.depthMask(true);
+}
+
 /* ── anéis de efeito: é o que torna item visível ── */
 /* O plano do jogador só vale para o carro DELE, e só no Automático. Mexe em
    três coisas, que é o que dá para explicar numa tela sem virar planilha:
@@ -309,19 +354,29 @@ function m4noChaoXY(x,y,z,rumo,seg,e){
 }
 
 /* ── nuvens ───────────────────────────────────────────────────────────────
-   Caixas achatadas em aglomerados, bem alto e bem longe. Cor acima de 1 para
-   o tonemap dar o brilho de nuvem ao sol. São desenhadas com a névoa
+   Cúmulos: uma base larga e achatada, SOMBREADA (abaixo de 1), e uma cúpula
+   de caixas empilhadas clareando a cada andar — a versão anterior espalhava
+   caixas no mesmo nível e lia como laje, visto em foto. Cor acima de 1 só na
+   coroa, para o tonemap dar o brilho de nuvem ao sol. Desenhadas com a névoa
    desligada — a névoa do chão as comeria e o céu voltaria a ser vazio. */
 function construirNuvens(){
   const B=new M(), r=semente(77);
   for(let k=0;k<12;k++){
     const a=r()*6.2832, d=260+r()*720;
     const x=Math.cos(a)*d, z=Math.sin(a)*d, y=58+r()*44, esc2=1+r()*1.7;
-    const nb=3+Math.floor(r()*4);
+    // base plana: a cor fica clara — quem escurece a barriga é o próprio
+    // sombreamento (normal para baixo recebe menos luz); pintada de cinza
+    // ela dobrava a sombra e lia como laje de concreto, visto em foto
+    const L=(26+r()*20)*esc2, P2=(14+r()*10)*esc2;
+    B.box(x, y, z, L, 3+r()*2, P2, [.92,.93,1.00]);
+    // cúpula: cada andar menor, mais alto e mais claro que o de baixo
+    const nb=2+Math.floor(r()*3);
+    let yy=y+2.4, ll=L*.62, pp=P2*.68;
     for(let j=0;j<nb;j++){
-      const c= j? [1.04,1.06,1.10] : [1.16,1.18,1.24];
-      B.box(x+(r()-.5)*30*esc2, y+(r()-.5)*5, z+(r()-.5)*18*esc2,
-            (15+r()*17)*esc2, 3.5+r()*3, (9+r()*9)*esc2, c);
+      const c=[1.00+j*.08, 1.01+j*.08, 1.05+j*.08];
+      B.box(x+(r()-.5)*L*.28, yy, z+(r()-.5)*P2*.28,
+            ll, 3.2+r()*3.2, pp, c);
+      yy+=2.4+r()*1.8; ll*=.60+r()*.14; pp*=.60+r()*.14;
     }
   }
   malhaNuvens=subir(B);
