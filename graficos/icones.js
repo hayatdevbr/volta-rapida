@@ -256,20 +256,28 @@ function gerarIcones(){
   gl.uniform1f(loc(pObj,"uAlfa"),1);
   gl.uniform1f(loc(pObj,"uAlfa"),1);
 
+  /* Vista de EMBLEMA, não de mundo: o 3/4 alto único com FOV largo entortava
+     tudo dentro do cardzinho — bateria caindo, relógio deitado, troféu
+     tombado (visto na bancada de ícones). Ícone pequeno quer quase-frontal,
+     lente comprida (perspectiva curta) e um giro leve para dar corpo. Só o
+     que é DEITADO por natureza sobe a câmera, senão vira um fio. */
+  const ALTURA={ sucata:.75, oleo:.55, aerofolio:.80, chassi:1.05,
+                 motor:.45, turbo:.35, tranco:.35 };
   for(const nome of Object.keys(FORMAS)){
     const B=new M();
     const recuo=FORMAS[nome](B);
     const malha=subir(B);
 
-    // 3/4 de cima, igual à garagem, para o ícone parecer o mesmo mundo
-    const olho=[recuo*.62, recuo*.52, recuo*.78];
+    const alt=ALTURA[nome]!==undefined?ALTURA[nome]:.24;
+    const dist=recuo*2.35, l2=Math.hypot(alt,1);
+    const olho=[0, dist*alt/l2, dist/l2];
     const desenha=(cr,cg,cb,destino)=>{
       gl.viewport(0,0,L,L);
       gl.clearColor(cr,cg,cb,1);
       gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
-      gl.uniformMatrix4fv(loc(pObj,"uP"),false,m4p(0.72,1,.1,60));
+      gl.uniformMatrix4fv(loc(pObj,"uP"),false,m4p(0.36,1,.1,60));
       gl.uniformMatrix4fv(loc(pObj,"uV"),false,m4look(olho,[0,0,0],[0,1,0]));
-      gl.uniformMatrix4fv(loc(pObj,"uM"),false,m4pose(0,0,0,0));
+      gl.uniformMatrix4fv(loc(pObj,"uM"),false,m4pose(0,0,0,-0.42));
       gl.uniform3fv(loc(pObj,"uEye"),new Float32Array(olho));
       gl.bindVertexArray(malha.vao);
       gl.drawArrays(gl.TRIANGLES,0,malha.n);
